@@ -1,0 +1,141 @@
+const fs = require('fs');
+const path = require('path');
+const env = require('../config/env');
+
+const uploadRoot = path.join(process.cwd(), 'uploads', 'equipment');
+const allowedImageMimes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+const extensionByMime = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp'
+};
+
+function assertValidImage(file) {
+  if (!file) {
+    const error = new Error('Imagen requerida.');
+    error.status = 400;
+    throw error;
+  }
+  if (!allowedImageMimes.has(file.mimetype)) {
+    const error = new Error('Formato de imagen no permitido. Use JPG, PNG o WEBP.');
+    error.status = 400;
+    throw error;
+  }
+}
+
+function safeFileName(equipmentId, file) {
+  const extension = extensionByMime[file.mimetype] || path.extname(file.originalname).toLowerCase();
+  return `${equipmentId}-${Date.now()}${extension}`;
+}
+
+function requireSupabaseConfig() {
+  if (!env.supabaseUrl || !env.supabaseServiceRoleKey || !env.supabaseBucket) {
+    const error = new Error('Faltan variables de Supabase Storage para subir imagenes.');
+    error.status = 500;
+    throw error;
+  }
+}
+
+function getPublicObjectUrl(objectPath) {
+  const baseUrl = env.supabaseUrl.replace(/\/$/, '');
+  return `${baseUrl}/storage/v1/object/public/${encodeURIComponent(env.supabaseBucket)}/${objectPath
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/')}`;
+}
+
+function getSupabaseObjectPath(imagePath) {
+  if (!imagePath || !env.supabaseUrl) return '';
+  const marker = `/storage/v1/object/public/${env.supabaseBucket}/`;
+  const index = imagePath.indexOf(marker);
+  if (index === -1) return '';
+  return decodeURIComponent(imagePath.slice(index + marker.length));
+}
+
+async function uploadLocalImage(equipmentId, file) {
+  fs.mkdirSync(uploadRoot, { recursive: true });
+  const fileName = safeFileName(equipmentId, file);
+  const targetPath = path.join(uploadRoot, fileName);
+
+  if (file.buffer) {
+    await fs.promises.writeFile(targetPath, file.buffer);
+  } else if (file.path) {
+    await fs.promises.rename(file.path, targetPath);
+  } else {
+    const error = new Error('No se pudo procesar la imagen.');
+    error.status = 400;
+    throw error;
+  }
+
+  return `/uploads/equipment/${fileName}`;
+}
+
+async function uploadSupabaseImage(equipmentId, file) {
+  requireSupabaseConfig();
+  const objectPath = `equipment/${safeFileName(equipmentId, file)}`;
+  const uploadUrl = `${env.supabaseUrl.replace(/\/$/, '')}/storage/v1/object/${encodeURIComponent(env.supabaseBucket)}/${objectPath
+    .split('/')
+    .map(encodeURIComponent)
+    .join('/')}`;
+
+  const response = await fetch(uploadUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.supabaseServiceRoleKey}`,
+      apikey: env.supabaseServiceRoleKey,
+      'Content-Type': file.mimetype,
+      'Cache-Control': '31536000',
+      'x-upsert': 'false'
+    },
+    body: file.buffer
+  });
+
+  if (!response.ok) {
+    const message = await response.text().catch(() => '');
+    const error = new Error(`No se pudo subir la imagen a Supabase Storage. ${message}`.trim());
+    error.status = 502;
+    throw error;
+  }
+
+  return getPublicObjectUrl(objectPath);
+}
+
+async function uploadEquipmentImage(equipmentId, file) {
+  assertValidImage(file);
+  if (env.storageDriver === 'supabase') {
+    return uploadSupabaseImage(equipmentId, file);
+  }
+  return uploadLocalImage(equipmentId, file);
+}
+
+async function deleteEquipmentImage(imagePath) {
+  if (!imagePath) return;
+
+  if (imagePath.startsWith('/uploads/')) {
+    const oldPath = path.join(process.cwd(), imagePath.replace(/^\//, ''));
+    await fs.promises.unlink(oldPath).catch(() => {});
+    return;
+  }
+
+  if (env.storageDriver !== 'supabase') return;
+  const objectPath = getSupabaseObjectPath(imagePath);
+  if (!objectPath) return;
+  requireSupabaseConfig();
+
+  const deleteUrl = `${env.supabaseUrl.replace(/\/$/, '')}/storage/v1/object/${encodeURIComponent(env.supabaseBucket)}`;
+  await fetch(deleteUrl, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${env.supabaseServiceRoleKey}`,
+      apikey: env.supabaseServiceRoleKey,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ prefixes: [objectPath] })
+  }).catch(() => {});
+}
+
+module.exports = {
+  allowedImageMimes,
+  deleteEquipmentImage,
+  uploadEquipmentImage
+};
