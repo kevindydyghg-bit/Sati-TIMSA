@@ -879,6 +879,67 @@ nav a:hover .nav-icon {
   font-weight: 800;
 }
 
+.dashboard-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 0 clamp(1rem, 2vw, 2rem) 1.25rem;
+}
+
+.dashboard-kpis article,
+.dashboard-charts article {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  background: var(--white);
+  box-shadow: var(--soft-shadow);
+}
+
+.dashboard-kpis article {
+  border-left: 4px solid var(--blue-500);
+}
+
+.dashboard-kpis .kpi-alert {
+  border-left-color: #ef4444;
+}
+
+.dashboard-kpis span {
+  color: var(--gray-500);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.dashboard-kpis strong {
+  display: block;
+  margin: 0.25rem 0;
+  color: var(--navy-950);
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.dashboard-kpis small {
+  color: var(--gray-500);
+}
+
+.dashboard-charts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 0 clamp(1rem, 2vw, 2rem) 1.25rem;
+}
+
+.dashboard-charts header {
+  margin-bottom: 0.75rem;
+}
+
+.dashboard-charts canvas {
+  width: 100% !important;
+  height: 280px !important;
+  display: block;
+}
+
 .dashboard-insights {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -2228,6 +2289,11 @@ td small {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .dashboard-kpis,
+  .dashboard-charts {
+    grid-template-columns: 1fr;
+  }
+
   .equipment-profile,
   .audit-filters {
     grid-template-columns: 1fr;
@@ -2335,6 +2401,8 @@ td small {
   }
 
   .metrics,
+  .dashboard-kpis,
+  .dashboard-charts,
   .dashboard-insights,
   .form-grid {
     grid-template-columns: 1fr;

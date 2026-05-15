@@ -5,6 +5,7 @@ const state = {
   items: [],
   inventoryMeta: { page: 1, limit: 25, total: 0, total_pages: 1 },
   dashboard: null,
+  dashboardStats: null,
   maintenance: [],
   stock: [],
   stockSummary: { total: 0, available: 0 },
@@ -46,6 +47,7 @@ let hoverDetailTimer = null;
 let hoverHideTimer = null;
 let hoverPointer = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 let catalogSource = 'equipment';
+let dashboardChartInstances = {};
 const assetTypeNames = [
   'laptop',
   'laptops',
@@ -331,6 +333,33 @@ async function demoApi(path, options = {}) {
       recent_changes: [{ event_type: 'DEMO', serial_number: '5CD1234ABC', assigned_user: 'Demo', username: 'admin', created_at: new Date().toISOString() }],
       maintenance: [{ phase: 'en_proceso', total: 1 }],
       stock: { total_items: demoStock.length, total_quantity: demoStock.reduce((total, item) => total + Number(item.quantity || 0), 0), with_images: demoStock.filter((item) => item.image_path).length }
+    };
+  }
+
+  if (path === '/dashboard/stats') {
+    const latestMaintenance = demoMaintenance.reduce((map, item) => {
+      map.set(item.equipment_id, item.phase);
+      return map;
+    }, new Map());
+    const maintenanceCounts = [...latestMaintenance.values()].reduce((acc, phase) => {
+      acc[phase] = (acc[phase] || 0) + 1;
+      return acc;
+    }, {});
+    return {
+      kpis: {
+        totalEquipos: demoItems.length,
+        equiposEnMantenimiento: [...latestMaintenance.values()].filter((phase) => ['revisado', 'en_proceso', 'en proceso'].includes(phase)).length,
+        alertasStock: demoStock.filter((item) => Number(item.quantity || 0) < 5).length
+      },
+      equiposPorTipo: Object.entries(demoItems.reduce((acc, item) => {
+        acc[item.equipment_type] = (acc[item.equipment_type] || 0) + 1;
+        return acc;
+      }, {})).map(([tipo, total]) => ({ tipo, total })),
+      equiposPorArea: Object.entries(demoItems.reduce((acc, item) => {
+        acc[item.area] = (acc[item.area] || 0) + 1;
+        return acc;
+      }, {})).map(([area, total]) => ({ area, total })),
+      estadoMantenimiento: Object.entries(maintenanceCounts).map(([fase, total]) => ({ fase, total }))
     };
   }
 
@@ -671,6 +700,8 @@ function setView(view) {
   }
 
   $('#metricsView').classList.toggle('hidden', view === 'audit' || view === 'cloud' || view === 'stock');
+  $('#dashboardKpis').classList.toggle('hidden', view === 'audit' || view === 'cloud' || view === 'stock');
+  $('#dashboardCharts').classList.toggle('hidden', view === 'audit' || view === 'cloud' || view === 'stock');
   $('#dashboardInsights').classList.toggle('hidden', view === 'audit' || view === 'cloud' || view === 'stock');
   activatePanel('inventoryView', view === 'inventory' || view === 'accessories');
   activatePanel('hardwareView', view === 'hardware');
@@ -877,6 +908,127 @@ function renderDashboardInsights() {
   $('#recentInsights').innerHTML = (dashboard.recent_changes || []).map((item) => `
     <div><strong>${item.serial_number}</strong><span>${item.event_type} &middot; Usuario asignado: ${item.assigned_user || 'Sin asignar'} &middot; ${item.username || 'sistema'} &middot; ${formatDate(item.created_at)}</span></div>
   `).join('') || '<p class="empty-module">Sin cambios recientes.</p>';
+}
+
+function chartColors(count, alert = false) {
+  const palette = alert
+    ? ['#0b4f8f', '#64748b', '#2fb66d', '#ef4444', '#38bdf8', '#94a3b8']
+    : ['#0b4f8f', '#179bd7', '#64748b', '#2fb66d', '#94a3b8', '#113c75', '#60a5fa', '#16a34a'];
+  return Array.from({ length: count }, (_, index) => palette[index % palette.length]);
+}
+
+function destroyDashboardCharts() {
+  Object.values(dashboardChartInstances).forEach((chart) => chart?.destroy?.());
+  dashboardChartInstances = {};
+}
+
+function renderDashboardStats(stats) {
+  const kpis = stats?.kpis || {};
+  $('#kpiTotalEquipos').textContent = kpis.totalEquipos || 0;
+  $('#kpiMantenimiento').textContent = kpis.equiposEnMantenimiento || 0;
+  $('#kpiAlertasStock').textContent = kpis.alertasStock || 0;
+
+  if (!window.Chart) {
+    console.error('Chart.js no esta disponible.');
+    return;
+  }
+
+  destroyDashboardCharts();
+
+  const tipos = stats.equiposPorTipo || [];
+  const areas = stats.equiposPorArea || [];
+  const mantenimiento = stats.estadoMantenimiento || [];
+  const baseOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: '#334155', boxWidth: 12 } }
+    }
+  };
+
+  dashboardChartInstances.tipos = new Chart($('#chartTipos'), {
+    type: 'doughnut',
+    data: {
+      labels: tipos.map((item) => item.tipo),
+      datasets: [{
+        data: tipos.map((item) => Number(item.total || 0)),
+        backgroundColor: chartColors(tipos.length),
+        borderColor: '#ffffff',
+        borderWidth: 2
+      }]
+    },
+    options: {
+      ...baseOptions,
+      cutout: '62%'
+    }
+  });
+
+  dashboardChartInstances.areas = new Chart($('#chartAreas'), {
+    type: 'bar',
+    data: {
+      labels: areas.map((item) => item.area),
+      datasets: [{
+        label: 'Equipos',
+        data: areas.map((item) => Number(item.total || 0)),
+        backgroundColor: '#179bd7',
+        borderRadius: 6
+      }]
+    },
+    options: {
+      ...baseOptions,
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { beginAtZero: true, ticks: { precision: 0, color: '#64748b' }, grid: { color: '#e5e7eb' } },
+        y: { ticks: { color: '#334155' }, grid: { display: false } }
+      }
+    }
+  });
+
+  dashboardChartInstances.mantenimiento = new Chart($('#chartMantenimiento'), {
+    type: 'bar',
+    data: {
+      labels: mantenimiento.map((item) => phaseLabel(item.fase)),
+      datasets: [{
+        label: 'Equipos',
+        data: mantenimiento.map((item) => Number(item.total || 0)),
+        backgroundColor: chartColors(mantenimiento.length, true),
+        borderRadius: 6
+      }]
+    },
+    options: {
+      ...baseOptions,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#334155' }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { precision: 0, color: '#64748b' }, grid: { color: '#e5e7eb' } }
+      }
+    }
+  });
+}
+
+async function loadDashboardStats() {
+  try {
+    let payload;
+    if (isDemoMode) {
+      payload = await demoApi('/dashboard/stats');
+    } else {
+      const response = await fetch('/api/dashboard/stats', {
+        headers: {
+          Authorization: `Bearer ${state.token}`
+        }
+      });
+      payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.message || 'No se pudieron cargar las estadisticas del dashboard.');
+      }
+    }
+    state.dashboardStats = payload;
+    renderDashboardStats(payload);
+  } catch (error) {
+    console.error('Error cargando estadisticas del dashboard:', error);
+    if (!isDemoMode) alert('No se pudieron cargar las graficas del dashboard.');
+  }
 }
 
 function normalizeTypeName(value) {
@@ -1229,6 +1381,7 @@ function phasePercent(phase) {
 function phaseLabel(phase) {
   return {
     revisado: 'Revisado',
+    'en proceso': 'En proceso',
     en_proceso: 'En proceso',
     terminado: 'Terminado'
   }[phase] || phase;
@@ -1435,6 +1588,7 @@ async function loadInventory() {
 async function loadDashboard() {
   state.dashboard = await api('/dashboard');
   renderDashboardInsights();
+  await loadDashboardStats();
 }
 
 async function loadAudit() {
@@ -2578,6 +2732,7 @@ $('#saveMaintenanceButton').addEventListener('click', async () => {
     maintenanceDialog.close();
     await loadMaintenance();
     await loadInventory();
+    await loadDashboard();
   } catch (error) {
     $('#maintenanceMessage').textContent = error.message;
   }
@@ -2595,6 +2750,7 @@ $('#saveStockButton').addEventListener('click', async () => {
     await uploadStockImage(id || payload.item.id);
     stockDialog.close();
     await loadStock();
+    await loadDashboard();
   } catch (error) {
     $('#stockMessage').textContent = error.message;
   }

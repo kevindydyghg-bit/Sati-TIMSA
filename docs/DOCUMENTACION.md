@@ -11,6 +11,7 @@ Base de datos: PostgreSQL
 Auth: JWT + bcrypt
 Archivos: multer, Supabase Storage opcional
 Reportes: PDFKit y QRCode
+Graficas: Chart.js via CDN
 ```
 
 ## Modulos
@@ -29,6 +30,7 @@ Inventario de activos:
 
 Dashboard:
   Graficas de estado, tipos principales, ubicaciones, mantenimiento, garantias, stock y cambios recientes.
+  El endpoint protegido `/api/dashboard/stats` alimenta KPIs y graficas Chart.js.
 
 Accesorios:
   Separacion de perifericos y accesorios del inventario principal.

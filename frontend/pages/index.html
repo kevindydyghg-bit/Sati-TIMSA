@@ -170,6 +170,48 @@
             </article>
           </section>
 
+          <section class="dashboard-kpis" id="dashboardKpis">
+            <article>
+              <span>Total Equipos</span>
+              <strong id="kpiTotalEquipos">0</strong>
+              <small>Activos registrados</small>
+            </article>
+            <article>
+              <span>En Mantenimiento</span>
+              <strong id="kpiMantenimiento">0</strong>
+              <small>Fases revisado o en proceso</small>
+            </article>
+            <article class="kpi-alert">
+              <span>Alertas de Stock</span>
+              <strong id="kpiAlertasStock">0</strong>
+              <small>Items con cantidad menor a 5</small>
+            </article>
+          </section>
+
+          <section class="dashboard-charts" id="dashboardCharts">
+            <article>
+              <header>
+                <span class="eyebrow">Tipos</span>
+                <strong>Distribucion por tipo de equipo</strong>
+              </header>
+              <canvas id="chartTipos" aria-label="Distribucion por tipo de equipo"></canvas>
+            </article>
+            <article>
+              <header>
+                <span class="eyebrow">Areas</span>
+                <strong>Equipos por area</strong>
+              </header>
+              <canvas id="chartAreas" aria-label="Equipos por area"></canvas>
+            </article>
+            <article>
+              <header>
+                <span class="eyebrow">Mantenimiento</span>
+                <strong>Estado de mantenimiento</strong>
+              </header>
+              <canvas id="chartMantenimiento" aria-label="Estado de mantenimiento"></canvas>
+            </article>
+          </section>
+
           <section class="dashboard-insights" id="dashboardInsights">
             <article class="status-visual-card">
               <header>
@@ -725,6 +767,7 @@
       </form>
     </dialog>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
     <script src="../assets/js/app.js"></script>
   </body>
 </html>
