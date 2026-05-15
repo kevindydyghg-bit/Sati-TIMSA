@@ -533,7 +533,10 @@ router.get('/:id', authenticate, async (req, res, next) => {
 
     const [history, maintenance, audit] = await Promise.all([
       db.query(
-        `SELECT h.id, h.event_type, h.previous_data, h.new_data, h.created_at, u.name AS changed_by
+        `SELECT h.id, h.event_type, h.previous_data, h.new_data, h.created_at,
+                h.previous_data->>'assigned_user' AS previous_assigned_user,
+                h.new_data->>'assigned_user' AS assigned_user,
+                u.name AS changed_by
          FROM equipment_history h
          LEFT JOIN users u ON u.id = h.changed_by
          WHERE h.equipment_id = $1
@@ -598,7 +601,10 @@ router.get('/:id/qr', authenticate, async (req, res, next) => {
 router.get('/:id/history', authenticate, async (req, res, next) => {
   try {
     const { rows } = await db.query(
-      `SELECT h.id, h.event_type, h.previous_data, h.new_data, h.created_at, u.name AS changed_by
+      `SELECT h.id, h.event_type, h.previous_data, h.new_data, h.created_at,
+              h.previous_data->>'assigned_user' AS previous_assigned_user,
+              h.new_data->>'assigned_user' AS assigned_user,
+              u.name AS changed_by
        FROM equipment_history h
        LEFT JOIN users u ON u.id = h.changed_by
        WHERE h.equipment_id = $1

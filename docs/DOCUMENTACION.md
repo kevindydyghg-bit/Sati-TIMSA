@@ -25,6 +25,10 @@ Roles:
 Inventario de activos:
   Laptops, monitores, desktops, proyectores, routers, servers, switches, tablets, telefonos, UPS y workstations.
   Campos principales: ID, tipo, marca, modelo, numero de serie, ID de inventario, ubicacion, area y usuario.
+  La ficha muestra historial con usuario asignado actual y cambios de asignacion.
+
+Dashboard:
+  Graficas de estado, tipos principales, ubicaciones, mantenimiento, garantias, stock y cambios recientes.
 
 Accesorios:
   Separacion de perifericos y accesorios del inventario principal.

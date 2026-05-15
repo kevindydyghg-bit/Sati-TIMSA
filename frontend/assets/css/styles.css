@@ -881,7 +881,7 @@ nav a:hover .nav-icon {
 
 .dashboard-insights {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 1rem;
   padding: 0 clamp(1rem, 2vw, 2rem) 1.25rem;
 }
@@ -894,6 +894,15 @@ nav a:hover .nav-icon {
   border-radius: 8px;
   background: var(--white);
   box-shadow: var(--soft-shadow);
+}
+
+.dashboard-insights article {
+  grid-column: span 2;
+}
+
+.status-visual-card,
+.activity-card {
+  grid-column: span 3;
 }
 
 .dashboard-insights header {
@@ -910,6 +919,10 @@ nav a:hover .nav-icon {
 .profile-list {
   display: grid;
   gap: 0.65rem;
+}
+
+.insight-bars.compact {
+  gap: 0.5rem;
 }
 
 .insight-list div,
@@ -948,6 +961,90 @@ nav a:hover .nav-icon {
   display: block;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--blue-500), var(--green-500));
+}
+
+.status-visual {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: 1rem;
+  align-items: center;
+}
+
+.status-donut {
+  width: 132px;
+  height: 132px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  position: relative;
+}
+
+.status-donut::after {
+  content: "";
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  background: var(--white);
+  box-shadow: inset 0 0 0 1px var(--gray-200);
+  position: absolute;
+}
+
+.status-donut strong,
+.status-donut span {
+  position: relative;
+  z-index: 1;
+}
+
+.status-donut strong {
+  font-size: 1.65rem;
+  line-height: 1;
+}
+
+.status-donut span {
+  margin-top: 2.1rem;
+  color: var(--gray-500);
+  font-size: 0.72rem;
+  font-weight: 800;
+  position: absolute;
+  text-transform: uppercase;
+}
+
+.status-legend {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.status-legend div {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.status-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.status-legend i.active {
+  background: #32b66f;
+}
+
+.status-legend i.maintenance {
+  background: #f59e0b;
+}
+
+.status-legend i.inactive {
+  background: #94a3b8;
+}
+
+.status-legend span {
+  color: var(--gray-600);
+  overflow: hidden;
+  font-size: 0.84rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .content-grid {
@@ -2131,10 +2228,19 @@ td small {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .dashboard-insights,
   .equipment-profile,
   .audit-filters {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-insights {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-insights article,
+  .status-visual-card,
+  .activity-card {
+    grid-column: span 1;
   }
 
   .content-grid {
@@ -2229,8 +2335,14 @@ td small {
   }
 
   .metrics,
+  .dashboard-insights,
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .status-visual {
+    grid-template-columns: 1fr;
+    justify-items: center;
   }
 
   .maintenance-summary,

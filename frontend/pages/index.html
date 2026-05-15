@@ -123,7 +123,7 @@
           <header class="page-header">
             <div>
               <h2 id="viewTitle">Consola de inventario</h2>
-              <p id="viewSubtitle">Resumen general del inventario de hardware</p>
+              <p id="viewSubtitle">Resumen general del inventario de activos</p>
             </div>
             <div class="page-actions">
               <button class="ghost hidden" id="backButton" type="button">Regresar</button>
@@ -171,6 +171,23 @@
           </section>
 
           <section class="dashboard-insights" id="dashboardInsights">
+            <article class="status-visual-card">
+              <header>
+                <span class="eyebrow">Estado</span>
+                <strong>Salud del inventario</strong>
+              </header>
+              <div class="status-visual">
+                <div class="status-donut" id="statusDonut"><strong id="statusDonutTotal">0</strong><span>activos</span></div>
+                <div class="status-legend" id="statusLegend"></div>
+              </div>
+            </article>
+            <article>
+              <header>
+                <span class="eyebrow">Tipos</span>
+                <strong>Activos principales</strong>
+              </header>
+              <div class="insight-bars compact" id="typeInsights"></div>
+            </article>
             <article>
               <header>
                 <span class="eyebrow">Garantias</span>
@@ -186,6 +203,20 @@
               <div class="insight-bars" id="locationInsights"></div>
             </article>
             <article>
+              <header>
+                <span class="eyebrow">Mantenimiento</span>
+                <strong>Ordenes por fase</strong>
+              </header>
+              <div class="insight-bars compact" id="maintenanceInsights"></div>
+            </article>
+            <article>
+              <header>
+                <span class="eyebrow">Stock</span>
+                <strong>Almacenamiento</strong>
+              </header>
+              <div class="insight-list" id="stockInsights"></div>
+            </article>
+            <article class="activity-card">
               <header>
                 <span class="eyebrow">Actividad</span>
                 <strong>Cambios recientes</strong>

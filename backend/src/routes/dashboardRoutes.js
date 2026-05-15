@@ -13,7 +13,8 @@ router.get('/', authenticate, async (req, res, next) => {
       byType,
       warranty,
       recentChanges,
-      maintenance
+      maintenance,
+      stock
     ] = await Promise.all([
       db.query(
         `SELECT COUNT(*)::int AS total,
@@ -58,7 +59,10 @@ router.get('/', authenticate, async (req, res, next) => {
          WHERE deleted_at IS NULL`
       ),
       db.query(
-        `SELECT h.id, h.event_type, h.created_at, e.serial_number, u.username
+        `SELECT h.id, h.event_type, h.created_at, e.serial_number,
+                COALESCE(h.new_data->>'assigned_user', e.assigned_user) AS assigned_user,
+                h.previous_data->>'assigned_user' AS previous_assigned_user,
+                u.username
          FROM equipment_history h
          JOIN equipment e ON e.id = h.equipment_id
          LEFT JOIN users u ON u.id = h.changed_by
@@ -73,6 +77,12 @@ router.get('/', authenticate, async (req, res, next) => {
          WHERE e.deleted_at IS NULL
          GROUP BY mo.phase
          ORDER BY mo.phase`
+      ),
+      db.query(
+        `SELECT COUNT(*)::int AS total_items,
+                COALESCE(SUM(quantity), 0)::int AS total_quantity,
+                COUNT(*) FILTER (WHERE image_path IS NOT NULL)::int AS with_images
+         FROM stock_items`
       )
     ]);
 
@@ -83,7 +93,8 @@ router.get('/', authenticate, async (req, res, next) => {
       by_type: byType.rows,
       warranty: warranty.rows[0],
       recent_changes: recentChanges.rows,
-      maintenance: maintenance.rows
+      maintenance: maintenance.rows,
+      stock: stock.rows[0]
     });
   } catch (error) {
     next(error);

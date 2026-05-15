@@ -322,10 +322,15 @@ async function demoApi(path, options = {}) {
       totals: { total: demoItems.length, active: demoItems.filter((item) => item.status === 'activo').length, maintenance: demoItems.filter((item) => item.status === 'mantenimiento').length, inactive: demoItems.filter((item) => ['baja', 'resguardo'].includes(item.status)).length, with_images: demoItems.filter((item) => item.image_path).length },
       by_status: [],
       by_location: timsaLocations.slice(0, 5).map((name, index) => ({ location: name, total: index + 1 })),
-      by_type: [],
+      by_type: [
+        { equipment_type: 'Laptop', total: 3 },
+        { equipment_type: 'Desktop', total: 2 },
+        { equipment_type: 'Monitor', total: 1 }
+      ],
       warranty: { expired: 0, next_30: 1, next_90: 3 },
-      recent_changes: [{ event_type: 'DEMO', serial_number: '5CD1234ABC', username: 'admin', created_at: new Date().toISOString() }],
-      maintenance: []
+      recent_changes: [{ event_type: 'DEMO', serial_number: '5CD1234ABC', assigned_user: 'Demo', username: 'admin', created_at: new Date().toISOString() }],
+      maintenance: [{ phase: 'en_proceso', total: 1 }],
+      stock: { total_items: demoStock.length, total_quantity: demoStock.reduce((total, item) => total + Number(item.quantity || 0), 0), with_images: demoStock.filter((item) => item.image_path).length }
     };
   }
 
@@ -400,7 +405,7 @@ async function demoApi(path, options = {}) {
       const item = demoItems.find((entry) => String(entry.id) === detailMatch[1]);
       return {
         item,
-        history: [{ id: 1, event_type: 'DEMO', changed_by: 'Demo', created_at: new Date().toISOString() }],
+        history: [{ id: 1, event_type: 'DEMO', changed_by: 'Demo', assigned_user: item?.assigned_user || 'Sin asignar', created_at: new Date().toISOString() }],
         maintenance: demoMaintenance.filter((entry) => entry.equipment_id === item?.id),
         audit: [],
         qr_url: window.location.href,
@@ -795,12 +800,50 @@ function renderMetrics() {
 function renderDashboardInsights() {
   const dashboard = state.dashboard;
   if (!dashboard) return;
+  const totals = dashboard.totals || {};
+  const total = Number(totals.total || 0);
+  const statusItems = [
+    { label: 'Activos', value: Number(totals.active || 0), className: 'active' },
+    { label: 'Mantenimiento', value: Number(totals.maintenance || 0), className: 'maintenance' },
+    { label: 'Resguardo o baja', value: Number(totals.inactive || 0), className: 'inactive' }
+  ];
+  let start = 0;
+  const statusColors = {
+    active: '#32b66f',
+    maintenance: '#f59e0b',
+    inactive: '#94a3b8'
+  };
+  const donutStops = statusItems
+    .filter((item) => item.value > 0 && total > 0)
+    .map((item) => {
+      const degrees = (item.value / total) * 360;
+      const stop = `${statusColors[item.className]} ${start}deg ${start + degrees}deg`;
+      start += degrees;
+      return stop;
+    });
+  $('#statusDonut').style.background = donutStops.length
+    ? `conic-gradient(${donutStops.join(', ')})`
+    : 'conic-gradient(#e5e7eb 0deg 360deg)';
+  $('#statusDonutTotal').textContent = total;
+  $('#statusLegend').innerHTML = statusItems.map((item) => `
+    <div><i class="${item.className}"></i><span>${item.label}</span><strong>${item.value}</strong></div>
+  `).join('');
+
   const warranty = dashboard.warranty || {};
   $('#warrantyInsights').innerHTML = `
     <div><strong>${warranty.expired || 0}</strong><span>Vencidas</span></div>
     <div><strong>${warranty.next_30 || 0}</strong><span>Proximos 30 dias</span></div>
     <div><strong>${warranty.next_90 || 0}</strong><span>Proximos 90 dias</span></div>
   `;
+
+  const maxType = Math.max(1, ...(dashboard.by_type || []).map((item) => Number(item.total)));
+  $('#typeInsights').innerHTML = (dashboard.by_type || []).map((item) => `
+    <div class="insight-bar">
+      <span>${item.equipment_type}</span>
+      <strong>${item.total}</strong>
+      <i data-width="${Math.max(6, Math.round((Number(item.total) / maxType) * 100))}"></i>
+    </div>
+  `).join('') || '<p class="empty-module">Sin datos por tipo.</p>';
 
   const maxLocation = Math.max(1, ...(dashboard.by_location || []).map((item) => Number(item.total)));
   $('#locationInsights').innerHTML = (dashboard.by_location || []).map((item) => `
@@ -810,12 +853,29 @@ function renderDashboardInsights() {
       <i data-width="${Math.max(6, Math.round((Number(item.total) / maxLocation) * 100))}"></i>
     </div>
   `).join('') || '<p class="empty-module">Sin datos por ubicacion.</p>';
-  document.querySelectorAll('#locationInsights i[data-width]').forEach((bar) => {
+
+  const maxMaintenance = Math.max(1, ...(dashboard.maintenance || []).map((item) => Number(item.total)));
+  $('#maintenanceInsights').innerHTML = (dashboard.maintenance || []).map((item) => `
+    <div class="insight-bar">
+      <span>${phaseLabel(item.phase)}</span>
+      <strong>${item.total}</strong>
+      <i data-width="${Math.max(6, Math.round((Number(item.total) / maxMaintenance) * 100))}"></i>
+    </div>
+  `).join('') || '<p class="empty-module">Sin ordenes de mantenimiento.</p>';
+
+  const stock = dashboard.stock || {};
+  $('#stockInsights').innerHTML = `
+    <div><strong>${stock.total_quantity || 0}</strong><span>Unidades disponibles</span></div>
+    <div><strong>${stock.total_items || 0}</strong><span>Registros en stock</span></div>
+    <div><strong>${stock.with_images || 0}</strong><span>Con foto</span></div>
+  `;
+
+  document.querySelectorAll('#dashboardInsights i[data-width]').forEach((bar) => {
     bar.style.width = `${bar.dataset.width}%`;
   });
 
   $('#recentInsights').innerHTML = (dashboard.recent_changes || []).map((item) => `
-    <div><strong>${item.serial_number}</strong><span>${item.event_type} &middot; ${item.username || 'sistema'} &middot; ${formatDate(item.created_at)}</span></div>
+    <div><strong>${item.serial_number}</strong><span>${item.event_type} &middot; Usuario asignado: ${item.assigned_user || 'Sin asignar'} &middot; ${item.username || 'sistema'} &middot; ${formatDate(item.created_at)}</span></div>
   `).join('') || '<p class="empty-module">Sin cambios recientes.</p>';
 }
 
@@ -1427,6 +1487,21 @@ async function loadEquipmentProfile(id) {
   renderEquipmentProfile(payload);
 }
 
+function historyAssignmentText(entry) {
+  const current = entry.assigned_user || entry.new_data?.assigned_user || '';
+  const previous = entry.previous_assigned_user || entry.previous_data?.assigned_user || '';
+  if (current && previous && current !== previous) {
+    return `Asignado a: ${current} (antes: ${previous})`;
+  }
+  if (current) {
+    return `Asignado a: ${current}`;
+  }
+  if (previous) {
+    return `Sin usuario asignado (antes: ${previous})`;
+  }
+  return 'Sin usuario asignado';
+}
+
 function renderEquipmentProfile(profile) {
   const item = profile.item;
   $('#equipmentProfilePanel').classList.remove('hidden');
@@ -1440,7 +1515,7 @@ function renderEquipmentProfile(profile) {
     ? `<img src="${profile.qr_data_url}" alt="QR del equipo"><a href="${profile.qr_url}" target="_blank" rel="noreferrer">Abrir enlace</a>`
     : '<p class="empty-module">QR no disponible en modo demo.</p>';
   $('#equipmentHistoryList').innerHTML = (profile.history || []).map((entry) => `
-    <div><strong>${entry.event_type}</strong><span>${entry.changed_by || 'Sistema'} &middot; ${formatDate(entry.created_at)}</span></div>
+    <div><strong>${entry.event_type}</strong><span>${historyAssignmentText(entry)} &middot; ${entry.changed_by || 'Sistema'} &middot; ${formatDate(entry.created_at)}</span></div>
   `).join('') || '<p class="empty-module">Sin historial.</p>';
   $('#equipmentMaintenanceList').innerHTML = (profile.maintenance || []).map((entry) => `
     <div><strong>${phaseLabel(entry.phase)}</strong><span>${formatDate(entry.updated_at)} &middot; ${entry.notes || 'Sin notas'}</span></div>
