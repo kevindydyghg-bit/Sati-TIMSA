@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const env = require('../config/env');
 
-const uploadRoot = path.join(process.cwd(), 'uploads', 'equipment');
+const uploadsRoot = path.join(process.cwd(), 'uploads');
 const allowedImageMimes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const extensionByMime = {
   'image/jpeg': '.jpg',
@@ -23,9 +23,9 @@ function assertValidImage(file) {
   }
 }
 
-function safeFileName(equipmentId, file) {
+function safeFileName(itemId, file) {
   const extension = extensionByMime[file.mimetype] || path.extname(file.originalname).toLowerCase();
-  return `${equipmentId}-${Date.now()}${extension}`;
+  return `${itemId}-${Date.now()}${extension}`;
 }
 
 function requireSupabaseConfig() {
@@ -52,9 +52,10 @@ function getSupabaseObjectPath(imagePath) {
   return decodeURIComponent(imagePath.slice(index + marker.length));
 }
 
-async function uploadLocalImage(equipmentId, file) {
+async function uploadLocalImage(kind, itemId, file) {
+  const uploadRoot = path.join(uploadsRoot, kind);
   fs.mkdirSync(uploadRoot, { recursive: true });
-  const fileName = safeFileName(equipmentId, file);
+  const fileName = safeFileName(itemId, file);
   const targetPath = path.join(uploadRoot, fileName);
 
   if (file.buffer) {
@@ -67,12 +68,12 @@ async function uploadLocalImage(equipmentId, file) {
     throw error;
   }
 
-  return `/uploads/equipment/${fileName}`;
+  return `/uploads/${kind}/${fileName}`;
 }
 
-async function uploadSupabaseImage(equipmentId, file) {
+async function uploadSupabaseImage(kind, itemId, file) {
   requireSupabaseConfig();
-  const objectPath = `equipment/${safeFileName(equipmentId, file)}`;
+  const objectPath = `${kind}/${safeFileName(itemId, file)}`;
   const uploadUrl = `${env.supabaseUrl.replace(/\/$/, '')}/storage/v1/object/${encodeURIComponent(env.supabaseBucket)}/${objectPath
     .split('/')
     .map(encodeURIComponent)
@@ -100,12 +101,20 @@ async function uploadSupabaseImage(equipmentId, file) {
   return getPublicObjectUrl(objectPath);
 }
 
-async function uploadEquipmentImage(equipmentId, file) {
+async function uploadAssetImage(kind, itemId, file) {
   assertValidImage(file);
   if (env.storageDriver === 'supabase') {
-    return uploadSupabaseImage(equipmentId, file);
+    return uploadSupabaseImage(kind, itemId, file);
   }
-  return uploadLocalImage(equipmentId, file);
+  return uploadLocalImage(kind, itemId, file);
+}
+
+async function uploadEquipmentImage(equipmentId, file) {
+  return uploadAssetImage('equipment', equipmentId, file);
+}
+
+async function uploadStockImage(stockId, file) {
+  return uploadAssetImage('stock', stockId, file);
 }
 
 async function deleteEquipmentImage(imagePath) {
@@ -137,5 +146,7 @@ async function deleteEquipmentImage(imagePath) {
 module.exports = {
   allowedImageMimes,
   deleteEquipmentImage,
-  uploadEquipmentImage
+  deleteStockImage: deleteEquipmentImage,
+  uploadEquipmentImage,
+  uploadStockImage
 };

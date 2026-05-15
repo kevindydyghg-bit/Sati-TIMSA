@@ -1,10 +1,33 @@
 const express = require('express');
+const multer = require('multer');
 const { z } = require('zod');
 const db = require('../config/db');
 const { authenticate, requireWriteAccess } = require('../middleware/auth');
 const { writeAudit } = require('../services/auditService');
+const { allowedImageMimes, deleteStockImage, uploadStockImage: storeStockImage } = require('../services/storageService');
 
 const router = express.Router();
+
+const uploadStockImage = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!allowedImageMimes.has(file.mimetype)) {
+      return cb(new Error('Formato de imagen no permitido. Use JPG, PNG o WEBP.'));
+    }
+    cb(null, true);
+  }
+});
+
+function handleStockImageUpload(req, res, next) {
+  uploadStockImage.single('image')(req, res, (error) => {
+    if (error) {
+      error.status = 400;
+      return next(error);
+    }
+    next();
+  });
+}
 
 const stockSchema = z.object({
   location_id: z.coerce.number().int().positive(),
@@ -20,6 +43,7 @@ const stockSchema = z.object({
 function selectStockSql(where = '') {
   return `
     SELECT si.id, si.item_code, si.name, si.model, si.serial_number, si.quantity, si.status, si.notes,
+           si.image_path, si.image_original_name, si.image_mime, si.image_size,
            si.created_at, si.updated_at,
            l.id AS location_id, l.name AS location,
            a.id AS area_id, a.name AS area,
@@ -194,6 +218,54 @@ router.put('/:id', authenticate, requireWriteAccess, async (req, res, next) => {
     if (error.code === '23505') {
       return res.status(409).json({ message: 'El ID o la serie ya existe en stock.' });
     }
+    next(error);
+  }
+});
+
+router.post('/:id/image', authenticate, requireWriteAccess, handleStockImageUpload, async (req, res, next) => {
+  let previousImagePath = null;
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Imagen requerida.' });
+    }
+
+    const updated = await db.withTransaction(async (client) => {
+      const previous = await client.query('SELECT * FROM stock_items WHERE id = $1 FOR UPDATE', [req.params.id]);
+      if (!previous.rows[0]) {
+        const error = new Error('Dispositivo de stock no encontrado.');
+        error.status = 404;
+        throw error;
+      }
+      previousImagePath = previous.rows[0].image_path;
+
+      const imagePath = await storeStockImage(req.params.id, req.file);
+      const { rows } = await client.query(
+        `UPDATE stock_items
+         SET image_path = $1,
+             image_original_name = $2,
+             image_mime = $3,
+             image_size = $4,
+             updated_by = $5
+         WHERE id = $6
+         RETURNING *`,
+        [imagePath, req.file.originalname, req.file.mimetype, req.file.size, req.user.id, req.params.id]
+      );
+
+      await writeAudit(client, req, 'IMAGE_UPDATE', 'stock_item', req.params.id, {
+        item_code: rows[0].item_code,
+        image_path: imagePath
+      });
+
+      return rows[0];
+    });
+
+    if (previousImagePath && previousImagePath !== updated.image_path) {
+      await deleteStockImage(previousImagePath);
+    }
+
+    const { rows } = await db.query(`${selectStockSql('WHERE si.id = $1')}`, [updated.id]);
+    res.json({ item: rows[0] });
+  } catch (error) {
     next(error);
   }
 });

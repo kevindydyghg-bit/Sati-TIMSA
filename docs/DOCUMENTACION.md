@@ -22,8 +22,9 @@ Login:
 Roles:
   ADMIN y TI escriben. PERSONAL solo consulta.
 
-Inventario:
-  Alta, edicion, busqueda, filtros, imagen, PDF, QR e historial.
+Inventario de activos:
+  Laptops, monitores, desktops, proyectores, routers, servers, switches, tablets, telefonos, UPS y workstations.
+  Campos principales: ID, tipo, marca, modelo, numero de serie, ID de inventario, ubicacion, area y usuario.
 
 Accesorios:
   Separacion de perifericos y accesorios del inventario principal.
@@ -32,8 +33,8 @@ Mantenimiento:
   Seguimiento por fases: revisado, en proceso y terminado.
 
 Stock de almacenamiento:
-  ID de stock, nombre, modelo, serie opcional, cantidad, ubicacion y area.
-  La disponibilidad se calcula por cantidad y se ordena de menor a mayor.
+  ID de stock, nombre, modelo, serie opcional, cantidad, ubicacion, area y foto.
+  La disponibilidad se calcula por cantidad y se ordena de menor a mayor. La vista usa cuadricula, imagen y detalle al pasar el cursor.
 
 Auditoria:
   Eventos de usuario, acciones y cambios relevantes.
@@ -67,6 +68,8 @@ Migraciones recientes:
 005_stock_items.sql
 006_stock_quantity.sql
 007_stock_item_code.sql
+008_timsa_assets_import.sql
+009_stock_item_images.sql
 ```
 
 ## Variables

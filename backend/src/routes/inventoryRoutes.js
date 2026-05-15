@@ -55,50 +55,33 @@ function handleCsvImportUpload(req, res, next) {
 }
 
 const optionalDateSchema = z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/).or(z.literal('')).optional().nullable();
-const accessoryTypeNames = [
+const assetTypeNames = [
+  'laptop',
+  'laptops',
   'monitor',
-  'impresora',
-  'telefono',
-  'radio',
-  'teclado',
-  'camara',
-  'cámara',
-  'mouse',
-  'mouses',
-  'mause',
-  'mauses',
-  'maues',
-  'maueses',
-  'maus',
-  'webcam',
-  'handheld',
+  'monitores',
+  'desktop',
+  'destoktop',
+  'destoktops',
+  'projector',
+  'proyector',
+  'proyectores',
+  'pryector',
+  'pryectores',
   'router',
+  'routers',
+  'server',
+  'servers',
   'switch',
-  'audifono',
-  'audífono',
-  'audifonos',
-  'audífonos',
-  'auricular',
-  'auriculares',
-  'diadema',
-  'headset',
-  'headphones',
-  'microfono',
-  'micrófono',
-  'bocina',
-  'scanner',
-  'escaner',
-  'escáner',
-  'lector',
-  'cable',
-  'cargador',
-  'adaptador',
-  'dock',
-  'docking',
-  'hub',
+  'tablet',
+  'tablets',
+  'telefono',
+  'phone',
   'ups',
-  'nobreak',
-  'no-break'
+  'upc',
+  'workstation',
+  'workstations',
+  'workstacion'
 ];
 
 const equipmentSchema = z.object({
@@ -177,11 +160,11 @@ function buildEquipmentFilters(req) {
         AND ($3::text IS NULL OR e.status = $3)
         AND (
           $4::text IS NULL
-          OR ($4 = 'accessories' AND LOWER(et.name) = ANY($5::text[]))
-          OR ($4 = 'equipment' AND NOT (LOWER(et.name) = ANY($5::text[])))
+          OR ($4 = 'accessories' AND NOT (LOWER(et.name) = ANY($5::text[])))
+          OR ($4 = 'equipment' AND LOWER(et.name) = ANY($5::text[]))
         )
     `,
-    params: [search, Number.isFinite(typeId) ? typeId : null, status || null, scope, accessoryTypeNames]
+    params: [search, Number.isFinite(typeId) ? typeId : null, status || null, scope, assetTypeNames]
   };
 }
 
@@ -236,8 +219,8 @@ function normalizeImportRow(row) {
 
   return {
     serial_number: read('serial_number', 'serie', 'numero de serie', 'número de serie'),
-    asset_tag: read('asset_tag', 'id equipo', 'id del equipo', 'etiqueta', 'activo'),
-    assigned_user: read('assigned_user', 'usuario', 'usuario asignado'),
+    asset_tag: read('asset_tag', 'id equipo', 'id del equipo', 'id de inventario', 'etiqueta', 'activo'),
+    assigned_user: read('assigned_user', 'usuario', 'usuario asignado', 'nombre de usuario'),
     equipment_type: read('equipment_type', 'tipo', 'categoria', 'categoría') || 'Equipo',
     brand: read('brand', 'marca') || 'Generic',
     model: read('model', 'modelo') || 'Generico',
@@ -368,7 +351,7 @@ router.get('/export/pdf', authenticate, async (req, res, next) => {
 
     const reportTitle = req.query.scope === 'accessories'
       ? 'SATI-TIMSA - Inventario de accesorios'
-      : 'SATI-TIMSA - Inventario de hardware';
+      : 'SATI-TIMSA - Inventario de activos';
 
     doc.fontSize(18).text(reportTitle, { align: 'left' });
     doc.moveDown(0.3);
@@ -376,13 +359,15 @@ router.get('/export/pdf', authenticate, async (req, res, next) => {
     doc.moveDown();
 
     const columns = [
-      ['Serie', 36, 95],
-      ['Usuario', 132, 95],
-      ['Ubicacion', 228, 120],
-      ['Modelo', 350, 135],
-      ['Tipo', 486, 70],
-      ['Estado', 558, 85],
-      ['Actualizado', 645, 100]
+      ['ID', 36, 44],
+      ['Tipo', 80, 66],
+      ['Marca', 146, 62],
+      ['Modelo', 208, 100],
+      ['Serie', 308, 84],
+      ['ID Inv.', 392, 62],
+      ['Ubicacion', 454, 68],
+      ['Area', 522, 102],
+      ['Usuario', 624, 134]
     ];
 
     function drawHeader(y) {
@@ -410,13 +395,15 @@ router.get('/export/pdf', authenticate, async (req, res, next) => {
 
       doc.fillColor('#111827').fontSize(7.5);
       const values = [
-        item.serial_number,
-        item.assigned_user || 'Sin asignar',
-        `${item.location} / ${item.area}`,
-        `${item.brand} ${item.model}`,
+        String(item.id).slice(0, 8),
         item.equipment_type,
-        item.status,
-        new Date(item.updated_at).toLocaleString('es-MX')
+        item.brand,
+        item.model,
+        item.serial_number,
+        item.asset_tag || '',
+        item.location,
+        item.area,
+        item.assigned_user || 'Sin asignar'
       ];
 
       columns.forEach(([, x, width], columnIndex) => {

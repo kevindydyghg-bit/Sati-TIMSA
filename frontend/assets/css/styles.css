@@ -1125,11 +1125,25 @@ nav a:hover .nav-icon {
   gap: 0.85rem;
 }
 
+.stock-list {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  align-items: stretch;
+}
+
 .maintenance-card,
 .stock-card {
   padding: 1rem;
   display: grid;
   gap: 0.9rem;
+  min-height: 220px;
+  cursor: default;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.stock-card:hover {
+  border-color: rgba(23, 155, 215, 0.45);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.12);
+  transform: translateY(-2px);
 }
 
 .maintenance-card header,
@@ -1141,10 +1155,22 @@ nav a:hover .nav-icon {
   gap: 1rem;
 }
 
+.stock-title {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.stock-title > div {
+  min-width: 0;
+}
+
 .maintenance-card h3,
 .stock-card h3 {
   margin: 0.2rem 0 0;
   font-size: 1rem;
+  overflow-wrap: anywhere;
 }
 
 .maintenance-card p,
@@ -1171,7 +1197,7 @@ nav a:hover .nav-icon {
 
 .stock-meta {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.7rem;
 }
 
@@ -1402,7 +1428,7 @@ nav a:hover .nav-icon {
 
 table {
   width: 100%;
-  min-width: 980px;
+  min-width: 1200px;
   border-collapse: collapse;
 }
 

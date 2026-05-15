@@ -46,10 +46,38 @@ let hoverDetailTimer = null;
 let hoverHideTimer = null;
 let hoverPointer = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 let catalogSource = 'equipment';
-const accessoryTypes = [
+const assetTypeNames = [
+  'laptop',
+  'laptops',
   'monitor',
-  'impresora',
+  'monitores',
+  'desktop',
+  'destoktop',
+  'destoktops',
+  'projector',
+  'proyector',
+  'proyectores',
+  'pryector',
+  'pryectores',
+  'router',
+  'routers',
+  'server',
+  'servers',
+  'switch',
+  'tablet',
+  'tablets',
   'telefono',
+  'phone',
+  'ups',
+  'upc',
+  'workstation',
+  'workstations',
+  'workstacion'
+];
+
+const accessoryTypes = [
+  'impresora',
+  'printer',
   'radio',
   'teclado',
   'camara',
@@ -60,10 +88,8 @@ const accessoryTypes = [
   'maues',
   'maueses',
   'maus',
-  'webcam',
   'handheld',
-  'router',
-  'switch',
+  'webcam',
   'audifono',
   'audifonos',
   'auricular',
@@ -82,7 +108,6 @@ const accessoryTypes = [
   'dock',
   'docking',
   'hub',
-  'ups',
   'nobreak',
   'no-break'
 ];
@@ -229,6 +254,7 @@ let demoStock = [
     quantity: 2,
     status: 'disponible',
     notes: 'Equipo listo para asignacion.',
+    image_path: '',
     location_id: 1,
     location: demoLookups.locations[0].name,
     area_id: 1,
@@ -615,9 +641,9 @@ function toggleSidebar() {
 
 function setView(view) {
   const views = {
-    inventory: ['Consola de inventario', 'Resumen general del inventario de hardware'],
-    hardware: ['Inventario de hardware', 'Vista ejecutiva de activos por categoria'],
-    equipment: ['Inventario de equipos', 'Clasificacion por tipo de producto'],
+    inventory: ['Consola de inventario', 'Resumen general del inventario de activos'],
+    hardware: ['Inventario de activos', 'Laptops, monitores, desktops, red, servidores y movilidad'],
+    equipment: ['Inventario de activos', 'Clasificacion por tipo de activo'],
     accessories: ['Inventario de accesorios', 'Perifericos y accesorios asignados o en resguardo'],
     maintenance: ['Equipos en mantenimiento', 'Seguimiento por fases de revision, proceso y termino'],
     stock: ['Stock de almacenamiento', 'Disponibilidad por ubicacion y area'],
@@ -633,10 +659,10 @@ function setView(view) {
   $('#viewTitle').textContent = selected[0];
   $('#viewSubtitle').textContent = selected[1];
   $('#backButton').classList.toggle('hidden', view === 'inventory');
-  $('#newEquipmentButton').innerHTML = `<span class="button-icon">+</span>${view === 'accessories' ? 'Nuevo accesorio' : 'Nuevo equipo'}`;
+  $('#newEquipmentButton').innerHTML = `<span class="button-icon">+</span>${view === 'accessories' ? 'Nuevo accesorio' : 'Nuevo activo'}`;
   const totalMetricLabel = $('#metricsView article:first-child small');
   if (totalMetricLabel) {
-    totalMetricLabel.textContent = view === 'accessories' ? 'Accesorios registrados' : 'Equipos registrados';
+    totalMetricLabel.textContent = view === 'accessories' ? 'Accesorios registrados' : 'Activos registrados';
   }
 
   $('#metricsView').classList.toggle('hidden', view === 'audit' || view === 'cloud' || view === 'stock');
@@ -806,8 +832,13 @@ function isAccessoryType(type) {
   return accessoryTypes.includes(normalizeTypeName(type));
 }
 
+function isAssetType(type) {
+  return assetTypeNames.includes(normalizeTypeName(type));
+}
+
 function isAccessoryItem(item) {
-  return isAccessoryType(item?.equipment_type || item?.name);
+  const type = item?.equipment_type || item?.name;
+  return isAccessoryType(type) || !isAssetType(type);
 }
 
 function visibleTypesForScope(types) {
@@ -815,7 +846,7 @@ function visibleTypesForScope(types) {
     return types.filter((item) => isAccessoryType(item.name));
   }
   if (state.inventoryScope === 'equipment') {
-    return types.filter((item) => !isAccessoryType(item.name));
+    return types.filter((item) => isAssetType(item.name));
   }
   return types;
 }
@@ -830,6 +861,7 @@ function productSymbol(type) {
   if (value.includes('desktop')) return 'desktop';
   if (value.includes('monitor')) return 'monitor';
   if (value.includes('telefono') || value.includes('phone') || value.includes('handheld')) return 'phone';
+  if (value.includes('tablet')) return 'tablet';
   if (value.includes('radio')) return 'radio';
   if (value.includes('camara') || value.includes('camera') || value.includes('webcam')) return 'camera';
   if (value.includes('mouse') || value.includes('mause') || value.includes('maues') || value.includes('maus')) return 'mouse';
@@ -838,6 +870,10 @@ function productSymbol(type) {
   if (value.includes('audifono') || value.includes('auricular') || value.includes('diadema') || value.includes('headset') || value.includes('headphone')) return 'headphones';
   if (value.includes('router')) return 'router';
   if (value.includes('switch')) return 'switch';
+  if (value.includes('server')) return 'server';
+  if (value.includes('projector') || value.includes('proyector') || value.includes('pryector')) return 'projector';
+  if (value.includes('ups') || value.includes('upc')) return 'ups';
+  if (value.includes('workstation') || value.includes('workstacion')) return 'workstation';
   if (value.includes('api')) return 'api';
   if (value.includes('db') || value.includes('postgres')) return 'database';
   if (value.includes('web') || value.includes('frontend')) return 'web';
@@ -859,6 +895,11 @@ function productIcon(type, size = 'sm') {
     headphones: '<path d="M7 18v-2a9 9 0 0 1 18 0v2"/><path d="M7 18h5v8H7z"/><path d="M20 18h5v8h-5z"/>',
     router: '<path d="M7 16h18v8H7z"/><path d="M11 16l-3-7M21 16l3-7"/><path d="M11 20h1M16 20h1M21 20h1"/>',
     switch: '<path d="M5 10h22v14H5z"/><path d="M9 15h3M15 15h3M21 15h3M9 20h3M15 20h3M21 20h3"/>',
+    server: '<path d="M8 5h16v8H8z"/><path d="M8 19h16v8H8z"/><path d="M12 9h.01M12 23h.01M16 9h4M16 23h4"/>',
+    projector: '<path d="M6 12h15a5 5 0 0 1 0 10H6z"/><circle cx="21" cy="17" r="3"/><path d="M9 22l-2 5M18 22l2 5"/>',
+    tablet: '<rect x="9" y="4" width="14" height="24" rx="2"/><path d="M15 25h2"/>',
+    ups: '<path d="M9 5h14v22H9z"/><path d="M13 10h6M13 15h6"/><circle cx="16" cy="22" r="2"/>',
+    workstation: '<path d="M5 7h22v13H5z"/><path d="M11 25h10"/><path d="M16 20v5"/><path d="M9 11h14"/>',
     database: '<ellipse cx="16" cy="7" rx="9" ry="3"/><path d="M7 7v14c0 1.7 4 3 9 3s9-1.3 9-3V7"/><path d="M7 14c0 1.7 4 3 9 3s9-1.3 9-3"/>',
     api: '<path d="M9 10l-5 6 5 6"/><path d="M23 10l5 6-5 6"/><path d="M19 7l-6 18"/>',
     web: '<circle cx="16" cy="16" r="11"/><path d="M5 16h22"/><path d="M16 5c3 3 4 7 4 11s-1 8-4 11"/><path d="M16 5c-3 3-4 7-4 11s1 8 4 11"/>',
@@ -883,6 +924,17 @@ function equipmentMedia(item, size = 'sm') {
     `;
   }
   return productIcon(item?.equipment_type, size);
+}
+
+function stockMedia(item, size = 'sm') {
+  if (item?.image_path) {
+    return `
+      <span class="equipment-photo equipment-photo--${size}">
+        <img src="${item.image_path}" alt="Foto de ${item.name}">
+      </span>
+    `;
+  }
+  return productIcon(item?.name, size);
 }
 
 function uiIcon(name) {
@@ -922,18 +974,26 @@ function renderPreview(item) {
       <div class="equipment-art">${equipmentMedia(item, 'lg')}</div>
       <div class="detail-identity">
         <span class="detail-type">${item.equipment_type}</span>
-        <strong>${item.serial_number}</strong>
+        <strong>${item.asset_tag || item.serial_number}</strong>
         <span class="status ${item.status}">${displayStatus(item.status)}</span>
       </div>
     </div>
     <div class="detail-grid">
       <article>
-        <span>ID del equipo</span>
+        <span>ID</span>
+        <strong>${item.id}</strong>
+      </article>
+      <article>
+        <span>ID de inventario</span>
         <strong>${item.asset_tag || 'Sin ID'}</strong>
       </article>
       <article>
-        <span>Usuario</span>
+        <span>Nombre de usuario</span>
         <strong>${item.assigned_user || 'Sin asignar'}</strong>
+      </article>
+      <article>
+        <span>Numero de serie</span>
+        <strong>${item.serial_number}</strong>
       </article>
       <article>
         <span>Ubicacion</span>
@@ -947,6 +1007,45 @@ function renderPreview(item) {
     <div class="detail-footer">
       <span>Actualizado ${formatDate(item.updated_at)}</span>
       <button class="ghost icon-label" type="button" data-preview-open="${item.id}">${uiIcon('eye')}Abrir ficha</button>
+    </div>
+  `;
+}
+
+function renderStockPreview(item) {
+  if (!item) {
+    hideHoverDetails();
+    return;
+  }
+
+  const canWrite = ['ADMIN', 'TI'].includes(state.user?.role);
+  equipmentPreview.classList.remove('hidden');
+  equipmentPreview.innerHTML = `
+    <div class="hover-detail-header">
+      <div>
+        <span class="eyebrow">Detalles de stock</span>
+        <h3>${item.name}</h3>
+      </div>
+      <button class="icon-button detail-close" type="button" data-close-preview aria-label="Cerrar">x</button>
+    </div>
+    <div class="detail-hero">
+      <div class="equipment-art">${stockMedia(item, 'lg')}</div>
+      <div class="detail-identity">
+        <span class="detail-type">Stock de almacenamiento</span>
+        <strong>${item.item_code || item.serial_number || item.name}</strong>
+        <span class="status activo">${Number(item.quantity || 0)} disponibles</span>
+      </div>
+    </div>
+    <div class="detail-grid">
+      <article><span>ID</span><strong>${item.item_code || 'Sin ID'}</strong></article>
+      <article><span>Modelo</span><strong>${item.model}</strong></article>
+      <article><span>Numero de serie</span><strong>${item.serial_number || 'Sin serie'}</strong></article>
+      <article><span>Ubicacion</span><strong>${item.location}</strong></article>
+      <article><span>Area</span><strong>${item.area}</strong></article>
+      <article><span>Cantidad</span><strong>${Number(item.quantity || 0)}</strong></article>
+    </div>
+    <div class="detail-footer">
+      <span>Actualizado ${formatDate(item.updated_at)}</span>
+      ${canWrite ? `<button class="ghost icon-label" type="button" data-stock-preview-edit="${item.id}">${uiIcon('eye')}Modificar</button>` : ''}
     </div>
   `;
 }
@@ -1005,18 +1104,20 @@ function renderInventory() {
     row.classList.add('inventory-row');
     row.classList.add(`inventory-row-delay-${Math.min(index, 15)}`);
     row.innerHTML = `
-      <td data-label="Serie" data-hover-detail>
+      <td data-label="ID"><strong>${String(item.id).slice(0, 8)}</strong></td>
+      <td data-label="Tipo">
         <div class="device-cell">
           ${equipmentMedia(item)}
-          <strong>${item.serial_number}</strong>
+          <strong>${item.equipment_type}</strong>
         </div>
       </td>
-      <td data-label="Usuario">${item.assigned_user || 'Sin asignar'}</td>
+      <td data-label="Marca">${item.brand}</td>
+      <td data-label="Modelo">${item.model}</td>
+      <td data-label="Numero de serie" data-hover-detail><strong>${item.serial_number}</strong></td>
+      <td data-label="ID de inventario">${item.asset_tag || 'Sin ID'}</td>
       <td data-label="Ubicacion">${item.location}</td>
-      <td data-label="Modelo">${item.brand} ${item.model}</td>
-      <td data-label="Tipo">${item.equipment_type}</td>
-      <td data-label="Estado"><span class="status ${item.status}">${displayStatus(item.status)}</span></td>
-      <td data-label="Ultimo reporte">${formatDate(item.updated_at)}</td>
+      <td data-label="Area">${item.area}</td>
+      <td data-label="Usuario">${item.assigned_user || 'Sin asignar'}</td>
       <td data-label="Accion"><button class="ghost row-action" data-edit="${item.id}" aria-label="Ver detalle">${uiIcon('more')}</button></td>
     `;
     inventoryBody.appendChild(row);
@@ -1030,7 +1131,7 @@ function renderInventory() {
 function renderEquipmentTypeList() {
   const container = $('#equipmentTypeList');
   if (!container) return;
-  const totals = state.items.filter((item) => !isAccessoryItem(item)).reduce((acc, item) => {
+  const totals = state.items.filter((item) => isAssetType(item.equipment_type)).reduce((acc, item) => {
     acc[item.equipment_type] = (acc[item.equipment_type] || 0) + 1;
     return acc;
   }, {});
@@ -1041,7 +1142,7 @@ function renderEquipmentTypeList() {
         ${productIcon(type, 'md')}
         <div>
           <strong>${type}</strong>
-          <p>${total} equipos registrados</p>
+          <p>${total} activos registrados</p>
         </div>
       </article>
     `)
@@ -1151,11 +1252,14 @@ function renderStockView() {
     </div>
   `;
   list.innerHTML = state.stock.map((item) => `
-    <article class="stock-card">
+    <article class="stock-card" data-stock-id="${item.id}">
       <header>
-        <div>
-          <span>${item.location} / ${item.area}</span>
-          <h3>${item.name}</h3>
+        <div class="stock-title">
+          ${stockMedia(item)}
+          <div>
+            <span>${item.item_code || item.serial_number || 'Sin ID'}</span>
+            <h3>${item.name}</h3>
+          </div>
         </div>
         <div class="stock-actions">
           <strong class="quantity-pill">${Number(item.quantity || 0)} disponibles</strong>
@@ -1163,12 +1267,11 @@ function renderStockView() {
         </div>
       </header>
       <div class="stock-meta">
-        <div><span>ID</span><strong>${item.item_code || 'Sin ID'}</strong></div>
+        <div><span>Ubicacion</span><strong>${item.location}</strong></div>
+        <div><span>Area</span><strong>${item.area}</strong></div>
         <div><span>Modelo</span><strong>${item.model}</strong></div>
-        <div><span>Serie</span><strong>${item.serial_number || 'Sin serie'}</strong></div>
-        <div><span>Actualizado</span><strong>${formatDate(item.updated_at)}</strong></div>
       </div>
-      <p>${item.notes || 'Sin notas.'}</p>
+      <p>${item.notes || 'Pase el cursor para ver detalles completos.'}</p>
     </article>
   `).join('') || '<p class="empty-module">Sin dispositivos en stock para esta consulta.</p>';
 }
@@ -1179,8 +1282,8 @@ async function loadLookups() {
   syncTypeFilterOptions();
   fillSelect('brand_id', state.lookups.brands);
   fillSelect('model_id', state.lookups.models);
-  fillSelect('location_id', state.lookups.locations);
-  if (stockForm) fillElementSelect(stockForm.elements.location_id, state.lookups.locations, 'Seleccionar');
+  fillSelect('location_id', inventoryLocations());
+  if (stockForm) fillElementSelect(stockForm.elements.location_id, inventoryLocations(), 'Seleccionar');
   syncAreaOptions();
   syncStockAreaOptions();
 }
@@ -1250,7 +1353,7 @@ function syncStockFilterAreas() {
 
 function prepareStockFilters() {
   if (!state.lookups) return;
-  fillElementSelect($('#stockLocationFilter'), state.lookups.locations, 'Todas');
+  fillElementSelect($('#stockLocationFilter'), inventoryLocations(), 'Todas');
   syncStockFilterAreas();
 }
 
@@ -1352,14 +1455,42 @@ async function openHardwareGroup(group) {
 
   const typeByGroup = {
     laptop: 'Laptop',
-    desktop: 'Desktop'
+    monitor: 'Monitor',
+    desktop: 'Desktop',
+    projector: 'Projector',
+    router: 'Router',
+    server: 'Server',
+    switch: 'Switch',
+    tablet: 'Tablet',
+    telefono: 'Telefono',
+    ups: 'UPS',
+    workstation: 'Workstation'
   };
   const typeName = typeByGroup[group];
   const type = typeName ? state.lookups.types.find((item) => item.name.toLowerCase() === typeName.toLowerCase()) : null;
   $('#typeFilter').value = type?.id || '';
 
   setView('inventory');
+  state.inventoryScope = 'equipment';
+  syncTypeFilterOptions();
   await loadInventory();
+}
+
+function scheduleStockHoverDetails(item, event) {
+  clearTimeout(hoverDetailTimer);
+  clearTimeout(hoverHideTimer);
+  hoverPointer = { x: event.clientX, y: event.clientY };
+  hoverDetailTimer = setTimeout(() => {
+    clearTimeout(hoverHideTimer);
+    renderStockPreview(item);
+    positionHoverDetails();
+    equipmentPreview.classList.add('equipment-preview--visible');
+  }, 650);
+}
+
+function inventoryLocations() {
+  const allowed = new Set(['Terminal', '2D']);
+  return (state.lookups?.locations || []).filter((location) => allowed.has(location.name));
 }
 
 async function returnToInventory() {
@@ -1390,7 +1521,7 @@ function openEquipment(item = null) {
     const brand = state.lookups.brands.find((x) => x.name === item.brand);
     const model = state.lookups.models.find((x) => x.name === item.model);
     const location = state.lookups.locations.find((x) => x.name === item.location);
-    const area = state.lookups.areas.find((x) => x.name === item.area);
+    const area = state.lookups.areas.find((x) => x.name === item.area && String(x.location_id) === String(location?.id));
     equipmentForm.elements.equipment_type_id.value = type?.id || '';
     equipmentForm.elements.brand_id.value = brand?.id || '';
     equipmentForm.elements.model_id.value = model?.id || '';
@@ -1479,23 +1610,19 @@ function csvCell(value, delimiter = ';') {
 
 function downloadImportTemplate() {
   const headers = [
-    'Serie',
-    'ID Equipo',
-    'Usuario Asignado',
+    'ID',
     'Tipo',
     'Marca',
     'Modelo',
+    'Numero De Serie',
+    'ID De Inventario',
     'Ubicacion',
     'Area',
-    'Estado',
-    'Notas',
-    'Proveedor',
-    'Fecha De Compra',
-    'Garantia Hasta'
+    'Nombre De Usuario'
   ];
   const rows = [
-    ['TIMSA-EJEMPLO-001', 'ID-001', 'jlopez', 'Laptop', 'Dell', 'Latitude 5440', 'Operaciones', 'Centro de Operaciones', 'activo', 'Equipo asignado para operacion diaria', 'Dell Mexico', '2026-05-14', '2027-05-14'],
-    ['TIMSA-EJEMPLO-002', 'ID-002', 'mruiz', 'Desktop', 'HP', 'EliteDesk 800', 'Administracion', 'Oficinas', 'resguardo', 'Cambiar los datos de ejemplo antes de importar', 'HP Mexico', '2026-05-14', '2027-05-14']
+    ['1', 'Laptop', 'Dell', 'Latitude 5450', '4WG2794', '400001', '2D', 'Sistemas', 'ALEX'],
+    ['2', 'Monitor', 'Dell', 'P2425H', 'MONITOR001', '400500', 'Terminal', 'Control Tower', 'USUARIO']
   ];
   const csv = [
     headers.map((value) => csvCell(value)).join(';'),
@@ -1517,6 +1644,13 @@ function renderEquipmentImagePreview(src) {
   if (!preview) return;
   preview.classList.toggle('hidden', !src);
   preview.innerHTML = src ? `<img src="${src}" alt="Vista previa de imagen del equipo">` : '';
+}
+
+function renderStockImagePreview(src) {
+  const preview = $('#stockImagePreview');
+  if (!preview) return;
+  preview.classList.toggle('hidden', !src);
+  preview.innerHTML = src ? `<img src="${src}" alt="Vista previa de foto de stock">` : '';
 }
 
 function fillMaintenanceEquipmentOptions(selectedId = '') {
@@ -1547,7 +1681,7 @@ function openStockDialog(item = null) {
   stockForm.reset();
   $('#stockMessage').textContent = '';
   $('#stockDialogTitle').textContent = item ? 'Modificar dispositivo en stock' : 'Agregar dispositivo en stock';
-  fillElementSelect(stockForm.elements.location_id, state.lookups?.locations || [], 'Seleccionar');
+  fillElementSelect(stockForm.elements.location_id, inventoryLocations(), 'Seleccionar');
   stockForm.elements.id.value = item?.id || '';
   stockForm.elements.item_code.value = item?.item_code || '';
   stockForm.elements.name.value = item?.name || '';
@@ -1558,6 +1692,7 @@ function openStockDialog(item = null) {
   syncStockAreaOptions();
   stockForm.elements.area_id.value = item?.area_id || '';
   stockForm.elements.notes.value = item?.notes || '';
+  renderStockImagePreview(item?.image_path || '');
   stockDialog.showModal();
 }
 
@@ -1573,6 +1708,7 @@ function maintenancePayload() {
 function stockPayload() {
   const data = Object.fromEntries(new FormData(stockForm));
   delete data.id;
+  delete data.image;
   return data;
 }
 
@@ -1583,9 +1719,8 @@ function formPayload() {
   return data;
 }
 
-async function uploadEquipmentImage(equipmentId) {
-  const file = equipmentForm.elements.image.files[0];
-  if (!file) return null;
+function validateImageFile(file) {
+  if (!file) return;
 
   if (file.size > 2 * 1024 * 1024) {
     throw new Error('La imagen no debe superar 2 MB.');
@@ -1594,6 +1729,13 @@ async function uploadEquipmentImage(equipmentId) {
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
     throw new Error('Use una imagen JPG, PNG o WEBP.');
   }
+}
+
+async function uploadEquipmentImage(equipmentId) {
+  const file = equipmentForm.elements.image.files[0];
+  if (!file) return null;
+
+  validateImageFile(file);
 
   if (isDemoMode) {
     const item = demoItems.find((entry) => String(entry.id) === String(equipmentId));
@@ -1613,6 +1755,34 @@ async function uploadEquipmentImage(equipmentId) {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(payload.message || 'No se pudo subir la imagen.');
+  }
+  return payload.item;
+}
+
+async function uploadStockImage(stockId) {
+  const file = stockForm.elements.image.files[0];
+  if (!file) return null;
+
+  validateImageFile(file);
+
+  if (isDemoMode) {
+    const item = demoStock.find((entry) => String(entry.id) === String(stockId));
+    if (item) {
+      item.image_path = URL.createObjectURL(file);
+    }
+    return item;
+  }
+
+  const formData = new FormData();
+  formData.append('image', file);
+  const response = await fetch(`/api/stock/${stockId}/image`, {
+    method: 'POST',
+    headers: state.token ? { Authorization: `Bearer ${state.token}` } : {},
+    body: formData
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.message || 'No se pudo subir la foto de stock.');
   }
   return payload.item;
 }
@@ -1675,8 +1845,8 @@ function openCatalogDialog(type) {
       `
     },
     assigned_user: {
-      title: 'Agregar usuario asignado',
-      html: '<label class="wide">Usuario<input name="assigned_user" required minlength="2" maxlength="140" placeholder="Ej. jlopez"></label>'
+      title: 'Agregar nombre de usuario',
+      html: '<label class="wide">Nombre de usuario<input name="assigned_user" required minlength="2" maxlength="140" placeholder="Ej. ALEX"></label>'
     },
     serial: {
       title: 'Agregar serie',
@@ -1784,16 +1954,20 @@ async function exportInventoryPdf() {
       .replace(/[()\\]/g, '')
       .slice(0, 110);
     const lines = [
-      state.inventoryScope === 'accessories' ? 'SATI-TIMSA - Inventario de accesorios' : 'SATI-TIMSA - Inventario de hardware',
+      state.inventoryScope === 'accessories' ? 'SATI-TIMSA - Inventario de accesorios' : 'SATI-TIMSA - Inventario de activos',
       `Generado: ${new Date().toLocaleString('es-MX')} | Registros: ${state.items.length}`,
       ' ',
-      'Serie | Usuario | Ubicacion | Modelo | Estado',
+      'ID | Tipo | Marca | Modelo | Numero de serie | ID de inventario | Ubicacion | Area | Usuario',
       ...state.items.slice(0, 32).map((item) => [
+        item.id,
+        item.equipment_type,
+        item.brand,
+        item.model,
         item.serial_number,
-        item.assigned_user || 'Sin asignar',
+        item.asset_tag || 'Sin ID',
         item.location,
-        `${item.brand} ${item.model}`,
-        displayStatus(item.status)
+        item.area,
+        item.assigned_user || 'Sin asignar'
       ].map(clean).join(' | '))
     ];
     const textCommands = lines.map((line, index) => {
@@ -2028,6 +2202,16 @@ equipmentForm.elements.image.addEventListener('change', () => {
   renderEquipmentImagePreview(URL.createObjectURL(file));
 });
 
+stockForm.elements.image.addEventListener('change', () => {
+  const file = stockForm.elements.image.files[0];
+  if (!file) {
+    const item = state.stock.find((entry) => entry.id === stockForm.elements.id.value);
+    renderStockImagePreview(item?.image_path || '');
+    return;
+  }
+  renderStockImagePreview(URL.createObjectURL(file));
+});
+
 equipmentForm.addEventListener('click', (event) => {
   const button = event.target.closest('[data-add-catalog]');
   if (!button) return;
@@ -2136,6 +2320,25 @@ $('#stockList').addEventListener('click', (event) => {
   if (item) openStockDialog(item);
 });
 
+$('#stockList').addEventListener('mouseenter', (event) => {
+  const card = event.target.closest('[data-stock-id]');
+  if (!card) return;
+  const item = state.stock.find((entry) => entry.id === card.dataset.stockId);
+  if (item) scheduleStockHoverDetails(item, event);
+}, true);
+
+$('#stockList').addEventListener('mousemove', (event) => {
+  if (equipmentPreview.matches(':hover')) return;
+  hoverPointer = { x: event.clientX, y: event.clientY };
+});
+
+$('#stockList').addEventListener('mouseleave', (event) => {
+  const card = event.target.closest('[data-stock-id]');
+  if (!card || card.contains(event.relatedTarget)) return;
+  if (equipmentPreview.contains(event.relatedTarget)) return;
+  hideHoverDetails(450);
+}, true);
+
 $('#exportAuditButton').addEventListener('click', async () => {
   const params = new URLSearchParams({
     username: $('#auditUsernameFilter').value.trim(),
@@ -2224,6 +2427,13 @@ equipmentPreview.addEventListener('click', (event) => {
   openEquipment(item);
 });
 
+equipmentPreview.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-stock-preview-edit]');
+  if (!button) return;
+  const item = state.stock.find((entry) => entry.id === button.dataset.stockPreviewEdit);
+  if (item) openStockDialog(item);
+});
+
 equipmentPreview.addEventListener('mouseenter', () => {
   clearTimeout(hoverDetailTimer);
   clearTimeout(hoverHideTimer);
@@ -2235,6 +2445,8 @@ equipmentPreview.addEventListener('mouseenter', () => {
 equipmentPreview.addEventListener('mouseleave', (event) => {
   const row = event.relatedTarget?.closest?.('tr[data-item-id]');
   if (row && inventoryBody.contains(row)) return;
+  const stockCard = event.relatedTarget?.closest?.('[data-stock-id]');
+  if (stockCard && $('#stockList').contains(stockCard)) return;
   hideHoverDetails(250);
 });
 
@@ -2301,10 +2513,11 @@ $('#saveStockButton').addEventListener('click', async () => {
   if (!stockForm.reportValidity()) return;
   try {
     const id = stockForm.elements.id.value;
-    await api(id ? `/stock/${id}` : '/stock', {
+    const payload = await api(id ? `/stock/${id}` : '/stock', {
       method: id ? 'PUT' : 'POST',
       body: JSON.stringify(stockPayload())
     });
+    await uploadStockImage(id || payload.item.id);
     stockDialog.close();
     await loadStock();
   } catch (error) {

@@ -74,7 +74,7 @@
           </div>
           <nav>
             <a class="active" href="#inventory" data-view="inventory"><span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"></rect><rect x="14" y="4" width="6" height="6" rx="1"></rect><rect x="4" y="14" width="6" height="6" rx="1"></rect><rect x="14" y="14" width="6" height="6" rx="1"></rect></svg></span> Consola de inventario</a>
-            <a href="#hardware" data-view="hardware"><span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"></rect><path d="M8 21h8"></path><path d="M12 17v4"></path></svg></span> Inventario de hardware</a>
+            <a href="#hardware" data-view="hardware"><span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"></rect><path d="M8 21h8"></path><path d="M12 17v4"></path></svg></span> Inventario de activos</a>
             <a href="#equipment" data-view="equipment"><span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M8 8h8"></path><path d="M8 12h8"></path><path d="M8 16h5"></path></svg></span> Inventario de equipos</a>
             <a href="#accessories" data-view="accessories"><span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="7" height="10" rx="2"></rect><rect x="13" y="5" width="7" height="10" rx="2"></rect><path d="M8 15v2a4 4 0 0 0 8 0v-2"></path><path d="M12 19v2"></path></svg></span> Inventario de accesorios</a>
             <a href="#maintenance" data-view="maintenance"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14.5 6.5l3-3 3 3-3 3"></path><path d="M3 21l8.5-8.5"></path><path d="M12 5a7 7 0 0 0 7 7"></path></svg></span> Equipos en mantenimiento</a>
@@ -199,7 +199,7 @@
               <div class="toolbar">
                 <label class="search-box" aria-label="Buscar inventario">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
-                  <input id="searchInput" type="search" placeholder="Buscar por serie, usuario, ubicacion o modelo">
+                  <input id="searchInput" type="search" placeholder="Buscar por ID, serie, usuario, ubicacion o modelo">
                 </label>
                 <div class="toolbar-actions">
                   <label class="filter-control">
@@ -228,13 +228,15 @@
                 <table>
                   <thead>
                     <tr>
-                      <th>Serie</th>
-                      <th>Usuario</th>
-                      <th>Ubicacion</th>
-                      <th>Modelo</th>
+                      <th>ID</th>
                       <th>Tipo</th>
-                      <th>Estado</th>
-                      <th>Ultimo reporte</th>
+                      <th>Marca</th>
+                      <th>Modelo</th>
+                      <th>Numero de serie</th>
+                      <th>ID de inventario</th>
+                      <th>Ubicacion</th>
+                      <th>Area</th>
+                      <th>Usuario</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -277,6 +279,12 @@
                   <p>Equipos portatiles asignados a usuarios y areas operativas.</p>
                 </div>
               </article>
+              <article class="hardware-option" data-hardware-group="monitor" role="button" tabindex="0">
+                <div>
+                  <strong>Monitores</strong>
+                  <p>Pantallas asignadas a estaciones de trabajo.</p>
+                </div>
+              </article>
               <article class="hardware-option" data-hardware-group="desktop" role="button" tabindex="0">
                 <span class="product-icon product-icon--md product-icon--desktop" aria-hidden="true">
                   <svg viewBox="0 0 32 32" focusable="false">
@@ -289,6 +297,30 @@
                   <strong>Desktops</strong>
                   <p>Estaciones fijas en operacion, control, accesos y terminales.</p>
                 </div>
+              </article>
+              <article class="hardware-option" data-hardware-group="projector" role="button" tabindex="0">
+                <div><strong>Proyectores</strong><p>Equipo audiovisual inventariado.</p></div>
+              </article>
+              <article class="hardware-option" data-hardware-group="router" role="button" tabindex="0">
+                <div><strong>Routers</strong><p>Red y conectividad por area.</p></div>
+              </article>
+              <article class="hardware-option" data-hardware-group="server" role="button" tabindex="0">
+                <div><strong>Servers</strong><p>Infraestructura critica de TI.</p></div>
+              </article>
+              <article class="hardware-option" data-hardware-group="switch" role="button" tabindex="0">
+                <div><strong>Switches</strong><p>Equipo de comunicacion y red.</p></div>
+              </article>
+              <article class="hardware-option" data-hardware-group="tablet" role="button" tabindex="0">
+                <div><strong>Tablets</strong><p>Dispositivos moviles operativos.</p></div>
+              </article>
+              <article class="hardware-option" data-hardware-group="telefono" role="button" tabindex="0">
+                <div><strong>Telefonos</strong><p>Telefonia asignada a usuarios o areas.</p></div>
+              </article>
+              <article class="hardware-option" data-hardware-group="ups" role="button" tabindex="0">
+                <div><strong>UPS / UPC</strong><p>Respaldo electrico inventariado.</p></div>
+              </article>
+              <article class="hardware-option" data-hardware-group="workstation" role="button" tabindex="0">
+                <div><strong>Workstations</strong><p>Equipos de alto rendimiento.</p></div>
               </article>
             </div>
           </section>
@@ -435,20 +467,17 @@
             </span>
           </label>
           <label>Ubicacion
-            <span class="field-with-action">
-              <select name="location_id" required></select>
-              <button class="mini-action" type="button" data-add-catalog="location">Agregar</button>
-            </span>
+            <select name="location_id" required></select>
           </label>
           <label>Area<select name="area_id" required></select></label>
-          <label>Serie
+          <label>Numero de serie
             <span class="field-with-action">
               <input name="serial_number" required minlength="2">
               <button class="mini-action" type="button" data-add-catalog="serial">Agregar</button>
             </span>
           </label>
-          <label>ID del equipo<input name="asset_tag" placeholder="Ej. TIMSA-INV-001"></label>
-          <label>Usuario asignado
+          <label>ID de inventario<input name="asset_tag" placeholder="Ej. 400001"></label>
+          <label>Nombre de usuario
             <span class="field-with-action">
               <input name="assigned_user" list="assignedUsersList">
               <button class="mini-action" type="button" data-add-catalog="assigned_user">Agregar</button>
@@ -519,16 +548,17 @@
           <label>Serie<input name="serial_number" maxlength="140" placeholder="Opcional si se captura por lote"></label>
           <label>Cantidad<input name="quantity" type="number" min="0" step="1" required value="1"></label>
           <label>Ubicacion
-            <span class="field-with-action">
-              <select name="location_id" required></select>
-              <button class="mini-action" type="button" data-add-catalog="location">Agregar</button>
-            </span>
+            <select name="location_id" required></select>
           </label>
           <label>Area
             <span class="field-with-action">
               <select name="area_id" required></select>
               <button class="mini-action" type="button" data-add-catalog="area">Agregar</button>
             </span>
+          </label>
+          <label class="wide">Foto del equipo
+            <input name="image" type="file" accept="image/jpeg,image/png,image/webp">
+            <span class="image-preview hidden" id="stockImagePreview"></span>
           </label>
           <label class="wide">Notas<textarea name="notes" rows="3" maxlength="2000"></textarea></label>
         </div>
