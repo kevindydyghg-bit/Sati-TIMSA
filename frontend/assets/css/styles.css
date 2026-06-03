@@ -3411,6 +3411,7 @@ body[data-theme="dark"] .hover-detail-header {
 }
 
 @media print {
+  @page { size: 50mm 25mm; margin: 0; }
   body * { display: none !important; }
   body, .label-print-wrapper { display: block !important; margin: 0; padding: 0; }
   .label-print-wrapper { position: absolute; top: 0; left: 0; width: 50mm; }

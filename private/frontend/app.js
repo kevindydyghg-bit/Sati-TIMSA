@@ -886,55 +886,22 @@ function renderAssetLabel(item) {
 
 function printAssetLabel() {
   if (!state.equipmentProfile?.item) return;
-  const item = state.equipmentProfile.item;
-  const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=500,height=400');
-  if (!printWindow) {
-    toast(uiText('No se pudo abrir la ventana de impresion.', 'Could not open the print window.'), 'error');
-    return;
+  const preview = $('#equipmentLabelPreview');
+  if (!preview) return;
+  const wrapper = document.createElement('div');
+  wrapper.className = 'label-print-wrapper';
+  wrapper.innerHTML = preview.querySelector('.label-card')?.outerHTML || '';
+  wrapper.style.cssText = 'position:fixed;top:0;left:0;width:50mm;z-index:9999;background:#fff;';
+  document.body.appendChild(wrapper);
+  const svg = wrapper.querySelector('#printBarcode');
+  if (svg) {
+    const clone = svg.cloneNode(true);
+    clone.id = 'printBc';
+    svg.parentNode.replaceChild(clone, svg);
   }
-  const serial = String(item.serial_number || 'S/N');
-  const assetId = escapeHtml(item.asset_tag || item.serial_number || 'SIN-ID');
-  const type = String(item.equipment_type || '').toUpperCase();
-  printWindow.document.write(`
-    <!doctype html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <title>${uiText('Etiqueta del activo', 'Asset label')}</title>
-        <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
-        <style>
-          @page { size: 50mm 25mm; margin: 0; }
-          * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; width: 50mm; height: 25mm; display: flex; align-items: center; }
-          .label-card { width: 48mm; padding: 1.5mm 2mm; display: grid; gap: 0.8mm; }
-          .label-header { display: flex; justify-content: space-between; font-size: 5.5pt; font-weight: 700; }
-          .label-type { text-align: center; font-size: 8pt; font-weight: 800; letter-spacing: 0.1em; }
-          .label-barcode { display: flex; justify-content: center; }
-          .label-barcode svg { width: 100%; height: auto; max-height: 11mm; }
-          .label-serial { text-align: center; font-weight: 700; font-size: 6.5pt; letter-spacing: 0.05em; }
-          .label-footer { font-size: 5pt; color: #555; }
-        </style>
-      </head>
-      <body>
-        <section class="label-card">
-          <div class="label-header"><span>HUTCHISONPORTS TIMSA</span><span>ID: ${assetId}</span></div>
-          <div class="label-type">${escapeHtml(type)}</div>
-          <div class="label-barcode"><svg id="printBc"></svg></div>
-          <div class="label-serial">${escapeHtml(serial)}</div>
-          <div class="label-footer">Propiedad de TIMSA</div>
-        </section>
-        <script>
-          var sn = ${JSON.stringify(serial)};
-          window.onload = function() {
-            try { JsBarcode('#printBc', sn, { format: 'CODE128', width: 1.8, height: 35, displayValue: false, margin: 0, background: '#ffffff' }); } catch(e) {}
-            setTimeout(function() { window.print(); window.close(); }, 300);
-          };
-        <\/script>
-      </body>
-    </html>
-  `);
-  printWindow.document.close();
   toast(uiText('Etiqueta generada para impresion', 'Label ready for printing'), 'success');
+  window.print();
+  wrapper.remove();
 }
 
 function toast(message, type = 'info') {
@@ -1526,7 +1493,6 @@ function renderInventory() {
     row.classList.add('inventory-row');
     row.classList.add(`inventory-row-delay-${Math.min(index, 15)}`);
     row.innerHTML = esc`
-      <td data-label="ID"><strong>${String(item.id).slice(0, 8)}</strong></td>
       <td data-label="Tipo">
         <div class="device-cell">
           ${raw(productIcon(item?.equipment_type))}
