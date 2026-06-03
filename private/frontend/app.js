@@ -343,6 +343,12 @@ const translationPairs = [
   ['Modificar', 'Edit'],
   ['Etiqueta del activo', 'Asset label'],
   ['Imprimir etiqueta', 'Print label'],
+  ['Descargar ZPL', 'Download ZPL'],
+  ['Imprimir en Zebra', 'Print to Zebra'],
+  ['Archivo ZPL descargado', 'ZPL file downloaded'],
+  ['Ingrese la IP de la impresora Zebra:', 'Enter Zebra printer IP:'],
+  ['Etiqueta enviada a la impresora.', 'Label sent to printer.'],
+  ['Error al enviar a la impresora.', 'Error sending to printer.'],
   ['Codigo de barras', 'Barcode'],
   ['Etiqueta generada para impresion', 'Label ready for printing'],
   ['Usuario actualizado.', 'User updated.'],
@@ -480,7 +486,8 @@ function defaultSettings() {
     density: 'comfortable',
     sidebar: 'expanded',
     motion: 'on',
-    pageSize: '25'
+    pageSize: '25',
+    printerIP: ''
   };
 }
 
@@ -525,6 +532,9 @@ function syncSettingsForm() {
   settingsForm.elements.sidebar.value = settings.sidebar;
   settingsForm.elements.motion.value = settings.motion;
   settingsForm.elements.pageSize.value = settings.pageSize;
+  if (settingsForm.elements.printerIP) {
+    settingsForm.elements.printerIP.value = settings.printerIP || '';
+  }
 }
 
 function openSettingsDialog() {
@@ -978,6 +988,120 @@ function printAssetLabel() {
   `);
   printWindow.document.close();
   toast(uiText('Etiqueta generada para impresion', 'Label ready for printing'), 'success');
+}
+
+let logoZplCache = '';
+
+async function preloadLogoZpl() {
+  try {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = 'assets/img/hutchison_ports_timsa_logo.jpg';
+    });
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const targetW = 80, targetH = 25;
+    canvas.width = targetW;
+    canvas.height = targetH;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, targetW, targetH);
+    ctx.drawImage(img, 0, 0, targetW, targetH);
+    const imageData = ctx.getImageData(0, 0, targetW, targetH);
+    const data = imageData.data;
+    const bytesPerRow = Math.ceil(targetW / 8);
+    const totalBytes = bytesPerRow * targetH;
+    const hexRows = [];
+    for (let row = 0; row < targetH; row++) {
+      let rowHex = '';
+      for (let col = 0; col < bytesPerRow; col++) {
+        let byte = 0;
+        for (let bit = 0; bit < 8; bit++) {
+          const pixelX = col * 8 + bit;
+          if (pixelX < targetW) {
+            const idx = (row * targetW + pixelX) * 4;
+            const brightness = data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114;
+            if (brightness < 128) byte |= (1 << (7 - bit));
+          }
+        }
+        rowHex += byte.toString(16).toUpperCase().padStart(2, '0');
+      }
+      hexRows.push(rowHex);
+    }
+    logoZplCache = `^FO5,2^GFA,${totalBytes},${totalBytes},${bytesPerRow},${hexRows.join('')}^FS`;
+  } catch (e) {
+    logoZplCache = '';
+  }
+}
+
+function zplEscape(text) {
+  return String(text).replace(/[\^~\\]/g, '').substring(0, 80);
+}
+
+function generateZpl(item) {
+  const type = zplEscape(String(item.equipment_type || '').toUpperCase());
+  const serial = zplEscape(item.serial_number || 'S/N');
+  const assetId = zplEscape(item.asset_tag || item.serial_number || 'SIN-ID');
+  const logo = logoZplCache || '';
+  return `^XA
+^PW408
+^LL200
+^MTT
+^MNN
+^PR3
+^MD15
+^CI28
+^LH5,2
+${logo}
+^FO90,2^A0N,11,11^FB190,1,,L^FDHUTCHISON PORTS TIMSA^FS
+^FO268,2^A0N,11,11^FB130,1,,R^FDID: ${assetId}^FS
+^FO5,28^A0N,24,24^FB398,1,,C^FD${type}^FS
+^FO25,58^BY2,2,45^BCN,45,N,N,N^FD${serial}^FS
+^FO5,112^A0N,14,14^FB398,1,,C^FD${serial}^FS
+^FO5,155^A0N,11,11^FB398,1,,C^FDPropiedad de TIMSA^FS
+^XZ`;
+}
+
+function downloadZpl() {
+  const profile = state.equipmentProfile;
+  if (!profile?.item) return;
+  const zpl = generateZpl(profile.item);
+  const blob = new Blob([zpl], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.download = `etiqueta-${profile.item.asset_tag || profile.item.serial_number || 'activo'}.zpl`;
+  a.href = url;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast(uiText('Archivo ZPL descargado', 'ZPL file downloaded'), 'success');
+}
+
+async function printToZebra() {
+  const profile = state.equipmentProfile;
+  if (!profile?.item) return;
+  let printerIP = (normalizedSettings().printerIP || '').trim();
+  if (!printerIP) {
+    printerIP = prompt(uiText('Ingrese la IP de la impresora Zebra:', 'Enter Zebra printer IP:'), '10.132.4.51');
+    if (!printerIP) return;
+    state.settings.printerIP = printerIP;
+    saveSettingsState();
+  }
+  const zpl = generateZpl(profile.item);
+  const button = $('#printToZebraButton');
+  if (button) button.disabled = true;
+  try {
+    const res = await api('/print/zpl', { method: 'POST', body: JSON.stringify({ zpl, printerIP }) });
+    toast(res.message || uiText('Etiqueta enviada a la impresora.', 'Label sent to printer.'), 'success');
+  } catch (err) {
+    const msg = err.message || uiText('Error al enviar a la impresora.', 'Error sending to printer.');
+    toast(uiText(`Error: ${msg}`, `Error: ${msg}`), 'error');
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 function toast(message, type = 'info') {
@@ -2522,10 +2646,14 @@ function renderEquipmentProfile(profile) {
       <div class="qr-actions">
         <a href="${raw(profile.qr_url)}" target="_blank" rel="noreferrer">Abrir enlace</a>
         <button class="ghost" type="button" id="printAssetLabelButton">${raw(uiText('Imprimir etiqueta', 'Print label'))}</button>
+        <button class="ghost" type="button" id="downloadZplButton">${raw(uiText('Descargar ZPL', 'Download ZPL'))}</button>
+        <button class="ghost" type="button" id="printToZebraButton">${raw(uiText('Imprimir en Zebra', 'Print to Zebra'))}</button>
       </div>
     `
     : '<p class="empty-module">QR no disponible.</p>';
   $('#printAssetLabelButton')?.addEventListener('click', printAssetLabel);
+  $('#downloadZplButton')?.addEventListener('click', downloadZpl);
+  $('#printToZebraButton')?.addEventListener('click', printToZebra);
   $('#equipmentHistoryList').innerHTML = commentHistory.map((entry) => `
     <div>
       <strong>${escapeHtml(entry.comment)}</strong>

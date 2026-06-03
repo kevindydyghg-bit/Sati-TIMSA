@@ -10,6 +10,7 @@ const db = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const lookupRoutes = require('./routes/lookupRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
+const printRoutes = require('./routes/printRoutes');
 
 const userRoutes = require('./routes/userRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
@@ -154,6 +155,7 @@ app.use('/api/lookups', lookupRoutes);
 app.use('/api/equipment', inventoryRoutes);
 
 app.use('/api/stock', stockRoutes);
+app.use('/api/print', printRoutes);
 
 app.use('/api', notFound);
 
