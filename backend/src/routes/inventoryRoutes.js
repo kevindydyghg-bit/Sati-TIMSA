@@ -9,20 +9,10 @@ const { parse } = require('csv-parse/sync');
 const db = require('../config/db');
 const { authenticate, requireWriteAccess } = require('../middleware/auth');
 const { writeAudit } = require('../services/auditService');
-const { allowedImageMimes, deleteEquipmentImage, readStoredImage, uploadEquipmentImage: storeEquipmentImage } = require('../services/storageService');
+
 
 const router = express.Router();
 
-const uploadEquipmentImage = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (!allowedImageMimes.has(file.mimetype)) {
-      return cb(new Error('Formato de imagen no permitido. Use JPG, PNG o WEBP.'));
-    }
-    cb(null, true);
-  }
-});
 const uploadCsvImport = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 4 * 1024 * 1024 },
@@ -34,16 +24,6 @@ const uploadCsvImport = multer({
     cb(null, true);
   }
 });
-
-function handleEquipmentImageUpload(req, res, next) {
-  uploadEquipmentImage.single('image')(req, res, (error) => {
-    if (error) {
-      error.status = 400;
-      return next(error);
-    }
-    next();
-  });
-}
 
 function handleCsvImportUpload(req, res, next) {
   uploadCsvImport.single('file')(req, res, (error) => {
@@ -116,6 +96,15 @@ const equipmentSchema = z.object({
   warranty_until: optionalDateSchema
 });
 
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function requireValidUuid(req, res, next) {
+  if (req.params.id && !uuidRegex.test(req.params.id)) {
+    return res.status(400).json({ message: 'ID de equipo invalido.' });
+  }
+  next();
+}
+
 router.use(authenticate, async (req, res, next) => {
   try {
     await ensureEquipmentRuntimeSchema();
@@ -174,7 +163,6 @@ function selectEquipmentSql(where = '') {
   return `
     SELECT e.id, e.serial_number, e.asset_tag, e.assigned_user, e.quantity, e.status, e.notes,
            e.supplier, e.purchase_date, e.warranty_until,
-           e.image_path, e.image_original_name, e.image_mime, e.image_size,
            e.created_at, e.updated_at, e.deleted_at,
            et.name AS equipment_type, b.name AS brand, em.name AS model,
            l.name AS location, a.name AS area,
@@ -543,7 +531,6 @@ router.get('/export/xlsx', authenticate, async (req, res, next) => {
       { header: 'Proveedor', key: 'supplier', width: 22 },
       { header: 'Fecha de compra', key: 'purchase_date', width: 18 },
       { header: 'Garantia hasta', key: 'warranty_until', width: 18 },
-      { header: 'Tiene imagen', key: 'has_image', width: 14 },
       { header: 'Ultima actualizacion', key: 'updated_at', width: 24 }
     ];
 
@@ -563,7 +550,6 @@ router.get('/export/xlsx', authenticate, async (req, res, next) => {
         supplier: item.supplier || '',
         purchase_date: item.purchase_date ? String(item.purchase_date).slice(0, 10) : '',
         warranty_until: item.warranty_until ? String(item.warranty_until).slice(0, 10) : '',
-        has_image: item.image_path ? 'Si' : 'No',
         updated_at: item.updated_at ? new Date(item.updated_at).toLocaleString('es-MX') : ''
       });
     });
@@ -575,7 +561,7 @@ router.get('/export/xlsx', authenticate, async (req, res, next) => {
     });
     worksheet.autoFilter = {
       from: 'A1',
-      to: `P${Math.max(rows.length + 1, 1)}`
+      to: `O${Math.max(rows.length + 1, 1)}`
     };
 
     const fileName = `sati-timsa-inventario-${new Date().toISOString().slice(0, 10)}.xlsx`;
@@ -690,7 +676,7 @@ router.post('/import/csv', authenticate, requireWriteAccess, handleCsvImportUplo
   }
 });
 
-router.get('/:id', authenticate, async (req, res, next) => {
+router.get('/:id', authenticate, requireValidUuid, async (req, res, next) => {
   try {
     const item = await db.query(
       `${selectEquipmentSql('WHERE e.id = $1 AND e.deleted_at IS NULL')}`,
@@ -758,7 +744,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
   }
 });
 
-router.get('/:id/qr', authenticate, async (req, res, next) => {
+router.get('/:id/qr', authenticate, requireValidUuid, async (req, res, next) => {
   try {
     const exists = await db.query('SELECT id FROM equipment WHERE id = $1 AND deleted_at IS NULL', [req.params.id]);
     if (!exists.rows[0]) {
@@ -773,7 +759,7 @@ router.get('/:id/qr', authenticate, async (req, res, next) => {
   }
 });
 
-router.get('/:id/history', authenticate, async (req, res, next) => {
+router.get('/:id/history', authenticate, requireValidUuid, async (req, res, next) => {
   try {
     const { rows } = await db.query(
       `SELECT h.id, h.event_type, h.previous_data, h.new_data, h.created_at,
@@ -787,79 +773,6 @@ router.get('/:id/history', authenticate, async (req, res, next) => {
       [req.params.id]
     );
     res.json({ history: rows });
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.get('/:id/image/view', authenticate, async (req, res, next) => {
-  try {
-    const { rows } = await db.query(
-      `SELECT image_path, image_mime
-       FROM equipment
-       WHERE id = $1 AND deleted_at IS NULL`,
-      [req.params.id]
-    );
-    if (!rows[0]?.image_path) {
-      return res.status(404).json({ message: 'Imagen no encontrada.' });
-    }
-
-    const buffer = await readStoredImage(rows[0].image_path);
-    res.setHeader('Content-Type', rows[0].image_mime || 'application/octet-stream');
-    res.setHeader('Cache-Control', 'private, max-age=300');
-    res.send(buffer);
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.post('/:id/image', authenticate, requireWriteAccess, handleEquipmentImageUpload, async (req, res, next) => {
-  let previousImagePath = null;
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'Imagen requerida.' });
-    }
-
-    const updated = await db.withTransaction(async (client) => {
-      const previous = await client.query('SELECT * FROM equipment WHERE id = $1 AND deleted_at IS NULL FOR UPDATE', [req.params.id]);
-      if (!previous.rows[0]) {
-        const error = new Error('Equipo no encontrado.');
-        error.status = 404;
-        throw error;
-      }
-      previousImagePath = previous.rows[0].image_path;
-
-      const imagePath = await storeEquipmentImage(req.params.id, req.file);
-      const { rows } = await client.query(
-        `UPDATE equipment
-         SET image_path = $1,
-             image_original_name = $2,
-             image_mime = $3,
-             image_size = $4,
-             updated_by = $5
-         WHERE id = $6 AND deleted_at IS NULL
-         RETURNING *`,
-        [imagePath, req.file.originalname, req.file.mimetype, req.file.size, req.user.id, req.params.id]
-      );
-
-      await client.query(
-        `INSERT INTO equipment_history (equipment_id, changed_by, event_type, previous_data, new_data)
-         VALUES ($1, $2, 'IMAGE_UPDATED', $3::jsonb, $4::jsonb)`,
-        [req.params.id, req.user.id, JSON.stringify(previous.rows[0]), JSON.stringify(rows[0])]
-      );
-      await writeAudit(client, req, 'IMAGE_UPDATE', 'equipment', req.params.id, {
-        serial_number: rows[0].serial_number,
-        image_path: imagePath
-      });
-
-      return rows[0];
-    });
-
-    if (previousImagePath && previousImagePath !== updated.image_path) {
-      await deleteEquipmentImage(previousImagePath);
-    }
-
-    res.json({ item: updated });
   } catch (error) {
     next(error);
   }
@@ -916,7 +829,7 @@ router.post('/', authenticate, requireWriteAccess, async (req, res, next) => {
   }
 });
 
-router.put('/:id', authenticate, requireWriteAccess, async (req, res, next) => {
+router.put('/:id', authenticate, requireWriteAccess, requireValidUuid, async (req, res, next) => {
   try {
     const data = equipmentSchema.parse(req.body);
     const updated = await db.withTransaction(async (client) => {
@@ -983,7 +896,7 @@ router.put('/:id', authenticate, requireWriteAccess, async (req, res, next) => {
   }
 });
 
-router.delete('/:id', authenticate, requireWriteAccess, async (req, res, next) => {
+router.delete('/:id', authenticate, requireWriteAccess, requireValidUuid, async (req, res, next) => {
   try {
     await db.withTransaction(async (client) => {
       const previous = await client.query('SELECT * FROM equipment WHERE id = $1 AND deleted_at IS NULL FOR UPDATE', [req.params.id]);

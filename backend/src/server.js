@@ -20,13 +20,7 @@ const { csrfProtection } = require('./middleware/csrf');
 
 const app = express();
 const publicDir = path.join(__dirname, '..', '..', 'frontend');
-const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
-const supabaseImageOrigin = env.supabaseUrl ? new URL(env.supabaseUrl).origin : '';
-const imageSources = ["'self'", 'data:', 'blob:', 'https://images.unsplash.com'];
-
-if (supabaseImageOrigin) {
-  imageSources.push(supabaseImageOrigin);
-}
+const imageSources = ["'self'", 'data:', 'blob:'];
 
 app.set('trust proxy', 1);
 
@@ -123,14 +117,6 @@ const writeRateLimit = rateLimit({
   message: { message: 'Demasiadas operaciones de escritura. Intente mas tarde.' }
 });
 
-const uploadRateLimit = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  limit: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: 'Demasiadas subidas de imagen. Intente mas tarde.' }
-});
-
 app.get('/api/health', async (req, res, next) => {
   try {
     const started = process.hrtime.bigint();
@@ -157,9 +143,6 @@ app.get('/api/health', async (req, res, next) => {
 
 app.use('/api', csrfProtection);
 
-app.use('/api/equipment/*/image', uploadRateLimit, (req, res, next) => next());
-app.use('/api/stock/*/image', uploadRateLimit, (req, res, next) => next());
-
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
@@ -170,10 +153,6 @@ app.use('/api/stock', stockRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api', notFound);
 
-app.use('/uploads', express.static(uploadsDir, {
-  fallthrough: false,
-  maxAge: env.nodeEnv === 'production' ? '1d' : 0
-}));
 app.use(express.static(publicDir));
 app.get('*', (req, res) => {
   res.sendFile(path.join(publicDir, 'pages', 'index.html'));

@@ -246,7 +246,7 @@ const translationPairs = [
   ['Almacenamiento', 'Storage'],
   ['Unidades disponibles', 'Available units'],
   ['Registros en stock', 'Stock records'],
-  ['Con foto', 'With photo'],
+
   ['activos', 'assets'],
   ['Equipo audiovisual inventariado.', 'Inventoried audiovisual equipment.'],
   ['Marca registrada para el tipo seleccionado.', 'Brand registered for the selected type.'],
@@ -292,13 +292,13 @@ const translationPairs = [
   ['Proveedor', 'Supplier'],
   ['Fecha de compra', 'Purchase date'],
   ['Garantia hasta', 'Warranty until'],
-  ['Imagen del equipo', 'Equipment image'],
+
   ['Notas', 'Notes'],
   ['Eliminar', 'Delete'],
   ['Ficha tecnica', 'Technical sheet'],
   ['Etiqueta del activo', 'Asset label'],
   ['Historial', 'History'],
-  ['Foto del equipo', 'Equipment photo'],
+
   ['Guardar stock', 'Save stock'],
   ['Almacen', 'Warehouse'],
   ['Agregar dispositivo en stock', 'Add stock device'],
@@ -841,57 +841,6 @@ function esc(strings, ...values) {
   return result;
 }
 
-function zoomableImage(src, alt) {
-  const safeSrc = escapeHtml(src);
-  const safeAlt = escapeHtml(alt || 'Imagen');
-  return `<img src="${safeSrc}" alt="${safeAlt}" loading="lazy" data-image-zoom="${safeSrc}" data-image-title="${safeAlt}" title="Ampliar imagen">`;
-}
-
-function ensureImageViewer() {
-  let viewer = $('#imageViewer');
-  if (viewer) return viewer;
-
-  viewer = document.createElement('dialog');
-  viewer.id = 'imageViewer';
-  viewer.className = 'image-viewer hidden';
-  viewer.innerHTML = `
-    <div class="image-viewer__backdrop" data-close-image-viewer></div>
-    <figure class="image-viewer__content" role="dialog" aria-modal="true" aria-label="Imagen ampliada">
-      <button class="icon-button image-viewer__close" type="button" data-close-image-viewer aria-label="Cerrar imagen">x</button>
-      <img alt="">
-      <figcaption></figcaption>
-    </figure>
-  `;
-  document.body.appendChild(viewer);
-  return viewer;
-}
-
-function openImageViewer(src, title = 'Imagen') {
-  const viewer = ensureImageViewer();
-  const image = viewer.querySelector('img');
-  const caption = viewer.querySelector('figcaption');
-  image.src = src;
-  image.alt = title;
-  caption.textContent = title;
-  viewer.classList.remove('hidden');
-  if (typeof viewer.showModal === 'function' && !viewer.open) {
-    viewer.showModal();
-  }
-  document.body.classList.add('image-viewer-open');
-  viewer.querySelector('[data-close-image-viewer]')?.focus();
-}
-
-function closeImageViewer() {
-  const viewer = $('#imageViewer');
-  if (!viewer) return;
-  if (typeof viewer.close === 'function' && viewer.open) {
-    viewer.close();
-  }
-  viewer.classList.add('hidden');
-  viewer.querySelector('img').removeAttribute('src');
-  document.body.classList.remove('image-viewer-open');
-}
-
 function assetLabelHtml(item) {
   const type = String(item.equipment_type || '').toUpperCase();
   const serial = escapeHtml(item.serial_number || 'S/N');
@@ -1141,7 +1090,6 @@ function renderDashboardInsights() {
   $('#stockInsights').innerHTML = esc`
     <div><strong>${stock.total_quantity || 0}</strong><span>Unidades disponibles</span></div>
     <div><strong>${stock.total_items || 0}</strong><span>Registros en stock</span></div>
-    <div><strong>${stock.with_images || 0}</strong><span>Con foto</span></div>
   `;
 
   document.querySelectorAll('#dashboardInsights i[data-width]').forEach((bar) => {
@@ -1400,45 +1348,6 @@ function productIcon(type, size = 'sm') {
   `;
 }
 
-function equipmentMedia(item, size = 'sm') {
-  if (item?.image_path) {
-    return `
-      <span class="equipment-photo equipment-photo--${size}">
-        ${zoomableImage(equipmentImageUrl(item), `Imagen de ${item.serial_number}`)}
-      </span>
-    `;
-  }
-  return productIcon(item?.equipment_type, size);
-}
-
-function stockMedia(item, size = 'sm') {
-  if (item?.image_path) {
-    return `
-      <span class="equipment-photo equipment-photo--${size}">
-        ${zoomableImage(stockImageUrl(item), `Foto de ${item.name}`)}
-      </span>
-    `;
-  }
-  return productIcon(item?.name, size);
-}
-
-function imageVersionQuery(item) {
-  const params = new URLSearchParams();
-  if (item?.id) params.set('id', item.id);
-  if (item?.updated_at) params.set('v', item.updated_at);
-  return params.toString();
-}
-
-function equipmentImageUrl(item) {
-  const query = imageVersionQuery(item);
-  return `${apiBaseUrl}/api/equipment/${item.id}/image/view${query ? `?${query}` : ''}`;
-}
-
-function stockImageUrl(item) {
-  const query = imageVersionQuery(item);
-  return `${apiBaseUrl}/api/stock/${item.id}/image/view${query ? `?${query}` : ''}`;
-}
-
 function uiIcon(name) {
   const icons = {
     more: '<circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>',
@@ -1474,7 +1383,7 @@ function renderPreview(item) {
       <button class="icon-button detail-close" type="button" data-close-preview aria-label="Cerrar">x</button>
     </div>
     <div class="detail-hero">
-      <div class="equipment-art">${raw(equipmentMedia(item, 'lg'))}</div>
+      <div class="equipment-art">${raw(productIcon(item?.equipment_type, 'lg'))}</div>
       <div class="detail-identity">
         <span class="detail-type">${item.equipment_type}</span>
         <strong>${item.asset_tag || item.serial_number}</strong>
@@ -1537,7 +1446,7 @@ function renderStockPreview(item) {
       <button class="icon-button detail-close" type="button" data-close-preview aria-label="Cerrar">x</button>
     </div>
     <div class="detail-hero">
-      <div class="equipment-art">${raw(stockMedia(item, 'lg'))}</div>
+      <div class="equipment-art">${raw(productIcon(item?.name, 'lg'))}</div>
       <div class="detail-identity">
         <span class="detail-type">Stock de almacenamiento</span>
         <strong>${item.item_code || item.serial_number || item.name}</strong>
@@ -1620,7 +1529,7 @@ function renderInventory() {
       <td data-label="ID"><strong>${String(item.id).slice(0, 8)}</strong></td>
       <td data-label="Tipo">
         <div class="device-cell">
-          ${raw(equipmentMedia(item))}
+          ${raw(productIcon(item?.equipment_type))}
           <strong>${item.equipment_type}</strong>
         </div>
       </td>
@@ -1930,7 +1839,7 @@ function renderStockView() {
     <article class="stock-card" data-stock-id="${escapeHtml(item.id)}">
       <header>
         <div class="stock-title">
-          ${stockMedia(item)}
+          ${productIcon(item?.name)}
           <div>
             <span>${escapeHtml(item.item_code || item.serial_number || 'Sin ID')}</span>
             <h3>${escapeHtml(item.name)}</h3>
@@ -2635,7 +2544,6 @@ function openEquipment(item = null) {
   hideHoverDetails();
   equipmentForm.reset();
   $('#equipmentMessage').textContent = '';
-  renderEquipmentImagePreview(item?.image_path ? equipmentImageUrl(item) : '');
   const writable = canWrite();
   $('#deleteButton').classList.toggle('hidden', !item || !writable);
   $('#saveEquipmentButton').classList.toggle('hidden', !writable);
@@ -2842,20 +2750,6 @@ function downloadImportTemplate() {
   URL.revokeObjectURL(url);
 }
 
-function renderEquipmentImagePreview(src) {
-  const preview = $('#equipmentImagePreview');
-  if (!preview) return;
-  preview.classList.toggle('hidden', !src);
-  preview.innerHTML = src ? zoomableImage(src, 'Vista previa de imagen del equipo') : '';
-}
-
-function renderStockImagePreview(src) {
-  const preview = $('#stockImagePreview');
-  if (!preview) return;
-  preview.classList.toggle('hidden', !src);
-  preview.innerHTML = src ? zoomableImage(src, 'Vista previa de foto de stock') : '';
-}
-
 function fillMaintenanceEquipmentOptions(selectedId = '') {
   const select = maintenanceForm.elements.equipment_id;
   select.innerHTML = '<option value="">Seleccionar equipo</option>';
@@ -2895,7 +2789,6 @@ function openStockDialog(item = null) {
   syncStockAreaOptions();
   stockForm.elements.area_id.value = item?.area_id || '';
   stockForm.elements.notes.value = item?.notes || '';
-  renderStockImagePreview(item?.image_path ? stockImageUrl(item) : '');
   stockDialog.showModal();
 }
 
@@ -2911,7 +2804,6 @@ function maintenancePayload() {
 function stockPayload() {
   const data = Object.fromEntries(new FormData(stockForm));
   delete data.id;
-  delete data.image;
   return data;
 }
 
@@ -2931,7 +2823,6 @@ function normalizeOptionalDateField(name, label) {
 function formPayload() {
   const data = Object.fromEntries(new FormData(equipmentForm));
   delete data.id;
-  delete data.image;
   data.quantity = Number(data.quantity || 1);
 
   if (isAccessoryFormMode()) {
@@ -2944,92 +2835,6 @@ function formPayload() {
   data.purchase_date = normalizeOptionalDateField('purchase_date', 'Fecha de compra');
   data.warranty_until = normalizeOptionalDateField('warranty_until', 'Garantia hasta');
   return data;
-}
-
-function validateImageFile(file) {
-  if (!file) return;
-
-  if (file.size > 5 * 1024 * 1024) {
-    throw new Error('La imagen no debe superar 5 MB.');
-  }
-
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-    throw new Error('Use una imagen JPG, PNG o WEBP.');
-  }
-}
-
-async function compressedImageFile(file) {
-  validateImageFile(file);
-  if (file.type === 'image/webp' || file.size < 900 * 1024) {
-    return file;
-  }
-
-  const bitmap = await createImageBitmap(file);
-  const maxSide = 1600;
-  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
-  if (scale >= 1 && file.size < 1.8 * 1024 * 1024) {
-    bitmap.close?.();
-    return file;
-  }
-
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-  const context = canvas.getContext('2d', { alpha: false });
-  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close?.();
-
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.82));
-  if (!blob || blob.size >= file.size) {
-    return file;
-  }
-
-  return new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
-    type: 'image/jpeg',
-    lastModified: Date.now()
-  });
-}
-
-async function uploadEquipmentImage(equipmentId) {
-  const file = equipmentForm.elements.image.files[0];
-  if (!file) return null;
-
-  const uploadFile = await compressedImageFile(file);
-
-  const formData = new FormData();
-  formData.append('image', uploadFile);
-  const response = await fetch(`${apiBaseUrl}/api/equipment/${equipmentId}/image`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    body: formData
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(payload.message || 'No se pudo subir la imagen.');
-  }
-  return payload.item;
-}
-
-async function uploadStockImage(stockId) {
-  const file = stockForm.elements.image.files[0];
-  if (!file) return null;
-
-  const uploadFile = await compressedImageFile(file);
-
-  const formData = new FormData();
-  formData.append('image', uploadFile);
-  const response = await fetch(`${apiBaseUrl}/api/stock/${stockId}/image`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    body: formData
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(payload.message || 'No se pudo subir la foto de stock.');
-  }
-  return payload.item;
 }
 
 function selectedBrandName() {
@@ -3516,26 +3321,6 @@ equipmentForm.elements.brand_id.addEventListener('change', () => {
 equipmentForm.elements.location_id.addEventListener('change', syncAreaOptions);
 stockForm.elements.location_id.addEventListener('change', syncStockAreaOptions);
 
-equipmentForm.elements.image.addEventListener('change', () => {
-  const file = equipmentForm.elements.image.files[0];
-  if (!file) {
-    const item = state.items.find((entry) => entry.id === equipmentForm.elements.id.value);
-    renderEquipmentImagePreview(item?.image_path ? equipmentImageUrl(item) : '');
-    return;
-  }
-  renderEquipmentImagePreview(URL.createObjectURL(file));
-});
-
-stockForm.elements.image.addEventListener('change', () => {
-  const file = stockForm.elements.image.files[0];
-  if (!file) {
-    const item = state.stock.find((entry) => entry.id === stockForm.elements.id.value);
-    renderStockImagePreview(item?.image_path ? stockImageUrl(item) : '');
-    return;
-  }
-  renderStockImagePreview(URL.createObjectURL(file));
-});
-
 equipmentForm.addEventListener('click', (event) => {
   const button = event.target.closest('[data-add-catalog]');
   if (!button) return;
@@ -3942,26 +3727,6 @@ equipmentPreview.addEventListener('mouseleave', (event) => {
   hideHoverDetails(250);
 });
 
-document.addEventListener('click', (event) => {
-  const image = event.target.closest('img[data-image-zoom]');
-  if (!image) return;
-  event.preventDefault();
-  event.stopPropagation();
-  openImageViewer(image.dataset.imageZoom || image.src, image.dataset.imageTitle || image.alt || 'Imagen');
-});
-
-document.addEventListener('click', (event) => {
-  if (event.target.closest('[data-close-image-viewer]')) {
-    closeImageViewer();
-  }
-});
-
-document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') {
-    closeImageViewer();
-  }
-});
-
 window.addEventListener('resize', () => {
   if (equipmentPreview.classList.contains('equipment-preview--visible')) {
     positionHoverDetails();
@@ -3980,23 +3745,16 @@ $('#saveEquipmentButton').addEventListener('click', async () => {
   try {
     const id = equipmentForm.elements.id.value;
     const data = formPayload();
-    const payload = await api(id ? `/equipment/${id}` : '/equipment', {
+    await api(id ? `/equipment/${id}` : '/equipment', {
       method: id ? 'PUT' : 'POST',
       body: JSON.stringify(data)
     });
-    const savedId = id || payload.item.id;
-    let imageWarning = '';
-    try {
-      await uploadEquipmentImage(savedId);
-    } catch (imageError) {
-      imageWarning = `\n\nEl registro si se guardo, pero la imagen no se pudo subir: ${imageError.message}`;
-    }
     equipmentDialog.close();
     await loadInventory();
     if (state.inventoryScope === 'all') {
       await loadDashboardIfConsole();
     }
-    toast(`${id ? 'Equipo actualizado correctamente.' : 'Equipo guardado correctamente.'}${imageWarning}`, imageWarning ? 'warning' : 'success');
+    toast(id ? 'Equipo actualizado correctamente.' : 'Equipo guardado correctamente.', 'success');
   } catch (error) {
     $('#equipmentMessage').textContent = error.message;
   } finally {
@@ -4055,20 +3813,14 @@ $('#saveStockButton').addEventListener('click', async () => {
   saveButton.textContent = 'Guardando...';
   try {
     const id = stockForm.elements.id.value;
-    const payload = await api(id ? `/stock/${id}` : '/stock', {
+    await api(id ? `/stock/${id}` : '/stock', {
       method: id ? 'PUT' : 'POST',
       body: JSON.stringify(stockPayload())
     });
-    let imageWarning = '';
-    try {
-      await uploadStockImage(id || payload.item.id);
-    } catch (imageError) {
-      imageWarning = `\n\nEl registro si se guardo, pero la imagen no se pudo subir: ${imageError.message}`;
-    }
     stockDialog.close();
     await loadStock();
     await loadDashboardIfConsole();
-    toast(`${id ? 'Stock actualizado correctamente.' : 'Stock guardado correctamente.'}${imageWarning}`, imageWarning ? 'warning' : 'success');
+    toast(id ? 'Stock actualizado correctamente.' : 'Stock guardado correctamente.', 'success');
   } catch (error) {
     $('#stockMessage').textContent = error.message;
   } finally {

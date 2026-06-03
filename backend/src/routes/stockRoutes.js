@@ -1,10 +1,9 @@
 const express = require('express');
-const multer = require('multer');
 const { z } = require('zod');
 const db = require('../config/db');
 const { authenticate, requireWriteAccess } = require('../middleware/auth');
 const { writeAudit } = require('../services/auditService');
-const { allowedImageMimes, deleteStockImage, readStoredImage, uploadStockImage: storeStockImage } = require('../services/storageService');
+
 
 const router = express.Router();
 
@@ -15,10 +14,6 @@ function ensureStockRuntimeSchema() {
     runtimeSchemaPromise = db.query(`
       ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 1;
       ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS item_code VARCHAR(80);
-      ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS image_path TEXT;
-      ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS image_original_name VARCHAR(180);
-      ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS image_mime VARCHAR(80);
-      ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS image_size INTEGER;
       ALTER TABLE stock_items ALTER COLUMN serial_number DROP NOT NULL;
       ALTER TABLE stock_items DROP CONSTRAINT IF EXISTS stock_quantity_check;
       ALTER TABLE stock_items ADD CONSTRAINT stock_quantity_check CHECK (quantity >= 0);
@@ -31,6 +26,15 @@ function ensureStockRuntimeSchema() {
   return runtimeSchemaPromise;
 }
 
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function requireValidUuid(req, res, next) {
+  if (req.params.id && !uuidRegex.test(req.params.id)) {
+    return res.status(400).json({ message: 'ID de stock invalido.' });
+  }
+  next();
+}
+
 router.use(authenticate, async (req, res, next) => {
   try {
     await ensureStockRuntimeSchema();
@@ -39,27 +43,6 @@ router.use(authenticate, async (req, res, next) => {
     next(error);
   }
 });
-
-const uploadStockImage = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (!allowedImageMimes.has(file.mimetype)) {
-      return cb(new Error('Formato de imagen no permitido. Use JPG, PNG o WEBP.'));
-    }
-    cb(null, true);
-  }
-});
-
-function handleStockImageUpload(req, res, next) {
-  uploadStockImage.single('image')(req, res, (error) => {
-    if (error) {
-      error.status = 400;
-      return next(error);
-    }
-    next();
-  });
-}
 
 const stockSchema = z.object({
   location_id: z.coerce.number().int().positive(),
@@ -75,7 +58,6 @@ const stockSchema = z.object({
 function selectStockSql(where = '') {
   return `
     SELECT si.id, si.item_code, si.name, si.model, si.serial_number, si.quantity, si.status, si.notes,
-           si.image_path, si.image_original_name, si.image_mime, si.image_size,
            si.created_at, si.updated_at,
            l.id AS location_id, l.name AS location,
            a.id AS area_id, a.name AS area,
@@ -196,7 +178,7 @@ router.post('/', authenticate, requireWriteAccess, async (req, res, next) => {
   }
 });
 
-router.put('/:id', authenticate, requireWriteAccess, async (req, res, next) => {
+router.put('/:id', authenticate, requireWriteAccess, requireValidUuid, async (req, res, next) => {
   try {
     const data = stockSchema.parse(req.body);
     const updated = await db.withTransaction(async (client) => {
@@ -254,76 +236,7 @@ router.put('/:id', authenticate, requireWriteAccess, async (req, res, next) => {
   }
 });
 
-router.get('/:id/image/view', authenticate, async (req, res, next) => {
-  try {
-    const { rows } = await db.query(
-      `SELECT image_path, image_mime
-       FROM stock_items
-       WHERE id = $1`,
-      [req.params.id]
-    );
-    if (!rows[0]?.image_path) {
-      return res.status(404).json({ message: 'Imagen no encontrada.' });
-    }
-
-    const buffer = await readStoredImage(rows[0].image_path);
-    res.setHeader('Content-Type', rows[0].image_mime || 'application/octet-stream');
-    res.setHeader('Cache-Control', 'private, max-age=300');
-    res.send(buffer);
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.post('/:id/image', authenticate, requireWriteAccess, handleStockImageUpload, async (req, res, next) => {
-  let previousImagePath = null;
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'Imagen requerida.' });
-    }
-
-    const updated = await db.withTransaction(async (client) => {
-      const previous = await client.query('SELECT * FROM stock_items WHERE id = $1 FOR UPDATE', [req.params.id]);
-      if (!previous.rows[0]) {
-        const error = new Error('Dispositivo de stock no encontrado.');
-        error.status = 404;
-        throw error;
-      }
-      previousImagePath = previous.rows[0].image_path;
-
-      const imagePath = await storeStockImage(req.params.id, req.file);
-      const { rows } = await client.query(
-        `UPDATE stock_items
-         SET image_path = $1,
-             image_original_name = $2,
-             image_mime = $3,
-             image_size = $4,
-             updated_by = $5
-         WHERE id = $6
-         RETURNING *`,
-        [imagePath, req.file.originalname, req.file.mimetype, req.file.size, req.user.id, req.params.id]
-      );
-
-      await writeAudit(client, req, 'IMAGE_UPDATE', 'stock_item', req.params.id, {
-        item_code: rows[0].item_code,
-        image_path: imagePath
-      });
-
-      return rows[0];
-    });
-
-    if (previousImagePath && previousImagePath !== updated.image_path) {
-      await deleteStockImage(previousImagePath);
-    }
-
-    const { rows } = await db.query(`${selectStockSql('WHERE si.id = $1')}`, [updated.id]);
-    res.json({ item: rows[0] });
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.delete('/:id', authenticate, requireWriteAccess, async (req, res, next) => {
+router.delete('/:id', authenticate, requireWriteAccess, requireValidUuid, async (req, res, next) => {
   try {
     await db.withTransaction(async (client) => {
       const previous = await client.query('SELECT * FROM stock_items WHERE id = $1 FOR UPDATE', [req.params.id]);

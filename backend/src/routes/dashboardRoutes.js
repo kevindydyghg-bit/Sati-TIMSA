@@ -111,8 +111,7 @@ router.get('/', authenticate, async (req, res, next) => {
          SELECT COUNT(*)::int AS total,
                 COUNT(*) FILTER (WHERE e.status = 'activo' AND ma.equipment_id IS NULL)::int AS active,
                 COUNT(ma.equipment_id)::int AS maintenance,
-                COUNT(*) FILTER (WHERE e.status IN ('baja', 'resguardo'))::int AS inactive,
-                COUNT(*) FILTER (WHERE e.image_path IS NOT NULL)::int AS with_images
+                 COUNT(*) FILTER (WHERE e.status IN ('baja', 'resguardo'))::int AS inactive
          FROM equipment e
          LEFT JOIN maintenance_active ma ON ma.equipment_id = e.id
          WHERE e.deleted_at IS NULL`
@@ -180,9 +179,8 @@ router.get('/', authenticate, async (req, res, next) => {
       ),
       db.query(
         `SELECT COUNT(*)::int AS total_items,
-                COALESCE(SUM(quantity), 0)::int AS total_quantity,
-                COUNT(*) FILTER (WHERE image_path IS NOT NULL)::int AS with_images
-         FROM stock_items`
+                COALESCE(SUM(quantity), 0)::int AS total_quantity
+          FROM stock_items`
       ),
       db.query(
         `SELECT 'Garantia vencida' AS type,
@@ -217,19 +215,7 @@ router.get('/', authenticate, async (req, res, next) => {
          JOIN locations l ON l.id = si.location_id
          JOIN areas a ON a.id = si.area_id
          WHERE si.quantity < 5
-         UNION ALL
-         SELECT 'Activo sin imagen',
-                e.serial_number,
-                CONCAT(et.name, ' ', b.name, ' ', em.name, ' | ', a.name),
-                NULL::date,
-                4
-         FROM equipment e
-         JOIN equipment_types et ON et.id = e.equipment_type_id
-         JOIN brands b ON b.id = e.brand_id
-         JOIN equipment_models em ON em.id = e.model_id
-         JOIN areas a ON a.id = e.area_id
-         WHERE e.deleted_at IS NULL AND e.image_path IS NULL
-         ORDER BY priority ASC, due_date ASC NULLS LAST, title ASC
+          ORDER BY priority ASC, due_date ASC NULLS LAST, title ASC
          LIMIT 12`
       )
     ]);

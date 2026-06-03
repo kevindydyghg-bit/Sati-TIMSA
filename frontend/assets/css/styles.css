@@ -1941,8 +1941,7 @@ td small {
   gap: 0.65rem;
 }
 
-.device-cell .product-icon--sm,
-.device-cell .equipment-photo--sm {
+.device-cell .product-icon--sm {
   width: 58px;
   height: 58px;
   border-radius: 14px;
@@ -2038,41 +2037,6 @@ td small {
   --icon-start: #124c86;
   --icon-end: #071f42;
   --icon-color: var(--white);
-}
-
-.equipment-photo {
-  flex: 0 0 auto;
-  display: inline-grid;
-  place-items: center;
-  overflow: hidden;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  background: var(--gray-100);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 8px 18px rgba(15, 23, 42, 0.08);
-}
-
-.equipment-photo--sm {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-}
-
-.equipment-photo--md {
-  width: 58px;
-  height: 58px;
-  border-radius: 12px;
-}
-
-.equipment-photo--lg {
-  width: 86px;
-  height: 86px;
-  border-radius: 18px;
-}
-
-.equipment-photo img {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
 }
 
 .status {
@@ -2231,12 +2195,6 @@ td small {
   background:
     radial-gradient(circle at 24% 20%, rgba(23, 155, 215, 0.26), transparent 34%),
     linear-gradient(135deg, #0f1f3a, #1d4f91);
-}
-
-.equipment-art .equipment-photo--lg {
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
 }
 
 .equipment-art .product-icon--lg {
@@ -2641,108 +2599,6 @@ td small {
 .user-admin-item > div:last-child {
   display: flex;
   gap: 0.5rem;
-}
-
-.image-preview {
-  width: 150px;
-  height: 104px;
-  display: block;
-  overflow: hidden;
-  border: 1px solid var(--gray-300);
-  border-radius: 8px;
-  background: var(--gray-100);
-}
-
-.image-preview img {
-  width: 100%;
-  height: 100%;
-  display: block;
-  object-fit: cover;
-}
-
-img[data-image-zoom] {
-  cursor: zoom-in;
-}
-
-.image-viewer {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  max-width: none;
-  height: 100dvh;
-  max-height: none;
-  margin: 0;
-  border: 0;
-  background: transparent;
-  overflow: hidden;
-  z-index: 2147483647;
-  display: grid;
-  place-items: center;
-  padding: 1.5rem;
-}
-
-.image-viewer.hidden {
-  display: none;
-}
-
-.image-viewer::backdrop {
-  background: rgba(6, 20, 40, 0.82);
-  backdrop-filter: blur(6px);
-}
-
-.image-viewer__backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(6, 20, 40, 0.78);
-  backdrop-filter: blur(5px);
-}
-
-.image-viewer__content {
-  position: relative;
-  z-index: 1;
-  width: min(94vw, 980px);
-  max-height: 92vh;
-  margin: 0;
-  padding: 1rem;
-  display: grid;
-  gap: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 28px 80px rgba(4, 12, 28, 0.35);
-}
-
-.image-viewer__content img {
-  width: 100%;
-  max-height: calc(92vh - 6.5rem);
-  display: block;
-  object-fit: contain;
-  border-radius: 8px;
-  background: var(--gray-100);
-}
-
-.image-viewer__content figcaption {
-  color: var(--gray-600);
-  font-weight: 700;
-  text-align: center;
-}
-
-.image-viewer__close {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  z-index: 3;
-  width: 44px;
-  height: 44px;
-  min-height: 44px;
-  color: #ffffff;
-  background: var(--navy-900);
-  border-color: rgba(255, 255, 255, 0.35);
-  box-shadow: 0 14px 30px rgba(7, 31, 66, 0.28);
-}
-
-body.image-viewer-open {
-  overflow: hidden;
 }
 
 .toast-stack {
@@ -3196,8 +3052,7 @@ body[data-theme="dark"] .label-card {
   border-color: rgba(125, 165, 214, 0.36);
 }
 
-body[data-theme="dark"] .toast,
-body[data-theme="dark"] .image-viewer__content {
+body[data-theme="dark"] .toast {
   background: #0f1e32;
   color: var(--gray-900);
   border-color: rgba(125, 165, 214, 0.32);

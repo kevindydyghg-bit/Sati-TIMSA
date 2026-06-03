@@ -95,10 +95,6 @@ CREATE TABLE IF NOT EXISTS equipment (
   supplier VARCHAR(140),
   purchase_date DATE,
   warranty_until DATE,
-  image_path TEXT,
-  image_original_name VARCHAR(180),
-  image_mime VARCHAR(80),
-  image_size INTEGER,
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
   deleted_by UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -112,10 +108,6 @@ ALTER TABLE equipment ADD COLUMN IF NOT EXISTS supplier VARCHAR(140);
 ALTER TABLE equipment ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE equipment ADD COLUMN IF NOT EXISTS purchase_date DATE;
 ALTER TABLE equipment ADD COLUMN IF NOT EXISTS warranty_until DATE;
-ALTER TABLE equipment ADD COLUMN IF NOT EXISTS image_path TEXT;
-ALTER TABLE equipment ADD COLUMN IF NOT EXISTS image_original_name VARCHAR(180);
-ALTER TABLE equipment ADD COLUMN IF NOT EXISTS image_mime VARCHAR(80);
-ALTER TABLE equipment ADD COLUMN IF NOT EXISTS image_size INTEGER;
 ALTER TABLE equipment ADD COLUMN IF NOT EXISTS deleted_by UUID REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE equipment ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
 ALTER TABLE equipment DROP CONSTRAINT IF EXISTS equipment_quantity_check;
@@ -155,10 +147,6 @@ CREATE TABLE IF NOT EXISTS stock_items (
   quantity INTEGER NOT NULL DEFAULT 1,
   status VARCHAR(30) NOT NULL DEFAULT 'disponible',
   notes TEXT,
-  image_path TEXT,
-  image_original_name VARCHAR(180),
-  image_mime VARCHAR(80),
-  image_size INTEGER,
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -168,10 +156,6 @@ CREATE TABLE IF NOT EXISTS stock_items (
 
 ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 1;
 ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS item_code VARCHAR(80);
-ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS image_path TEXT;
-ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS image_original_name VARCHAR(180);
-ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS image_mime VARCHAR(80);
-ALTER TABLE stock_items ADD COLUMN IF NOT EXISTS image_size INTEGER;
 ALTER TABLE stock_items ALTER COLUMN serial_number DROP NOT NULL;
 ALTER TABLE stock_items DROP CONSTRAINT IF EXISTS stock_quantity_check;
 ALTER TABLE stock_items ADD CONSTRAINT stock_quantity_check CHECK (quantity >= 0);

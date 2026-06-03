@@ -24,40 +24,6 @@ const jwtSecret = process.env.JWT_SECRET;
 const storageDriver = process.env.STORAGE_DRIVER || 'local';
 const defaultPoolMax = process.env.VERCEL ? 1 : 12;
 
-function normalizeSupabaseUrl(rawUrl) {
-  if (!rawUrl) return '';
-
-  try {
-    const parsed = new URL(rawUrl);
-    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-      return parsed.origin;
-    }
-
-    if (parsed.protocol.startsWith('postgres')) {
-      const username = decodeURIComponent(parsed.username || '');
-      const userProject = username.match(/^postgres\.([a-z0-9]+)$/i);
-      if (userProject) {
-        return `https://${userProject[1]}.supabase.co`;
-      }
-
-      const hostProject = parsed.hostname.match(/^(?:db|postgres)\.([a-z0-9]+)\.supabase\.co$/i);
-      if (hostProject) {
-        return `https://${hostProject[1]}.supabase.co`;
-      }
-    }
-  } catch (error) {
-    return rawUrl;
-  }
-
-  return rawUrl;
-}
-
-const supabaseUrl = normalizeSupabaseUrl(process.env.SUPABASE_URL || '');
-
-if (!['local', 'supabase'].includes(storageDriver)) {
-  throw new Error('STORAGE_DRIVER must be local or supabase.');
-}
-
 if (isProduction) {
   const errors = [];
 
@@ -75,18 +41,6 @@ if (isProduction) {
 
   if (!process.env.PGSSLMODE || ['disable', 'false', 'off'].includes(process.env.PGSSLMODE.toLowerCase())) {
     errors.push('PGSSLMODE must be set to "require" or "verify-full" in production.');
-  }
-
-  if (storageDriver === 'supabase') {
-    for (const key of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_BUCKET']) {
-      if (!process.env[key]) {
-        errors.push(`Missing required Supabase Storage variable in production: ${key}`);
-      }
-    }
-
-    if (!/^https:\/\/[a-z0-9]+\.supabase\.co$/i.test(supabaseUrl)) {
-      errors.push('SUPABASE_URL must be the project API URL, for example https://project-ref.supabase.co.');
-    }
   }
 
   if (errors.length > 0) {
@@ -116,8 +70,5 @@ module.exports = {
   smtpUser: process.env.SMTP_USER || '',
   smtpPass: (process.env.SMTP_PASS || '').replace(/\s+/g, ''),
   smtpFrom: process.env.SMTP_FROM || process.env.SMTP_USER || '',
-  storageDriver,
-  supabaseUrl,
-  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  supabaseBucket: process.env.SUPABASE_BUCKET || 'equipment-images'
+  storageDriver
 };
