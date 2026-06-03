@@ -13,20 +13,10 @@ router.get('/stats', authenticate, async (req, res, next) => {
       estadoMantenimiento
     ] = await Promise.all([
       db.query(
-        `WITH latest_maintenance AS (
-           SELECT DISTINCT ON (mo.equipment_id)
-                  mo.equipment_id,
-                  mo.phase
-           FROM maintenance_orders mo
-           JOIN equipment e ON e.id = mo.equipment_id
-           WHERE e.deleted_at IS NULL
-           ORDER BY mo.equipment_id, mo.updated_at DESC, mo.sent_at DESC
-         )
-         SELECT
+        `SELECT
            (SELECT COUNT(*)::int FROM equipment WHERE deleted_at IS NULL) AS "totalEquipos",
-           COUNT(*) FILTER (WHERE phase IN ('revisado', 'en_proceso', 'en proceso'))::int AS "equiposEnMantenimiento",
-           (SELECT COUNT(*)::int FROM stock_items WHERE quantity < 5) AS "alertasStock"
-         FROM latest_maintenance`
+           (SELECT COUNT(*)::int FROM equipment WHERE deleted_at IS NULL AND status = 'mantenimiento') AS "equiposEnMantenimiento",
+           (SELECT COUNT(*)::int FROM stock_items WHERE quantity < 5) AS "alertasStock"`
       ),
       db.query(
         `SELECT et.name AS tipo,
@@ -47,19 +37,10 @@ router.get('/stats', authenticate, async (req, res, next) => {
          ORDER BY total DESC, a.name ASC`
       ),
       db.query(
-        `WITH latest_maintenance AS (
-           SELECT DISTINCT ON (mo.equipment_id)
-                  mo.equipment_id,
-                  mo.phase
-           FROM maintenance_orders mo
-           JOIN equipment e ON e.id = mo.equipment_id
-           WHERE e.deleted_at IS NULL
-           ORDER BY mo.equipment_id, mo.updated_at DESC, mo.sent_at DESC
-         )
-         SELECT phase AS fase,
-                COUNT(*)::int AS total
-         FROM latest_maintenance
+        `SELECT phase AS fase, COUNT(*)::int AS total
+         FROM maintenance_orders
          WHERE phase IN ('revisado', 'en_proceso', 'en proceso')
+         AND equipment_id IN (SELECT id FROM equipment WHERE deleted_at IS NULL)
          GROUP BY phase
          ORDER BY total DESC, phase ASC`
       )
@@ -94,27 +75,13 @@ router.get('/', authenticate, async (req, res, next) => {
       alerts
     ] = await Promise.all([
       db.query(
-        `WITH latest_maintenance AS (
-           SELECT DISTINCT ON (mo.equipment_id)
-                  mo.equipment_id,
-                  mo.phase
-           FROM maintenance_orders mo
-           JOIN equipment e ON e.id = mo.equipment_id
-           WHERE e.deleted_at IS NULL
-           ORDER BY mo.equipment_id, mo.updated_at DESC, mo.sent_at DESC
-         ),
-         maintenance_active AS (
-           SELECT equipment_id
-           FROM latest_maintenance
-           WHERE phase IN ('revisado', 'en_proceso', 'en proceso')
-         )
-         SELECT COUNT(*)::int AS total,
-                COUNT(*) FILTER (WHERE e.status = 'activo' AND ma.equipment_id IS NULL)::int AS active,
-                COUNT(ma.equipment_id)::int AS maintenance,
-                 COUNT(*) FILTER (WHERE e.status IN ('baja', 'resguardo'))::int AS inactive
-         FROM equipment e
-         LEFT JOIN maintenance_active ma ON ma.equipment_id = e.id
-         WHERE e.deleted_at IS NULL`
+        `SELECT
+           COUNT(*)::int AS total,
+           COUNT(*) FILTER (WHERE status = 'activo')::int AS active,
+           COUNT(*) FILTER (WHERE status = 'mantenimiento')::int AS maintenance,
+           COUNT(*) FILTER (WHERE status IN ('baja', 'resguardo'))::int AS inactive
+         FROM equipment
+         WHERE deleted_at IS NULL`
       ),
       db.query(
         `SELECT status, COUNT(*)::int AS total
@@ -162,18 +129,10 @@ router.get('/', authenticate, async (req, res, next) => {
          LIMIT 8`
       ),
       db.query(
-        `WITH latest_maintenance AS (
-           SELECT DISTINCT ON (mo.equipment_id)
-                  mo.equipment_id,
-                  mo.phase
-           FROM maintenance_orders mo
-           JOIN equipment e ON e.id = mo.equipment_id
-           WHERE e.deleted_at IS NULL
-           ORDER BY mo.equipment_id, mo.updated_at DESC, mo.sent_at DESC
-         )
-         SELECT phase, COUNT(*)::int AS total
-         FROM latest_maintenance
+        `SELECT phase AS fase, COUNT(*)::int AS total
+         FROM maintenance_orders
          WHERE phase IN ('revisado', 'en_proceso', 'en proceso')
+         AND equipment_id IN (SELECT id FROM equipment WHERE deleted_at IS NULL)
          GROUP BY phase
          ORDER BY phase`
       ),
