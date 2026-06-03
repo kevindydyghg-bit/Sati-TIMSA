@@ -1014,18 +1014,18 @@ function renderNotifications() {
   count.textContent = sortedNotes.length;
   count.classList.toggle('hidden', sortedNotes.length === 0);
 
-  list.innerHTML = esc(sortedNotes.map((note) => `
+  list.innerHTML = sortedNotes.map((note) => `
     <article class="notification-item">
       <div>
-        <strong>${note.text}</strong>
-        <span>${raw(formatDate(note.dueAt))}</span>
+        <strong>${escapeHtml(note.text)}</strong>
+        <span>${escapeHtml(formatDate(note.dueAt))}</span>
       </div>
       <footer>
-        <span>Agregado por ${note.userName}</span>
-        <button class="ghost note-delete" type="button" data-note-delete="${raw(note.id)}">Eliminar</button>
+        <span>Agregado por ${escapeHtml(note.userName)}</span>
+        <button class="ghost note-delete" type="button" data-note-delete="${escapeHtml(note.id)}">Eliminar</button>
       </footer>
     </article>
-  `).join('') || '<p class="empty-module">Sin notas pendientes.</p>');
+  `).join('') || '<p class="empty-module">Sin notas pendientes.</p>';
   translateStaticText();
 }
 
@@ -1103,31 +1103,31 @@ function renderDashboardInsights() {
   `;
 
   const maxType = Math.max(1, ...(dashboard.by_type || []).map((item) => Number(item.total)));
-  $('#typeInsights').innerHTML = esc((dashboard.by_type || []).map((item) => `
+  $('#typeInsights').innerHTML = (dashboard.by_type || []).map((item) => `
     <div class="insight-bar">
-      <span>${item.equipment_type}</span>
+      <span>${escapeHtml(item.equipment_type)}</span>
       <strong>${item.total}</strong>
-      <i data-width="${raw(Math.max(6, Math.round((Number(item.total) / maxType) * 100)))}"></i>
+      <i data-width="${Math.max(6, Math.round((Number(item.total) / maxType) * 100))}"></i>
     </div>
-  `).join('') || '<p class="empty-module">Sin datos por tipo.</p>');
+  `).join('') || '<p class="empty-module">Sin datos por tipo.</p>';
 
   const maxLocation = Math.max(1, ...(dashboard.by_location || []).map((item) => Number(item.total)));
-  $('#locationInsights').innerHTML = esc((dashboard.by_location || []).map((item) => `
+  $('#locationInsights').innerHTML = (dashboard.by_location || []).map((item) => `
     <div class="insight-bar">
-      <span>${item.location}</span>
+      <span>${escapeHtml(item.location)}</span>
       <strong>${item.total}</strong>
-      <i data-width="${raw(Math.max(6, Math.round((Number(item.total) / maxLocation) * 100)))}"></i>
+      <i data-width="${Math.max(6, Math.round((Number(item.total) / maxLocation) * 100))}"></i>
     </div>
-  `).join('') || '<p class="empty-module">Sin datos por ubicacion.</p>');
+  `).join('') || '<p class="empty-module">Sin datos por ubicacion.</p>';
 
   const maxMaintenance = Math.max(1, ...(dashboard.maintenance || []).map((item) => Number(item.total)));
-  $('#maintenanceInsights').innerHTML = esc((dashboard.maintenance || []).map((item) => `
+  $('#maintenanceInsights').innerHTML = (dashboard.maintenance || []).map((item) => `
     <div class="insight-bar">
-      <span>${raw(phaseLabel(item.phase))}</span>
+      <span>${escapeHtml(phaseLabel(item.phase))}</span>
       <strong>${item.total}</strong>
-      <i data-width="${raw(Math.max(6, Math.round((Number(item.total) / maxMaintenance) * 100)))}"></i>
+      <i data-width="${Math.max(6, Math.round((Number(item.total) / maxMaintenance) * 100))}"></i>
     </div>
-  `).join('') || '<p class="empty-module">Sin ordenes de mantenimiento.</p>');
+  `).join('') || '<p class="empty-module">Sin ordenes de mantenimiento.</p>';
 
   const stock = dashboard.stock || {};
   $('#stockInsights').innerHTML = esc`
@@ -1643,17 +1643,17 @@ function renderEquipmentTypeList() {
     return acc;
   }, {});
 
-  container.innerHTML = esc(Object.entries(totals)
+  container.innerHTML = Object.entries(totals)
     .map(([type, total]) => `
       <article>
-        ${raw(productIcon(type, 'md'))}
+        ${productIcon(type, 'md')}
         <div>
-          <strong>${type}</strong>
-          <p>${raw(total)} activos registrados</p>
+          <strong>${escapeHtml(type)}</strong>
+          <p>${total} activos registrados</p>
         </div>
       </article>
     `)
-    .join('') || '<p class="empty-module">Sin equipos para clasificar.</p>');
+    .join('') || '<p class="empty-module">Sin equipos para clasificar.</p>';
 }
 
 function typeDescription(typeName, total) {
@@ -1761,13 +1761,13 @@ function renderHardwareTypeGrid() {
 function renderAuditView() {
   const body = $('#auditBody');
   if (!body) return;
-  body.innerHTML = esc(state.audit.map((event) => `
+  body.innerHTML = state.audit.map((event) => `
     <tr>
-      <td><span class="audit-event">${raw(uiIcon('shield'))}${event.action}</span></td>
-      <td>${event.entity} ${event.entity_id || ''}<br><small>${event.username || event.user_name || 'Sistema'} &middot; ${raw(formatDate(event.created_at))}</small></td>
+      <td><span class="audit-event">${uiIcon('shield')}${escapeHtml(event.action)}</span></td>
+      <td>${escapeHtml(event.entity)} ${escapeHtml(event.entity_id || '')}<br><small>${escapeHtml(event.username || event.user_name || 'Sistema')} &middot; ${escapeHtml(formatDate(event.created_at))}</small></td>
       <td><span class="status activo">OK</span></td>
     </tr>
-  `).join('') || '<tr><td colspan="3">Sin eventos de auditoria.</td></tr>');
+  `).join('') || '<tr><td colspan="3">Sin eventos de auditoria.</td></tr>';
   const meta = state.auditMeta || {};
   $('#auditResultCount').textContent = normalizedSettings().language === 'en'
     ? `Showing ${state.audit.length} of ${meta.total || state.audit.length} events`
@@ -1857,37 +1857,37 @@ function renderMaintenanceView() {
     <article><span>Terminado</span><strong>${counts.terminado}</strong></article>
   `;
 
-  list.innerHTML = esc(state.maintenance.map((item) => {
+  list.innerHTML = state.maintenance.map((item) => {
     const percent = phasePercent(item.phase);
     const canWrite = ['ADMIN', 'TI'].includes(state.user?.role);
     return `
       <article class="maintenance-card">
         <header>
           <div>
-            <span>${item.equipment_type}</span>
-            <h3>${item.serial_number} · ${item.brand} ${item.model}</h3>
+            <span>${escapeHtml(item.equipment_type)}</span>
+            <h3>${escapeHtml(item.serial_number)} · ${escapeHtml(item.brand)} ${escapeHtml(item.model)}</h3>
           </div>
-          ${raw(canWrite ? esc`<button class="ghost" type="button" data-maintenance-edit="${raw(item.id)}">Actualizar</button>` : '')}
+          ${canWrite ? `<button class="ghost" type="button" data-maintenance-edit="${escapeHtml(item.id)}">Actualizar</button>` : ''}
         </header>
-        <div class="phase-track" aria-label="${raw('Avance ' + percent + '%')}">
-          <div class="phase-bar phase-${raw(percent)}"></div>
+        <div class="phase-track" aria-label="Avance ${percent}%">
+          <div class="phase-bar phase-${percent}"></div>
         </div>
         <div class="phase-steps">
-          <span class="${raw(percent >= 33 ? 'active' : '')}">Revisado</span>
-          <span class="${raw(percent >= 66 ? 'active' : '')}">En proceso</span>
-          <span class="${raw(percent >= 100 ? 'active' : '')}">Terminado</span>
+          <span class="${percent >= 33 ? 'active' : ''}">Revisado</span>
+          <span class="${percent >= 66 ? 'active' : ''}">En proceso</span>
+          <span class="${percent >= 100 ? 'active' : ''}">Terminado</span>
         </div>
-        <p>${item.notes || 'Sin notas registradas.'}</p>
+        <p>${escapeHtml(item.notes || 'Sin notas registradas.')}</p>
         <footer>
           <div class="maintenance-meta">
-            <span>${raw(phaseLabel(item.phase))} · ${raw(percent)}%</span>
-            <span>${item.location} / ${item.area}</span>
-            <span>Actualizado ${raw(formatDate(item.updated_at))}</span>
+            <span>${escapeHtml(phaseLabel(item.phase))} · ${percent}%</span>
+            <span>${escapeHtml(item.location)} / ${escapeHtml(item.area)}</span>
+            <span>Actualizado ${escapeHtml(formatDate(item.updated_at))}</span>
           </div>
         </footer>
       </article>
     `;
-  }).join('') || '<p class="empty-module">Sin equipos enviados a mantenimiento.</p>');
+  }).join('') || '<p class="empty-module">Sin equipos enviados a mantenimiento.</p>';
   translateStaticText();
 }
 
@@ -1918,29 +1918,29 @@ function renderStockView() {
       `).join('') || '<p class="empty-module">Sin disponibilidad para esta consulta.</p>')}
     </div>
   `;
-  list.innerHTML = esc(state.stock.map((item) => `
-    <article class="stock-card" data-stock-id="${raw(item.id)}">
+  list.innerHTML = state.stock.map((item) => `
+    <article class="stock-card" data-stock-id="${escapeHtml(item.id)}">
       <header>
         <div class="stock-title">
-          ${raw(stockMedia(item))}
+          ${stockMedia(item)}
           <div>
-            <span>${item.item_code || item.serial_number || 'Sin ID'}</span>
-            <h3>${item.name}</h3>
+            <span>${escapeHtml(item.item_code || item.serial_number || 'Sin ID')}</span>
+            <h3>${escapeHtml(item.name)}</h3>
           </div>
         </div>
         <div class="stock-actions">
-          <strong class="quantity-pill">${raw(Number(item.quantity || 0))} disponibles</strong>
-          ${raw(canWrite ? esc`<button class="ghost" type="button" data-stock-edit="${raw(item.id)}">Modificar</button>` : '')}
+          <strong class="quantity-pill">${Number(item.quantity || 0)} disponibles</strong>
+          ${canWrite ? `<button class="ghost" type="button" data-stock-edit="${escapeHtml(item.id)}">Modificar</button>` : ''}
         </div>
       </header>
       <div class="stock-meta">
-        <div><span>Ubicacion</span><strong>${item.location}</strong></div>
-        <div><span>Area</span><strong>${item.area}</strong></div>
-        <div><span>Modelo</span><strong>${item.model}</strong></div>
+        <div><span>Ubicacion</span><strong>${escapeHtml(item.location)}</strong></div>
+        <div><span>Area</span><strong>${escapeHtml(item.area)}</strong></div>
+        <div><span>Modelo</span><strong>${escapeHtml(item.model)}</strong></div>
       </div>
-      <p>${item.notes || 'Pase el cursor para ver detalles completos.'}</p>
+      <p>${escapeHtml(item.notes || 'Pase el cursor para ver detalles completos.')}</p>
     </article>
-  `).join('') || '<p class="empty-module">Sin dispositivos en stock para esta consulta.</p>');
+  `).join('') || '<p class="empty-module">Sin dispositivos en stock para esta consulta.</p>';
   translateStaticText();
 }
 
@@ -2529,12 +2529,12 @@ function renderEquipmentProfile(profile) {
   $('#equipmentHistoryList').innerHTML = commentHistory.map((entry) => `
     <div>
       <strong>${escapeHtml(entry.comment)}</strong>
-      <span>${escapeHtml(entry.changed_by || 'Sistema')} &middot; ${raw(formatDate(entry.created_at))} &middot; ${escapeHtml(historyAssignmentText(entry))}</span>
+      <span>${escapeHtml(entry.changed_by || 'Sistema')} &middot; ${escapeHtml(formatDate(entry.created_at))} &middot; ${escapeHtml(historyAssignmentText(entry))}</span>
     </div>
   `).join('') || '<p class="empty-module">Sin comentarios guardados.</p>';
-  $('#equipmentMaintenanceList').innerHTML = esc((profile.maintenance || []).map((entry) => `
-    <div><strong>${raw(phaseLabel(entry.phase))}</strong><span>${raw(formatDate(entry.updated_at))} &middot; ${entry.notes || 'Sin notas'}</span></div>
-  `).join('') || '<p class="empty-module">Sin mantenimiento.</p>');
+  $('#equipmentMaintenanceList').innerHTML = (profile.maintenance || []).map((entry) => `
+    <div><strong>${escapeHtml(phaseLabel(entry.phase))}</strong><span>${escapeHtml(formatDate(entry.updated_at))} &middot; ${escapeHtml(entry.notes || 'Sin notas')}</span></div>
+  `).join('') || '<p class="empty-module">Sin mantenimiento.</p>';
 }
 
 async function openHardwareGroup(group) {
@@ -2700,20 +2700,20 @@ async function loadUsers() {
 function renderUsers() {
   const container = $('#userAdminList');
   if (!container) return;
-  container.innerHTML = esc(state.users.map((user) => `
-    <article class="user-admin-item" data-user-id="${raw(user.id)}">
+  container.innerHTML = state.users.map((user) => `
+    <article class="user-admin-item" data-user-id="${escapeHtml(user.id)}">
       <div>
         <strong>${escapeHtml(user.name)}</strong>
-        <span>${user.username} &middot; ${user.email} &middot; ${user.role} &middot; ${raw(user.is_active ? 'Activo' : 'Inactivo')}</span>
+        <span>${escapeHtml(user.username)} &middot; ${escapeHtml(user.email)} &middot; ${escapeHtml(user.role)} &middot; ${user.is_active ? 'Activo' : 'Inactivo'}</span>
       </div>
       <div>
-        <button class="ghost" type="button" data-user-edit="${raw(user.id)}">Modificar</button>
-        <button class="danger" type="button" data-user-delete="${raw(user.id)}">Eliminar</button>
-        <button class="ghost" type="button" data-user-toggle="${raw(user.id)}" data-active="${raw(user.is_active ? 'false' : 'true')}">${raw(user.is_active ? 'Desactivar' : 'Activar')}</button>
-        <button class="ghost" type="button" data-user-reset="${raw(user.id)}">Reset</button>
+        <button class="ghost" type="button" data-user-edit="${escapeHtml(user.id)}">Modificar</button>
+        <button class="danger" type="button" data-user-delete="${escapeHtml(user.id)}">Eliminar</button>
+        <button class="ghost" type="button" data-user-toggle="${escapeHtml(user.id)}" data-active="${user.is_active ? 'false' : 'true'}">${user.is_active ? 'Desactivar' : 'Activar'}</button>
+        <button class="ghost" type="button" data-user-reset="${escapeHtml(user.id)}">Reset</button>
       </div>
     </article>
-  `).join('') || '<p class="empty-module">Sin usuarios.</p>');
+  `).join('') || '<p class="empty-module">Sin usuarios.</p>';
   translateStaticText();
 }
 
