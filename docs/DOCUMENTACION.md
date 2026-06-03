@@ -100,13 +100,20 @@ Campos de un activo:
 - Historial de comentarios
 - Ordenes de mantenimiento
 
-**Etiqueta para imprimir**: La etiqueta mide 50x25mm (formato rollo termico). Incluye:
-- HUTCHISONPORTS TIMSA (arriba izquierda)
-- ID del activo (arriba derecha)
-- Tipo de equipo (centro, mayusculas, negrita)
-- Codigo de barras CODE128 (centro)
-- Numero de serie (centro, negrita)
+**Etiqueta para imprimir**: La etiqueta mide 51x25mm (formato rollo termico, esquinas redondeadas). Incluye:
+- Logo de TIMSA (arriba izquierda, imagen monocromo)
+- HUTCHISON PORTS TIMSA (arriba izquierda)
+- ID del activo (arriba derecha, sin cortarse)
+- Tipo de equipo (centro, mayusculas)
+- Codigo de barras CODE128 del numero de serie (centro, sin linea de interpretacion)
+- Numero de serie en texto (centro, debajo del codigo)
 - Propiedad de TIMSA (abajo)
+
+**Impresion en Zebra ZD421**: Ademas de la impresion por navegador, el sistema genera ZPL para impresoras termicas Zebra:
+1. En el perfil del equipo, usar **"Descargar ZPL"** para obtener el archivo `.zpl`
+2. O usar **"Imprimir en Zebra"** para enviarlo directamente a la impresora via red (puerto 9100)
+3. La IP de la impresora se configura en **Ajustes → IP Impresora Zebra** (por defecto: `10.132.4.51`)
+4. El logo TIMSA se incrusta en el ZPL como grafico `^GFA` (monocromo 80x25 dots, convertido automaticamente en el navegador)
 
 ### 3.3 Inventario de Accesorios
 **Que funciona igual que activos pero con diferencias**:
@@ -268,8 +275,11 @@ El menu lateral contiene los modulos. Al hacer clic en cada uno se carga la vist
 ### Imprimir etiqueta
 1. Abrir un equipo en el inventario
 2. En el perfil, ir a la seccion "Etiqueta del activo"
-3. Clic en "Imprimir etiqueta"
-4. Se abre una ventana con la etiqueta lista para impresion termica
+3. Opciones disponibles:
+   - **Imprimir etiqueta** — abre ventana de impresion del navegador (formato HTML+CSS)
+   - **Descargar ZPL** — descarga archivo `.zpl` para impresoras Zebra
+   - **Imprimir en Zebra** — envia el ZPL directamente a la impresora via TCP (puerto 9100)
+4. Para impresion Zebra, asegurar que la IP este configurada en Ajustes
 
 ### Exportar inventario
 1. En la vista de inventario, usar los filtros deseados
