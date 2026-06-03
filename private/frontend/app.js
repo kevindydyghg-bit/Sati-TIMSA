@@ -296,7 +296,7 @@ const translationPairs = [
   ['Notas', 'Notes'],
   ['Eliminar', 'Delete'],
   ['Ficha tecnica', 'Technical sheet'],
-  ['QR del activo', 'Asset QR'],
+  ['Etiqueta del activo', 'Asset label'],
   ['Historial', 'History'],
   ['Foto del equipo', 'Equipment photo'],
   ['Guardar stock', 'Save stock'],
@@ -341,7 +341,6 @@ const translationPairs = [
   ['No se puede editar este catalogo.', 'This catalog cannot be edited.'],
   ['Seguro que desea eliminar esta opcion?', 'Are you sure you want to delete this option?'],
   ['Modificar', 'Edit'],
-  ['Etiqueta del activo', 'Asset label'],
   ['Imprimir etiqueta', 'Print label'],
   ['Codigo de barras', 'Barcode'],
   ['Etiqueta generada para impresion', 'Label ready for printing'],
@@ -893,87 +892,96 @@ function closeImageViewer() {
   document.body.classList.remove('image-viewer-open');
 }
 
-const code128Patterns = [
-  '212222','222122','222221','121223','121322','131222','122213','122312','132212','221213','221312','231212','112232','122132','122231','113222','123122','123221','223211','221132',
-  '221231','213212','223112','312131','311222','321122','321221','312212','322112','322211','212123','212321','232121','111323','131123','131321','112313','132113','132311','211313',
-  '231113','231311','112133','112331','132131','113123','113321','133121','313121','211331','231131','213113','213311','213131','311123','311321','331121','312113','312311','332111',
-  '314111','221411','431111','111224','111422','121124','121421','141122','141221','112214','112412','122114','122411','142112','142211','241211','221114','413111','241112','134111',
-  '111242','121142','121241','114212','124112','124211','411212','421112','421211','212141','214121','412121','111143','111341','131141','114113','114311','411113','411311','113141',
-  '114131','311141','411131','211412','211214','211232','2331112'
-];
-
-function code128Svg(value) {
-  const text = String(value || 'SIN-SERIE').slice(0, 48);
-  const codes = [104, ...Array.from(text).map((char) => {
-    const code = char.charCodeAt(0);
-    return code >= 32 && code <= 126 ? code - 32 : 0;
-  })];
-  const checksum = codes.reduce((sum, code, index) => sum + (index === 0 ? code : code * index), 0) % 103;
-  codes.push(checksum, 106);
-  let x = 0;
-  const bars = [];
-  codes.forEach((code) => {
-    const pattern = code128Patterns[code] || code128Patterns[0];
-    Array.from(pattern).forEach((widthChar, index) => {
-      const width = Number(widthChar);
-      if (index % 2 === 0) bars.push(`<rect x="${x}" y="0" width="${width}" height="56"></rect>`);
-      x += width;
-    });
-  });
-  return `<svg class="asset-barcode" viewBox="0 0 ${x} 56" role="img" aria-label="${uiText('Codigo de barras', 'Barcode')}">${bars.join('')}</svg>`;
-}
-
-function assetLabelHtml(profile) {
-  const item = profile.item;
-  const qr = profile.qr_data_url ? `<img class="asset-label__qr" src="${profile.qr_data_url}" alt="QR">` : '';
+function assetLabelHtml(item) {
+  const type = String(item.equipment_type || '').toUpperCase();
+  const serial = escapeHtml(item.serial_number || 'S/N');
+  const assetId = escapeHtml(item.asset_tag || item.serial_number || 'SIN-ID');
   return `
-    <section class="asset-label">
-      <header><strong>HUTCHISON PORTS TIMSA</strong><span>SATI-TIMSA</span></header>
-      <main>
-        <div><small>${uiText('Tipo', 'Type')}</small><b>${escapeHtml(item.equipment_type)}</b></div>
-        <div><small>${uiText('Modelo', 'Model')}</small><b>${escapeHtml(item.brand)} ${escapeHtml(item.model)}</b></div>
-        <div><small>${uiText('Numero de serie', 'Serial number')}</small><b>${escapeHtml(item.serial_number)}</b></div>
-        <div><small>${uiText('ID de inventario', 'Inventory ID')}</small><b>${escapeHtml(item.asset_tag || 'Sin ID')}</b></div>
-      </main>
-      <div class="asset-label__codes">
-        <div>${code128Svg(item.serial_number)}<span>${escapeHtml(item.serial_number)}</span></div>
-        ${qr}
+    <section class="label-card">
+      <div class="label-header">
+        <span>HUTCHISONPORTS TIMSA</span>
+        <span>ID: ${assetId}</span>
       </div>
+      <div class="label-type">${escapeHtml(type)}</div>
+      <div class="label-barcode">
+        <svg id="printBarcode" data-value="${serial}"></svg>
+      </div>
+      <div class="label-serial">${serial}</div>
+      <div class="label-footer">Propiedad de TIMSA</div>
     </section>
   `;
 }
 
+function renderAssetLabel(item) {
+  const container = $('#equipmentLabelPreview');
+  if (!container) return;
+  container.innerHTML = assetLabelHtml(item) + `
+    <div class="label-actions">
+      <button class="ghost" type="button" id="printAssetLabelButton">${uiText('Imprimir etiqueta', 'Print label')}</button>
+    </div>
+  `;
+  try {
+    JsBarcode('#printBarcode', String(item.serial_number || 'S/N'), {
+      format: 'CODE128',
+      width: 1.8,
+      height: 40,
+      displayValue: false,
+      margin: 0,
+      background: '#ffffff'
+    });
+  } catch (e) {
+    console.warn('Barcode generation failed:', e);
+  }
+  $('#printAssetLabelButton')?.addEventListener('click', printAssetLabel);
+}
+
 function printAssetLabel() {
   if (!state.equipmentProfile?.item) return;
-  const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=720,height=520');
+  const item = state.equipmentProfile.item;
+  const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=500,height=400');
   if (!printWindow) {
     toast(uiText('No se pudo abrir la ventana de impresion.', 'Could not open the print window.'), 'error');
     return;
   }
+  const serial = String(item.serial_number || 'S/N');
+  const assetId = escapeHtml(item.asset_tag || item.serial_number || 'SIN-ID');
+  const type = String(item.equipment_type || '').toUpperCase();
   printWindow.document.write(`
     <!doctype html>
     <html>
       <head>
         <meta charset="utf-8">
         <title>${uiText('Etiqueta del activo', 'Asset label')}</title>
+        <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
         <style>
-          @page { size: 90mm 45mm; margin: 4mm; }
-          * { box-sizing: border-box; }
-          body { margin: 0; font-family: Arial, sans-serif; color: #071f42; }
-          .asset-label { width: 82mm; min-height: 37mm; border: 1px solid #071f42; border-radius: 3mm; padding: 3mm; display: grid; gap: 2mm; }
-          header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #d7dee8; padding-bottom: 1.5mm; }
-          header strong { font-size: 10pt; }
-          header span { font-size: 7pt; font-weight: 700; }
-          main { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4mm 3mm; }
-          small { display: block; color: #485568; font-size: 5.8pt; text-transform: uppercase; font-weight: 700; }
-          b { display: block; font-size: 7.2pt; overflow-wrap: anywhere; }
-          .asset-label__codes { display: grid; grid-template-columns: 1fr 18mm; gap: 2mm; align-items: end; }
-          .asset-barcode { width: 100%; height: 14mm; fill: #000; }
-          .asset-label__codes span { display: block; text-align: center; font-size: 6pt; letter-spacing: 0.08em; }
-          .asset-label__qr { width: 18mm; height: 18mm; }
+          @page { size: 50mm 25mm; margin: 0; }
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; width: 50mm; height: 25mm; display: flex; align-items: center; }
+          .label-card { width: 48mm; padding: 1.5mm 2mm; display: grid; gap: 0.8mm; }
+          .label-header { display: flex; justify-content: space-between; font-size: 5.5pt; font-weight: 700; }
+          .label-type { text-align: center; font-size: 8pt; font-weight: 800; letter-spacing: 0.1em; }
+          .label-barcode { display: flex; justify-content: center; }
+          .label-barcode svg { width: 100%; height: auto; max-height: 11mm; }
+          .label-serial { text-align: center; font-weight: 700; font-size: 6.5pt; letter-spacing: 0.05em; }
+          .label-footer { font-size: 5pt; color: #555; }
         </style>
       </head>
-      <body>${assetLabelHtml(state.equipmentProfile)}<script>window.onload=()=>{window.print();setTimeout(()=>window.close(),350)};<\/script></body>
+      <body>
+        <section class="label-card">
+          <div class="label-header"><span>HUTCHISONPORTS TIMSA</span><span>ID: ${assetId}</span></div>
+          <div class="label-type">${escapeHtml(type)}</div>
+          <div class="label-barcode"><svg id="printBc"></svg></div>
+          <div class="label-serial">${escapeHtml(serial)}</div>
+          <div class="label-footer">Propiedad de TIMSA</div>
+        </section>
+        <script>
+          var sn = ${JSON.stringify(serial)};
+          window.onload = function() {
+            try { JsBarcode('#printBc', sn, { format: 'CODE128', width: 1.8, height: 35, displayValue: false, margin: 0, background: '#ffffff' }); } catch(e) {}
+            setTimeout(function() { window.print(); window.close(); }, 300);
+          };
+        <\/script>
+      </body>
     </html>
   `);
   printWindow.document.close();
@@ -2512,20 +2520,7 @@ function renderEquipmentProfile(profile) {
     <div><span>Garantia</span><strong>${item.warranty_until ? raw(String(item.warranty_until).slice(0, 10)) : 'Sin garantia'}</strong></div>
     <div><span>Actualizado por</span><strong>${item.updated_by_name || 'Sistema'}</strong></div>
   `;
-  $('#equipmentQrBox').innerHTML = profile.qr_data_url
-    ? esc`
-      <div class="asset-label-preview">
-        <img src="${raw(profile.qr_data_url)}" alt="QR del equipo">
-        ${raw(code128Svg(item.serial_number))}
-        <strong>${raw(escapeHtml(item.serial_number))}</strong>
-      </div>
-      <div class="qr-actions">
-        <a href="${raw(profile.qr_url)}" target="_blank" rel="noreferrer">Abrir enlace</a>
-        <button class="ghost" type="button" id="printAssetLabelButton">${raw(uiText('Imprimir etiqueta', 'Print label'))}</button>
-      </div>
-    `
-    : '<p class="empty-module">QR no disponible.</p>';
-  $('#printAssetLabelButton')?.addEventListener('click', printAssetLabel);
+  renderAssetLabel(item);
   $('#equipmentHistoryList').innerHTML = commentHistory.map((entry) => `
     <div>
       <strong>${escapeHtml(entry.comment)}</strong>
