@@ -1,269 +1,328 @@
-# SATI-TIMSA
+# SATI-TIMSA - Documentacion
 
-SATI-TIMSA es el sistema interno para controlar activos de TI, accesorios, stock, mantenimiento y auditoria. La idea es dejar atras el control en Excel y tener un registro unico, consultable y trazable desde la web.
+**Sistema de Administracion de Tecnologias de la Informacion**
+Control de activos TI, accesorios, stock, mantenimiento y auditoria.
 
-El proyecto esta pensado para correr en Vercel con PostgreSQL y Storage de Supabase. El frontend es HTML, CSS y JavaScript vanilla; el backend es Node.js con Express.
+> **Presentacion**: Esta documentacion explica como funciona el sistema, sus modulos, la arquitectura, las caracteristicas de seguridad y como desplegarlo. Disenada para entender el sistema completo en una sola lectura.
 
-## Estructura
+---
 
-```text
-api/                  Entrada serverless para Vercel
-backend/src/          API, rutas, middlewares, servicios y conexion a BD
-  config/             Env, pool de PostgreSQL
-  middleware/         Auth JWT, CSRF, error handler
-  routes/             8 modulos de rutas
-  services/           Audit, mail, storage, token blacklist
-  scripts/            Creacion de admin, ejecutor SQL
-db/                   Schema, seed y migraciones SQL
-frontend/             Archivos publicos servidos en produccion
-  assets/js/app.min.js  Bundle minificado y ofuscado
-private/frontend/     JS fuente antes de minificar/ofuscar
-scripts/              Build, backup, test SMTP
-docs/DOCUMENTACION.md Este documento
-```
+## 1. Que es SATI-TIMSA?
 
-## Modulos actuales
+Es un sistema web interno para el departamento de TI de **Hutchison Ports TIMSA**. Su proposito es reemplazar el control de inventario en hojas de Excel por un sistema centralizado, accesible desde el navegador, con trazabilidad completa de todos los cambios.
 
-- **Consola de inventario**: KPIs, graficas, alertas y resumen general.
-- **Inventario de activos**: laptops, monitores, desktops, proyectores, routers, servers, switches, tablets, telefonos, UPS y workstations. Permite filtrar por tipo, marca y modelo.
-- **Inventario de accesorios**: perifericos con cantidad, imagen, ubicacion, area, proveedor y usuario.
-- **Mantenimiento**: seguimiento por fases. Cuando una orden se marca como terminada, el equipo vuelve al inventario activo y queda el registro en historial.
-- **Stock de almacenamiento**: equipos disponibles por ubicacion y area, con cantidades, imagen y vista en cuadricula.
-- **Auditoria**: eventos importantes del sistema guardados en PostgreSQL (tabla append-only).
-- **Cambios recientes**: vista para revisar auditoria con busqueda, filtros, paginacion y exportacion CSV.
-- **Usuarios**: alta de usuarios, roles, bloqueo, reactivacion y reinicio de contrasena para ADMIN.
-- **Ajustes**: tema claro/oscuro, idioma, densidad visual, animaciones y filas por pagina.
+### Que problemas resuelve?
+- **Inventario desactualizado**: los datos siempre estan en vivo, no en archivos que pueden perderse
+- **Perdida de equipos**: cada activo tiene un codigo de barras imprimible para etiquetado fisico
+- **Falta de trazabilidad**: todas las acciones quedan registradas en auditoria (quien, cuando, que cambio)
+- **Mantenimiento sin control**: seguimiento por fases con historial completo
 
-## Seguridad (ISO 27001 / OWASP)
+---
 
-### Autenticacion
-
-La sesion se maneja con cookie HttpOnly, Secure, SameSite=Strict. No se guarda token en localStorage ni sessionStorage.
-
-El flujo de autenticacion:
-
-1. El usuario envia credenciales a `POST /api/auth/login`
-2. El servidor valida con bcrypt, genera un JWT firmado con `JWT_SECRET`
-3. El JWT se devuelve en una cookie `sati_session` (HttpOnly, Secure, SameSite=Strict)
-4. Cada request valida el JWT en el middleware `authenticate`
-5. El token tiene expiracion relativa (2h por defecto, configurable via `JWT_EXPIRES_IN`)
-6. **Tiempo absoluto**: maximo 12h desde `iat` (issued at) — no importa el `exp`
-7. **Blacklist**: al hacer logout o cambiar contrasena, el token se invalida inmediatamente
-8. **Recordar sesion**: cookie con maxAge de 7 dias
-
-### Proteccion CSRF
-
-Toda mutacion (POST, PUT, PATCH, DELETE) requiere el header:
+## 2. Como funciona? (Arquitectura)
 
 ```
-X-Requested-With: XMLHttpRequest
+Tu navegador (Chrome, Edge, Firefox)
+       │
+       ▼  (fetch + JSON)
+   ┌─────────────────────┐
+   │  API REST (Express) │  ← Node.js
+   │  - Rutas            │
+   │  - Middlewares       │
+   │  - Validacion Zod   │
+   └─────────┬───────────┘
+             │  (SQL parametrizado)
+             ▼
+   ┌─────────────────────┐
+   │  PostgreSQL         │  ← Supabase
+   │  - Tablas           │
+   │  - Auditoria        │
+   │  - Indices          │
+   └─────────────────────┘
 ```
 
-Las solicitudes multipart (subida de imagenes, CSV) estan exentas porque el navegador bloquea CSRF en uploads mediante CORS preflight.
+### Flujo de una peticion tipica:
 
-### Seguridad en transporte
+1. Abres el navegador en `https://sati-timsa-zeta.vercel.app`
+2. El servidor Node.js en Vercel recibe la peticion
+3. Sirve el HTML, CSS y JS (frontend)
+4. Tu navegador ejecuta el JS, que hace fetch a la API
+5. La API valida tu sesion (JWT en cookie), aplica CSRF, rate limiting
+6. Ejecuta la consulta SQL parametrizada contra PostgreSQL
+7. Devuelve JSON, el frontend lo renderiza
 
-```text
-HTTPS redirect:    HTTP → 301 HTTPS (produccion)
-HSTS:              max-age=31536000, includeSubDomains, preload
-CSP:               default-src 'self', frame-ancestors 'none', object-src 'none'
-X-Frame-Options:   DENY
-Referrer-Policy:   strict-origin-when-cross-origin
-Permissions-Policy: camara, microfono, geolocalizacion = deshabilitados
-COOP:              same-origin
-CORP:              same-origin
+### Tecnologias usadas:
+
+| Componente | Tecnologia | Por que? |
+|------------|-----------|----------|
+| Frontend | HTML, CSS, JS vanilla | Sin frameworks pesados, carga rapida |
+| Backend | Node.js + Express | Ligero, ampliamente usado |
+| Base de datos | PostgreSQL | Confiable, SQL avanzado, gratis en Supabase |
+| Codigo de barras | JsBarcode | Libreria JS que genera barcode en el navegador |
+| Seguridad | Helmet, JWT, bcrypt, Zod | Estandares OWASP |
+| Infraestructura | Vercel (serverless) | Despliegue automatico desde GitHub |
+
+---
+
+## 3. Modulos del Sistema
+
+### 3.1 Consola / Dashboard
+**Que hace**: Muestra indicadores clave del inventario en graficas y tarjetas.
+**Para que sirve**: Dar una vista rapida del estado general sin entrar a cada modulo.
+
+Datos que muestra:
+- Total de activos, accesorios y stock registrados
+- Equipos en mantenimiento
+- Stock disponible por ubicacion
+- Alertas: garantias por vencer, stock bajo, equipos sin asignar
+- Grafica de distribucion por tipo de equipo
+- Cambios recientes (ultimos 50 eventos)
+
+### 3.2 Inventario de Activos
+**Que hace**: Lista, busca, crea, edita y elimina equipos.
+**Para que sirve**: Llevar el control de todos los activos de TI.
+
+Campos de un activo:
+- Tipo (Laptop, Desktop, Monitor, Router, Server, etc.)
+- Marca y modelo
+- Numero de serie (unico)
+- ID de inventario (asset_tag, ej. 400001)
+- Usuario asignado
+- Proveedor
+- Fecha de compra, garantia
+- Estado (Activo, Mantenimiento, Baja, Resguardo)
+- Ubicacion y area
+- Notas
+
+**Perfil del equipo**: Al seleccionar un equipo, se abre un panel con:
+- Ficha tecnica (cantidad, proveedor, compra, garantia, quien actualizo)
+- **Etiqueta del activo**: codigo de barras generado automaticamente
+- Historial de comentarios
+- Ordenes de mantenimiento
+
+**Etiqueta para imprimir**: La etiqueta mide 50x25mm (formato rollo termico). Incluye:
+- HUTCHISONPORTS TIMSA (arriba izquierda)
+- ID del activo (arriba derecha)
+- Tipo de equipo (centro, mayusculas, negrita)
+- Codigo de barras CODE128 (centro)
+- Numero de serie (centro, negrita)
+- Propiedad de TIMSA (abajo)
+
+### 3.3 Inventario de Accesorios
+**Que funciona igual que activos pero con diferencias**:
+- Los accesorios se identifican por su tipo (teclado, raton, camara, impresora, radio, etc.)
+- Se almacenan en la misma tabla `equipment` que los activos
+- No requieren asset_tag, fecha de compra ni garantia
+- Tienen campo de cantidad visible
+- El sistema detecta automaticamente si estas creando un activo o un accesorio segun el tipo seleccionado
+
+**Por que usan la misma tabla**: Simplifica el codigo y permite busquedas unificadas. El filtro por tipo separa automaticamente activos de accesorios.
+
+### 3.4 Control de Stock
+**Que hace**: Gestiona dispositivos almacenados que no estan asignados a nadie.
+**Para que sirve**: Control de inventario de consumibles y repuestos.
+
+Diferencia con activos: el stock no se asigna a usuarios, solo se registra por ubicacion con cantidad. Ej: "10 mouse genericos en almacen central".
+
+### 3.5 Mantenimiento
+**Que hace**: Registra equipos enviados a reparacion con seguimiento por fases.
+**Para que sirve**: Saber en todo momento que equipos estan en taller y en que estado.
+
+Fases:
+1. **Revisado** → el equipo llego al taller
+2. **En proceso** → se esta reparando
+3. **Terminado** → se devolvio, el equipo vuelve a estar "Activo" en inventario
+
+### 3.6 Auditoria
+**Que hace**: Registra cada accion importante del sistema.
+**Para que sirve**: Saber quien hizo que y cuando (no repudio).
+
+La tabla `audit_logs` es **append-only** (solo se agregan registros, nunca se borran). Cada entrada guarda:
+- Usuario que realizo la accion
+- Tipo de accion (CREATE, UPDATE, DELETE, LOGIN, etc.)
+- Entidad afectada (equipment, user, stock, etc.)
+- ID de la entidad
+- Metadata adicional (JSON)
+- Direccion IP y user agent
+
+---
+
+## 4. Base de Datos
+
+### Tablas principales
+
+| Tabla | Que guarda |
+|-------|-----------|
+| `users` | Usuarios del sistema (nombre, email, password_hash, rol) |
+| `roles` | Roles disponibles (ADMIN, TI, PERSONAL, LECTURA) |
+| `equipment` | Activos y accesorios (tipo, serie, marca, modelo, ubicacion, estado) |
+| `equipment_history` | Historial de cambios en cada equipo |
+| `maintenance_orders` | Ordenes de mantenimiento (fase, notas, fechas) |
+| `stock_items` | Dispositivos en almacen (nombre, modelo, cantidad) |
+| `equipment_types` | Catalogo de tipos de equipo |
+| `brands` | Catalogo de marcas |
+| `equipment_models` | Catalogo de modelos (vinculados a marca) |
+| `locations` | Catalogo de ubicaciones |
+| `areas` | Catalogo de areas (vinculadas a ubicacion) |
+| `audit_logs` | Registro de auditoria (append-only) |
+
+### Seguridad en base de datos
+- **Consultas parametrizadas**: ningun valor concatenado directamente en SQL
+- **Check constraints**: evitan valores invalidos (status solo permite valores definidos)
+- **Unique constraints**: evitan duplicados (serial_number, asset_tag)
+- **Foreign keys**: garantizan integridad referencial
+- **Indices**: en campos de busqueda frecuente (serial, status, fechas)
+
+---
+
+## 5. Seguridad en Detalle
+
+### 5.1 Autenticacion (como inicia sesion)
+
+```
+Usuario → formulario login → POST /api/auth/login
+                               ↓
+                        Servidor valida con bcrypt
+                               ↓
+                        Genera JWT (JSON Web Token)
+                        Contiene: id de usuario, rol, iat, exp
+                               ↓
+                        Guarda en cookie: sati_session
+                        HttpOnly (no accesible desde JS)
+                        Secure (solo HTTPS)
+                        SameSite=Strict (no enviada desde otros sitios)
 ```
 
-### Contraseñas
-
-- Almacenadas con **bcrypt** (minimo 10 rounds, configurable via `BCRYPT_ROUNDS`)
-- Largo minimo: **8 caracteres**
-- Largo maximo: **128 caracteres** (validado por Zod en backend y frontend)
-- Limite de intentos fallidos: 3, luego se habilita opcion de recuperacion
-- Recuperacion: codigo de 4 digitos, hash con bcrypt, expira en 10 minutos
-
-### Base de datos
-
-Conexion:
-
-```text
-SSL:               Obligatorio en produccion (PGSSLMODE=require o verify-full)
-Pool:              max 12 conexiones (1 en Vercel serverless)
-Timeouts:          conexion 8s, statement 15s, query 20s, idle 30s
-KeepAlive:         habilitado
-```
-
-Seguridad en queries:
-
-- 100% sentencias parametrizadas ($1, $2, ...) para prevenir SQL injection
-- Transacciones con BEGIN/COMMIT/ROLLBACK para operaciones atomicas
-- Clasificacion de datos en schema:
-  - PUBLIC: equipment_types, brands, equipment_models, locations
-  - INTERNAL: equipment, equipment_history, maintenance_orders, stock_items
-  - SENSITIVE: audit_logs
-  - RESTRICTED: users (password_hash, reset_code_hash, email)
-
-### Logs
-
-En produccion, el formato Morgan es:
+### 5.2 Cada peticion
 
 ```
-:remote-addr :method :url :status :res[content-length] - :response-time ms
+Navegador envia automaticamente la cookie sati_session
+       ↓
+Middleware verifyToken:
+  1. Extrae token de cookie o header Authorization
+  2. Verifica firma con JWT_SECRET
+  3. Verifica que no este en blacklist (logout)
+  4. Verifica tiempo absoluto (max 12h desde creacion)
+  5. Carga usuario desde BD (verifica que siga activo)
+       ↓
+Middleware requireWriteAccess (para crear/editar):
+   - Solo ADMIN y TI pueden escribir
+   - PERSONAL solo lectura
+       ↓
+Middleware CSRF:
+   - Toda mutacion (POST, PUT, DELETE) requiere header X-Requested-With
+   - Navegadores no permiten enviar este header desde otro origen
+       ↓
+Zod validation:
+   - Los datos de entrada se validan contra un esquema definido
+   - Tipos, longitudes, formatos, rangos
+       ↓
+SQL parametrizado:
+   - INSERT, UPDATE, SELECT con $1, $2, ...
+   - Nunca se concatenan valores en SQL
 ```
 
-Los headers sensibles (authorization, cookie, set-cookie) se filtran automaticamente como `[FILTERED]`.
+### 5.3 Headers de seguridad (Helmet)
+Todas las respuestas HTTP incluyen:
+- **CSP**: solo scripts de self y JsBarcode CDN, no objetos externos, no frames
+- **HSTS**: obliga HTTPS por 1 ano
+- **X-Frame-Options: DENY**: no se puede embeker en iframes
+- **Permissions-Policy**: camara, microfono, GPS deshabilitados
 
-### Validacion de entorno en produccion
+### 5.4 Rate Limiting
+| Limite | Valor |
+|--------|-------|
+| Peticiones globales | 300 por 15 minutos |
+| Intentos de login | 12 por 15 minutos |
+| Escritura (crear/editar) | 100 por 15 minutos |
 
-Al iniciar, el sistema valida:
+### 5.5 UUID validation
+Todos los endpoints que reciben un `:id` en la URL validan que sea un UUID valido antes de consultar la base de datos. Esto previene inyeccion de caracteres especiales en la URL.
 
-- `JWT_SECRET` >= 32 caracteres y diferente de `DATABASE_URL`
-- `APP_URL` no contiene `localhost`
-- `PGSSLMODE` no es `disable`
-- Si `STORAGE_DRIVER=supabase`: requiere `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_BUCKET`
+---
 
-Si alguna validacion falla, el servidor no arranca y muestra todos los errores.
+## 6. Como usar el sistema
 
-### Roles y permisos
+### Acceso
+1. Abrir `https://sati-timsa-zeta.vercel.app`
+2. Ingresar credenciales (usuario y contrasena)
+3. El sistema recuerda la sesion con la cookie
 
-Los permisos se validan en backend, no solo en frontend:
+### Navegacion
+El menu lateral contiene los modulos. Al hacer clic en cada uno se carga la vista correspondiente.
 
-```text
-ADMIN     Control completo del sistema, gestion de usuarios
-TI        CRUD operativo de inventario, stock y mantenimiento
-PERSONAL  Solo lectura y consulta (datos sensibles omitidos)
+### Crear un activo
+1. Ir a Inventario
+2. Clic en "+ Nuevo activo"
+3. Seleccionar tipo, marca, modelo, ubicacion, area
+4. Ingresar numero de serie, ID inventario, usuario, etc.
+5. Clic en "Guardar"
+
+### Crear un accesorio
+1. Ir a Inventario de accesorios (desde el menu)
+2. Clic en "+ Nuevo accesorio"
+3. Seleccionar tipo (ej. Teclado), marca, modelo
+4. La cantidad se muestra automaticamente, los campos de activo se ocultan
+5. Clic en "Guardar"
+
+### Imprimir etiqueta
+1. Abrir un equipo en el inventario
+2. En el perfil, ir a la seccion "Etiqueta del activo"
+3. Clic en "Imprimir etiqueta"
+4. Se abre una ventana con la etiqueta lista para impresion termica
+
+### Exportar inventario
+1. En la vista de inventario, usar los filtros deseados
+2. Clic en "Exportar PDF" o "Exportar CSV"
+3. El archivo se descarga automaticamente
+
+---
+
+## 7. Despliegue
+
+### En Vercel (produccion)
+Cada vez que se hace push a `main`, Vercel despliega automaticamente.
+
+Para forzar despliegue manual:
+```bash
+vercel --prod --yes
 ```
 
-Endpoint de administracion (`/api/users/*`) solo accesible por ADMIN.
-
-### Middleware de seguridad (orden en server.js)
-
-```text
-1. HTTPS redirect (produccion)
-2. Helmet (security headers)
-3. CORS (origenes restringidos)
-4. Compression
-5. JSON parser (limite 1mb)
-6. Morgan (logs sanitizados)
-7. Rate limit global (300/15min)
-8. Cache-Control: no-store
-9. Rate limit login (12/15min)
-10. CSRF protection
-11. Routes (autenticacion en cada endpoint)
-12. Error handler (sin leak de stack traces)
+### Variables de entorno necesarias
 ```
-
-## Base de datos
-
-Tablas principales:
-
-```text
-users, roles
-equipment, equipment_history
-equipment_types, brands, equipment_models
-locations, areas
-maintenance_orders
-stock_items
-audit_logs
-```
-
-Comandos utiles:
-
-```powershell
-npm run db:schema
-npm run db:seed
-npm run admin:create
-```
-
-## Variables de produccion
-
-Estas variables se configuran en Vercel o Render:
-
-```text
-NODE_ENV=production
-APP_URL=https://tu-dominio.vercel.app
 DATABASE_URL=postgresql://...
-PGSSLMODE=require              # Obligatorio en produccion
-JWT_SECRET=valor_largo_y_privado  # Minimo 32 caracteres, unico
-BCRYPT_ROUNDS=12
-
-STORAGE_DRIVER=supabase
-SUPABASE_URL=https://proyecto.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=service_role_key
-SUPABASE_BUCKET=equipment-images
-
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=465
-SMTP_SECURE=true
-SMTP_USER=correo@gmail.com
-SMTP_PASS=contrasena_de_aplicacion
-SMTP_FROM=SATI-TIMSA <correo@gmail.com>
+JWT_SECRET=clave_segura_de_32_caracteres
+APP_URL=https://sitioweb.com
+PGSSLMODE=require
 ```
 
-Para Supabase se usa el connection string del Pooler. En Storage debe existir el bucket indicado en `SUPABASE_BUCKET`.
+---
 
-## Flujo de trabajo
+## 8. Resumen de cambios recientes
 
-Para trabajar local:
+| Fecha | Cambio |
+|-------|--------|
+| Junio 2026 | Reemplazo QR por codigo de barras CODE128 con JsBarcode |
+| Junio 2026 | Eliminacion completa de carga de imagenes (storageService, multer, etc.) |
+| Junio 2026 | Mejora de seguridad: validacion UUID en endpoints |
+| Junio 2026 | Correccion: accesorios ahora guardan correctamente |
 
-```powershell
-npm install
-npm run db:schema
-npm run db:seed
-npm run admin:create
-npm run dev
-```
+---
 
-Antes de subir cambios:
+## 9. Preguntas frecuentes
 
-```powershell
-npm run build:frontend
-npm run check:all
-```
+**Por que no usar React o Vue?**
+El sistema es intencionalmente simple: HTML + CSS + JS vanilla. Esto significa:
+- Sin dependencias pesadas
+- Carga inicial mas rapida
+- Mas facil de mantener a largo plazo
+- Sin necesidad de compilar para desarrollo
 
-El archivo fuente del frontend es:
+**Donde se almacenan los datos?**
+En PostgreSQL de Supabase (plan gratuito). Los datos viajan cifrados con SSL/TLS.
 
-```text
-private/frontend/app.js
-```
+**Que pasa si el servidor se cae?**
+Vercel maneja la alta disponibilidad. Si la base de datos se desconecta, el sistema muestra un mensaje de error claro y no permite operaciones.
 
-Despues de editarlo, generar el bundle publico:
-
-```powershell
-npm run build:frontend
-```
-
-## Pruebas recomendadas
-
-Antes de desplegar conviene revisar:
-
-```text
-Login normal y boton de Entrar
-Login con Enter (keyboard submit)
-Login fallido (contra incorrecta, 3 intentos)
-Recordar sesion (cookie persiste 7d)
-Cierre de sesion (cookie eliminada, token blacklisted)
-Recuperacion de contrasena por correo
-Cambio de contrasena desde ajustes
-Crear, editar y eliminar activos
-Subir y ampliar imagenes
-Finalizar mantenimiento
-Consultar stock por area y ubicacion
-Exportar PDF, Excel y CSV
-Importar CSV desde plantilla
-Validar usuario PERSONAL solo lectura
-Revisar auditoria y cambios recientes
-Validar que CSRF bloquea peticiones sin header
-Validar HSTS en respuesta HTTP
-Validar redireccion HTTP → HTTPS
-Validar que /api/health funciona
-```
-
-## Notas de mantenimiento
-
-- No editar directamente `frontend/assets/js/app.min.js`; se genera desde `private/frontend/app.js`.
-- Si falla la subida de imagenes en produccion, revisar `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_BUCKET` y que el bucket exista.
-- Si falla el correo de recuperacion, revisar que Gmail tenga verificacion en dos pasos y contrasena de aplicacion activa.
-- Si Vercel muestra error 500, revisar primero variables de entorno y luego `/api/health`.
-- Para verificar seguridad: `node --check backend/src/server.js && npm audit --audit-level=high`.
-- El sistema esta alineado con ISO 27001 y guias OWASP. Cualquier cambio grande debe probarse en local antes de subirlo a produccion.
+**Cuantos usuarios pueden usar el sistema al mismo tiempo?**
+PostgreSQL maneja multiples conexiones concurrentes. El pool esta configurado segun el plan de Supabase.
