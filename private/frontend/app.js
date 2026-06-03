@@ -342,6 +342,7 @@ const translationPairs = [
   ['Seguro que desea eliminar esta opcion?', 'Are you sure you want to delete this option?'],
   ['Modificar', 'Edit'],
   ['Imprimir etiqueta', 'Print label'],
+  ['Descargar ZPL', 'Download ZPL'],
   ['Codigo de barras', 'Barcode'],
   ['Etiqueta generada para impresion', 'Label ready for printing'],
   ['Usuario actualizado.', 'User updated.'],
@@ -861,12 +862,55 @@ function assetLabelHtml(item) {
   `;
 }
 
+function zplEscape(text) {
+  return String(text).replace(/[\^~\\]/g, '').substring(0, 80);
+}
+
+function generateZpl(item) {
+  const type = zplEscape(String(item.equipment_type || '').toUpperCase());
+  const serial = zplEscape(item.serial_number || 'S/N');
+  const assetId = zplEscape(item.asset_tag || item.serial_number || 'SIN-ID');
+  return `^XA
+^PW408
+^LL200
+^MTT
+^MNN
+^PR3
+^MD15
+^CI28
+^LH5,2
+^FO5,3^A0N,14,14^FB398,1,,C^FDHUTCHISONPORTS TIMSA^FS
+^FO280,3^A0N,14,14^FB125,1,,R^FDID: ${assetId}^FS
+^FO5,30^A0N,28,28^FB398,1,,C^FD${type}^FS
+^FO30,70^BY2,2,55^BCN,55,Y,N,N^FD${serial}^FS
+^FO5,132^A0N,16,16^FB398,1,,C^FD${serial}^FS
+^FO5,170^A0N,12,12^FB398,1,,C^FDPropiedad de TIMSA^FS
+^XZ`;
+}
+
+function downloadZpl() {
+  const item = state.equipmentProfile?.item;
+  if (!item) return;
+  const zpl = generateZpl(item);
+  const blob = new Blob([zpl], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.download = `etiqueta-${item.asset_tag || item.serial_number || 'activo'}.zpl`;
+  a.href = url;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast(uiText('Archivo ZPL descargado', 'ZPL file downloaded'), 'success');
+}
+
 function renderAssetLabel(item) {
   const container = $('#equipmentLabelPreview');
   if (!container) return;
   container.innerHTML = assetLabelHtml(item) + `
     <div class="label-actions">
       <button class="ghost" type="button" id="printAssetLabelButton">${uiText('Imprimir etiqueta', 'Print label')}</button>
+      <button class="ghost" type="button" id="downloadZplButton">${uiText('Descargar ZPL', 'Download ZPL')}</button>
     </div>
   `;
   try {
@@ -882,6 +926,7 @@ function renderAssetLabel(item) {
     console.warn('Barcode generation failed:', e);
   }
   $('#printAssetLabelButton')?.addEventListener('click', printAssetLabel);
+  $('#downloadZplButton')?.addEventListener('click', downloadZpl);
 }
 
 function printAssetLabel() {
