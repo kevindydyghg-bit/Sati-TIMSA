@@ -922,7 +922,6 @@ function generateZpl(item) {
   const type = zplEscape(String(item.equipment_type || '').toUpperCase());
   const serial = zplEscape(item.serial_number || 'S/N');
   const assetId = zplEscape(item.asset_tag || item.serial_number || 'SIN-ID');
-  const logo = logoZplCache || '';
   return `^XA
 ^PW408
 ^LL200
@@ -932,13 +931,12 @@ function generateZpl(item) {
 ^MD15
 ^CI28
 ^LH5,2
-${logo}
-^FO90,2^A0N,14,14^FB180,1,,L^FDHUTCHISONPORTS TIMSA^FS
-^FO270,2^A0N,14,14^FB128,1,,R^FDID: ${assetId}^FS
+^FO5,3^A0N,14,14^FB398,1,,C^FDHUTCHISONPORTS TIMSA^FS
+^FO270,3^A0N,14,14^FB128,1,,R^FDID: ${assetId}^FS
 ^FO5,30^A0N,28,28^FB398,1,,C^FD${type}^FS
-^FO25,68^BY2,2,50^BCN,50,Y,N,N^FD${serial}^FS
-^FO5,135^A0N,16,16^FB398,1,,C^FD${serial}^FS
-^FO5,168^A0N,12,12^FB398,1,,C^FDPropiedad de TIMSA^FS
+^FO30,68^BY2,2,55^BCN,55,Y,N,N^FD${serial}^FS
+^FO5,142^A0N,16,16^FB398,1,,C^FD${serial}^FS
+^FO5,176^A0N,12,12^FB398,1,,C^FDPropiedad de TIMSA^FS
 ^XZ`;
 }
 
