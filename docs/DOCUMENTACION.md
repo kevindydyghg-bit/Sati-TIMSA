@@ -12,14 +12,16 @@ backend/src/
   config/             Conexion a BD y variables de entorno
   middleware/         Auth JWT, CSRF, error handler
   routes/             Rutas de la API
+    printRoutes.js    Envio de ZPL a impresora Zebra via TCP 9100
   services/           Servicios (mail, blacklist, no-op stubs)
   scripts/            Crear admin, ejecutar SQL
 db/                   Schema, seed, migraciones y limpieza
 frontend/
-  assets/js/app.js    Logica del frontend (vanilla JS)
+  assets/js/app.min.js Logica del frontend (vanilla JS, minificado + ofuscado)
   assets/css/         Estilos
   pages/index.html    Pagina principal SPA
   assets/img/         Imagenes estaticas
+private/frontend/app.js  Fuente sin ofuscar del frontend
 docs/                 Documentacion
 ```
 
@@ -32,7 +34,8 @@ docs/                 Documentacion
 | **Accesorios** | Perifericos con cantidad, ubicacion, area, proveedor |
 | **Stock** | Equipos disponibles por ubicacion con cantidades y vista en cuadricula |
 | **Usuarios** | Gestion de usuarios, roles, bloqueo, reactivacion y reseteo de contrasena |
-| **Ajustes** | Tema claro/oscuro, idioma, densidad visual, animaciones |
+| **Ajustes** | Tema claro/oscuro, idioma, densidad visual, animaciones, IP de impresora Zebra |
+| **Etiquetas ZPL** | Generacion de etiquetas ZPL con codigo de barras CODE128 y logo TIMSA para impresora termica Zebra ZD421. Descarga de archivo .zpl e impresion directa via TCP puerto 9100 |
 
 ### Modulos eliminados
 
@@ -43,6 +46,45 @@ docs/                 Documentacion
 | Servicios Cloud | Se removio la seccion de servicios en la nube |
 | Subida de fotos | Se removio la carga de imagenes para equipos y stock |
 | Codigo QR | Reemplazado por etiqueta TIMSA con datos del equipo |
+
+## Impresion de etiquetas ZPL (Zebra ZD421)
+
+El sistema genera etiquetas en formato ZPL para impresoras termicas Zebra. La etiqueta mide 51mm × 25mm e incluye:
+
+- **Logo TIMSA** en la esquina superior izquierda (convertido a monochrome via `^GFA`)
+- **Nombre de la empresa** y **ID de inventario** en la parte superior
+- **Tipo de equipo** centrado (fuente 24pt)
+- **Codigo de barras CODE128** para el numero de serie (sin linea de interpretacion para evitar superposicion)
+- **Numero de serie** en texto debajo del codigo de barras
+- **Propiedad de TIMSA** en la parte inferior
+
+### Uso
+
+1. Abre el perfil de un equipo en el inventario
+2. En la seccion de etiqueta, usa:
+   - **Descargar ZPL** — descarga un archivo `.zpl` para imprimir manualmente
+   - **Imprimir en Zebra** — envia la etiqueta directamente a la impresora via red
+3. La IP de la impresora se configura en **Ajustes → IP Impresora Zebra** (por defecto: `10.132.4.51`)
+
+### Layout ZPL
+
+```
+^PW408          ^LL200              (51mm × 25mm a 8dpmm)
+^LH5,2                               (home position)
+y=2   → Logo 80×25 + texto empresa + ID: xxxx (sin corte)
+y=28  → EQUIPMENT TYPE (24pt, centrado)
+y=58  → [codigo de barras altura 45]
+y=112 → Serial number (14pt, centrado)
+y=155 → Propiedad de TIMSA (11pt, centrado)
+```
+
+### API
+
+`POST /api/print/zpl` — Envia ZPL a la impresora:
+```json
+{ "zpl": "^XA...^XZ", "printerIP": "10.132.4.51" }
+```
+Requiere autenticacion JWT + rol ADMIN o TI. Conecta al puerto 9100 de la impresora via TCP con timeout de 8 segundos.
 
 ## Seguridad
 
