@@ -948,8 +948,11 @@ function closeOpenDialogs() {
 
 function defaultReminderDate() {
   const date = new Date(Date.now() + 60 * 60 * 1000);
-  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-  return date.toISOString().slice(0, 16);
+  return date.getFullYear() + '-' +
+    String(date.getMonth() + 1).padStart(2, '0') + '-' +
+    String(date.getDate()).padStart(2, '0') + 'T' +
+    String(date.getHours()).padStart(2, '0') + ':' +
+    String(date.getMinutes()).padStart(2, '0');
 }
 
 function formatDate(value) {
@@ -3506,13 +3509,16 @@ sidebarCollapseButton.addEventListener('click', openSettingsDialog);
 noteForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(noteForm));
+  const [dateP, timeP] = data.due_at.split('T');
+  const [y, mo, d] = dateP.split('-');
+  const [h, mi] = timeP.split(':');
+  const dueAtIso = new Date(+y, +mo - 1, +d, +h, +mi).toISOString();
   const submitBtn = noteForm.querySelector('button[type="submit"]');
   if (submitBtn) submitBtn.disabled = true;
-  const dueAtTz = new Date(data.due_at).toISOString();
   try {
     const result = await api('/notes', {
       method: 'POST',
-      body: JSON.stringify({ text: data.text.trim(), due_at: dueAtTz })
+      body: JSON.stringify({ text: data.text.trim(), due_at: dueAtIso })
     });
     if (!result) throw new Error('Empty response');
     state.notes.unshift({
@@ -3527,7 +3533,7 @@ noteForm.addEventListener('submit', async (event) => {
     state.notes.unshift({
       id: globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : String(Date.now()),
       text: data.text.trim(),
-      dueAt: dueAtTz,
+      dueAt: dueAtIso,
       userId: state.user?.id || 'system',
       userName: state.user?.name || uiText('Usuario', 'User'),
       createdAt: new Date().toISOString()
