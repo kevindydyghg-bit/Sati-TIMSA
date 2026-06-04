@@ -206,19 +206,24 @@ Usuario → formulario login → POST /api/auth/login
 Navegador envia automaticamente la cookie sati_session
        ↓
 Middleware verifyToken:
-  1. Extrae token de cookie o header Authorization
-  2. Verifica firma con JWT_SECRET
-  3. Verifica que no este en blacklist (logout)
-  4. Verifica tiempo absoluto (max 12h desde creacion)
-  5. Carga usuario desde BD (verifica que siga activo)
+   1. Extrae token de cookie o header Authorization
+   2. Verifica firma con JWT_SECRET
+   3. Verifica que no este en blacklist (DB -> hash SHA-256)
+   4. Verifica tiempo absoluto (max 12h desde creacion)
+   5. Carga usuario desde BD (verifica que siga activo)
        ↓
 Middleware requireWriteAccess (para crear/editar):
    - Solo ADMIN y TI pueden escribir
    - PERSONAL solo lectura
        ↓
-Middleware CSRF:
-   - Toda mutacion (POST, PUT, DELETE) requiere header X-Requested-With
-   - Navegadores no permiten enviar este header desde otro origen
+Middleware CSRF (doble cookie):
+   - Cookie `sati_xsrf` (httpOnly=false, accesible desde JS)
+   - Toda mutacion (POST, PUT, DELETE) requiere header `x-xsrf-token`
+   - El servidor compara cookie vs header; si no coinciden -> 403
+   - Rutas `/api/auth/*` estan exentas
+       ↓
+rateLimit de escritura:
+   - 100 peticiones / 15 min en rutas de equipo, stock, mantenimiento, usuarios
        ↓
 Zod validation:
    - Los datos de entrada se validan contra un esquema definido
@@ -237,11 +242,14 @@ Todas las respuestas HTTP incluyen:
 - **Permissions-Policy**: camara, microfono, GPS deshabilitados
 
 ### 5.4 Rate Limiting
-| Limite | Valor |
-|--------|-------|
-| Peticiones globales | 300 por 15 minutos |
-| Intentos de login | 12 por 15 minutos |
-| Escritura (crear/editar) | 100 por 15 minutos |
+| Limite | Valor | Rutas |
+|--------|-------|-------|
+| Peticiones globales | 300 por 15 minutos | Todas las rutas API |
+| Intentos de login | 12 por 15 minutos | `/api/auth/login` |
+| Escritura (crear/editar) | 100 por 15 minutos | `/api/equipment`, `/api/stock`, `/api/maintenance`, `/api/users` |
+
+### 5.6 Blacklist de Tokens (DB)
+Cuando un usuario cierra sesion o cambia su contrasena, el token JWT se agrega a la tabla `token_blacklist` con un hash SHA-256. Esto asegura que incluso si el token no ha expirado, no pueda reutilizarse. La tabla se limpia automaticamente de tokens mayores a 24 horas. La migracion de la tabla es automatica al iniciar el servidor (`runMigrations`).
 
 ### 5.5 UUID validation
 Todos los endpoints que reciben un `:id` en la URL validan que sea un UUID valido antes de consultar la base de datos. Esto previene inyeccion de caracteres especiales en la URL.
@@ -271,6 +279,27 @@ El menu lateral contiene los modulos. Al hacer clic en cada uno se carga la vist
 3. Seleccionar tipo (ej. Teclado), marca, modelo
 4. La cantidad se muestra automaticamente, los campos de activo se ocultan
 5. Clic en "Guardar"
+
+### 6.1 Cambio de idioma en vivo
+El sistema soporta Espanol e Ingles con traduccion instantanea sin recargar la pagina:
+1. Ir a **Ajustes** (engranaje en la barra lateral)
+2. Seleccionar **Idioma** → Espanol o English
+3. Todos los textos visibles se traducen al instante: menu, tablas, botones, dialogos, placeholders, mensajes de error, notificaciones, etiquetas de graficas y patrones numericos ("Mostrando X resultados", "Pagina X de Y", "X por pagina")
+
+### 6.2 Impresion Zebra desde la nube
+La aplicacion esta desplegada en Vercel (cloud), pero la impresora Zebra esta en la red local. El boton **"Imprimir en Zebra"** intenta tres metodos en orden:
+
+1. **Vercel backend** (`POST /api/print/zpl`) — funciona si el backend esta en la misma red que la impresora
+2. **Relay local** (`http://localhost:3001/api/print/zpl`) — relay Node.js que corre en tu PC y reenvia el ZPL a la impresora via TCP puerto 9100
+3. **Descargar ZPL** — si falla todo, pregunta si quieres descargar el archivo `.zpl`
+
+Para usar el relay local:
+```bash
+npm run print:relay
+# O doble clic en scripts/start-print-relay.bat
+```
+
+El relay queda escuchando en `http://localhost:3001`. La app en Vercel lo detecta automaticamente.
 
 ### Imprimir etiqueta
 1. Abrir un equipo en el inventario
@@ -312,6 +341,11 @@ PGSSLMODE=require
 
 | Fecha | Cambio |
 |-------|--------|
+| Junio 2026 | Traduccion en vivo Espanol/Ingles (~150 pares + patrones regex), `translateStaticText()` para textos estaticos y atributos |
+| Junio 2026 | CSRF doble cookie (`sati_xsrf` + `x-xsrf-token`), exencion de rutas auth, endpoint `GET /api/csrf-token` |
+| Junio 2026 | Token blacklist persistida en DB (hash SHA-256), migracion automatica al iniciar |
+| Junio 2026 | writeRateLimit (100 req/15min) en rutas de equipo, stock, mantenimiento y usuarios |
+| Junio 2026 | Relay local de impresion (`scripts/print-relay.js`) + fallback a descarga ZPL |
 | Junio 2026 | Reemplazo QR por codigo de barras CODE128 con JsBarcode |
 | Junio 2026 | Eliminacion completa de carga de imagenes (storageService, multer, etc.) |
 | Junio 2026 | Mejora de seguridad: validacion UUID en endpoints |

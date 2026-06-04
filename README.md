@@ -14,15 +14,15 @@ Navegador (HTML + CSS + JS vanilla)
     PostgreSQL (base de datos)
 ```
 
-- **Frontend**: HTML, CSS, JavaScript nativo (Vanilla JS). Sin frameworks. Se minimiza y ofusca para produccion.
-- **Backend**: Node.js con Express. API REST con middlewares de seguridad.
-- **Base de Datos**: PostgreSQL (Supabase).
+- **Frontend**: HTML, CSS, JavaScript nativo (Vanilla JS). Sin frameworks. Soporte completo de idioma Espanol/Ingles con traduccion en vivo.
+- **Backend**: Node.js con Express. API REST con middlewares de seguridad (JWT, CSRF doble cookie, rate limiting).
+- **Base de Datos**: PostgreSQL (Supabase). Migraciones automaticas al iniciar.
 - **Infraestructura**: Desplegado en Vercel (serverless).
 
 ## Modulos
 
 ### 1. Consola / Dashboard
-KPIs, graficas interactivas, alertas de stock bajo y garantias proximas a vencer.
+KPIs, graficas interactivas (Chart.js), alertas de stock bajo y garantias proximas a vencer.
 
 ### 2. Inventario de Activos
 Gestion de equipos: laptops, servidores, monitores, proyectores, routers, switches, tablets, telefonos, UPS, workstations. Permite:
@@ -30,18 +30,19 @@ Gestion de equipos: laptops, servidores, monitores, proyectores, routers, switch
 - Ver perfil detallado del equipo con ficha tecnica
 - **Etiqueta con codigo de barras** generado por JsBarcode (formato CODE128)
 - Imprimir etiqueta para rollo termico 50x25mm
+- Descargar ZPL e imprimir directamente a impresora Zebra (TCP puerto 9100)
 - Historial de comentarios y cambios
 - Exportar a PDF y Excel
 - Importar por CSV
 
 ### 3. Inventario de Accesorios
-Control de perifericos (teclados, ratones, camaras, impresoras, radios, telefono, etc.) con cantidad. Los accesorios se almacenan en la misma tabla `equipment` pero se filtran por tipo.
+Control de perifericos (teclados, ratones, camaras, impresoras, radios, etc.) con cantidad. Los accesorios se almacenan en la misma tabla `equipment` pero se filtran por tipo.
 
 ### 4. Control de Stock
 Dispositivos almacenados organizados por ubicacion y area. Vista en tabla y en cuadricula.
 
 ### 5. Mantenimiento
-Tablero de seguimiento con fases: *Revisado* → *En proceso* → *Terminado*. Cuando se marca como terminado, el equipo vuelve al inventario activo.
+Tablero de seguimiento con fases: *Revisado* → *En Proceso* → *Terminado*. Cuando se marca como terminado, el equipo vuelve al inventario activo.
 
 ### 6. Auditoria
 Registro inmutable de todas las acciones del sistema en tabla `audit_logs` (append-only, no se puede borrar).
@@ -53,7 +54,7 @@ Vista de auditoria con busqueda, filtros, paginacion y exportacion CSV.
 Gestion de usuarios con roles, bloqueo, reactivacion y reinicio de contrasena (solo ADMIN).
 
 ### 9. Ajustes
-Tema claro/oscuro, idioma (Espanol/Ingles), densidad visual, animaciones y filas por pagina.
+Tema claro/oscuro, idioma (Espanol/Ingles con traduccion en vivo sin recargar pagina), densidad visual, animaciones, filas por pagina e IP de impresora Zebra.
 
 ## Seguridad
 
@@ -62,9 +63,17 @@ Tema claro/oscuro, idioma (Espanol/Ingles), densidad visual, animaciones y filas
 - JWT firmado con secreto de 32+ caracteres
 - Expiracion relativa: 2h (configurable)
 - Expiracion absoluta: maximo 12h desde la creacion
-- Blacklist de tokens al cerrar sesion o cambiar contrasena
+- **Blacklist de tokens persistida en DB** (`token_blacklist` tabla, con hash SHA-256) al cerrar sesion o cambiar contrasena
 - Recordar sesion: hasta 7 dias
 - Limite de intentos de login: 12 por 15 minutos
+- Bloqueo temporal tras 3 intentos fallidos consecutivos
+
+### Proteccion CSRF (doble cookie)
+- Cookie `sati_xsrf` (SameSite=Strict, accesible desde JS)
+- Header `x-xsrf-token` requerido en toda mutacion (POST, PUT, PATCH, DELETE)
+- El servidor compara ambos valores; si no coinciden, rechaza la peticion con 403
+- Las rutas de autenticacion (`/api/auth/*`) estan exentas de CSRF
+- Endpoint `GET /api/csrf-token` para obtener/renovar el token al iniciar sesion
 
 ### Contrasenas
 - Almacenadas con **bcrypt** (minimo 10 rounds, configurable hasta 12+)
@@ -72,17 +81,17 @@ Tema claro/oscuro, idioma (Espanol/Ingles), densidad visual, animaciones y filas
 - Politica de complejidad validada con Zod
 
 ### API
-- **CSRF protection**: toda mutacion requiere header `X-Requested-With: XMLHttpRequest`
+- **CSRF doble cookie**: toda mutacion requiere cookie `sati_xsrf` + header `x-xsrf-token`
 - **CORS**: restringido a origenes configurados
-- **Rate limiting**: 300 requests / 15 min global, 12 / 15 min login
+- **Rate limiting**: 300 requests / 15 min global, 12 / 15 min login, **100 / 15 min escritura** (writeRateLimit en rutas de equipo, stock, mantenimiento, usuarios)
 - **Cache-Control**: `no-store, private` en rutas API
 - **UUID validation**: todos los parametros `:id` en rutas se validan como UUID
-- Logs sanitizados: headers sensibles filtrados
+- Logs sanitizados: headers sensibles filtrados (authorization, cookie, etc.)
 
 ### Headers HTTP (Helmet)
 | Header | Valor |
 |--------|-------|
-| Content-Security-Policy | Restrictivo: scripts solo desde self y JsBarcode CDN |
+| Content-Security-Policy | Restrictivo: scripts solo desde self y Chart.js CDN |
 | Strict-Transport-Security | 1 ano, includeSubDomains, preload |
 | X-Frame-Options | DENY |
 | X-Content-Type-Options | nosniff |
@@ -94,6 +103,7 @@ Tema claro/oscuro, idioma (Espanol/Ingles), densidad visual, animaciones y filas
 - **Consultas parametrizadas**: todas las queries SQL usan `$1, $2, ...` (SQL injection prevenido)
 - Check constraints en campos criticos (status, quantity, phase)
 - Clasificacion de datos por sensibilidad en schema
+- **Auto-migration**: la tabla `token_blacklist` se crea automaticamente al iniciar el servidor
 
 ### Roles de Usuario
 | Rol | Acceso |
@@ -105,7 +115,8 @@ Tema claro/oscuro, idioma (Espanol/Ingles), densidad visual, animaciones y filas
 ## Caracteristicas Destacadas
 
 - **Codigo de barras**: etiqueta termica 50x25mm con JsBarcode CODE128, lista para impresion
-- **Idioma**: soporte completo Espanol/Ingles con cambio en vivo
+- **Idioma**: soporte completo Espanol/Ingles con cambio **en vivo** sin recargar pagina (traduccion de textos estaticos, atributos, placeholders, mensajes del sistema, dialogos, notificaciones y patrones numericos)
+- **Impresion Zebra desde la nube**: 3 niveles de fallback — Vercel backend → relay local (`localhost:3001`) → descarga de archivo ZPL
 - **Tema oscuro**: respeta preferencia del sistema, conmutable en ajustes
 - **Exportacion**: PDF, Excel, CSV
 - **Importacion**: carga masiva por CSV con validacion
@@ -120,13 +131,13 @@ sati-timsa/
 ├── backend/src/
 │   ├── config/           Env, pool de PostgreSQL
 │   ├── middleware/        Auth JWT, CSRF, error handler
-│   ├── routes/           8 modulos de rutas (inventory, stock, maintenance, etc.)
-│   ├── services/          Audit, mail, token blacklist
+│   ├── routes/           9 modulos de rutas (auth, inventory, stock, maintenance, print, users, audit, dashboard, lookups)
+│   ├── services/          Audit, mail, token blacklist (DB)
 │   └── scripts/          Creacion de admin, ejecutor SQL
 ├── db/                   Schema, seed y migraciones SQL
 ├── frontend/             Archivos publicos (HTML, CSS, JS, imagenes)
 ├── private/frontend/     JS fuente antes de minificar/ofuscar
-└── scripts/              Build, backup, test SMTP
+└── scripts/              Build, backup, test SMTP, print relay
 ```
 
 ## Despliegue
@@ -149,5 +160,6 @@ sati-timsa/
 npm install              # Instalar dependencias
 npm run build:frontend   # Minificar y ofuscar JS
 npm start                # Iniciar servidor en puerto 3000
-npm run deploy           # Desplegar en Vercel
+npm run print:relay      # Iniciar relay local para impresion Zebra (localhost:3001)
+vercel --prod            # Desplegar en Vercel
 ```
