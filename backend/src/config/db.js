@@ -54,4 +54,22 @@ async function close() {
   await pool.end();
 }
 
-module.exports = { pool, query, withTransaction, close };
+async function runMigrations() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS token_blacklist (
+        token_hash TEXT PRIMARY KEY,
+        blacklisted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_token_blacklist_blacklisted_at
+      ON token_blacklist(blacklisted_at)
+    `);
+    console.log('DB migrations applied successfully');
+  } catch (error) {
+    console.error('DB migration error:', error.message);
+  }
+}
+
+module.exports = { pool, query, withTransaction, close, runMigrations };

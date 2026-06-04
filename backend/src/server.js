@@ -163,25 +163,28 @@ app.get('*', (req, res) => {
 app.use(errorHandler);
 
 if (require.main === module) {
-  const server = app.listen(env.port, () => {
-    console.log(`SATI-TIMSA running on port ${env.port}`);
-  });
-
-  const shutdown = (signal) => {
-    console.log(`${signal} recibido. Cerrando SATI-TIMSA...`);
-    server.close(async () => {
-      try {
-        await db.close();
-        process.exit(0);
-      } catch (error) {
-        console.error('Error cerrando PostgreSQL:', error);
-        process.exit(1);
-      }
+  (async () => {
+    await db.runMigrations();
+    const server = app.listen(env.port, () => {
+      console.log(`SATI-TIMSA running on port ${env.port}`);
     });
-  };
 
-  process.on('SIGINT', () => shutdown('SIGINT'));
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
+    const shutdown = (signal) => {
+      console.log(`${signal} recibido. Cerrando SATI-TIMSA...`);
+      server.close(async () => {
+        try {
+          await db.close();
+          process.exit(0);
+        } catch (error) {
+          console.error('Error cerrando PostgreSQL:', error);
+          process.exit(1);
+        }
+      });
+    };
+
+    process.on('SIGINT', () => shutdown('SIGINT'));
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+  })();
 }
 
 process.on('unhandledRejection', (reason) => {
