@@ -4018,6 +4018,12 @@ window.addEventListener('resize', () => {
   }
 });
 
+equipmentForm.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey && event.target.tagName !== 'TEXTAREA') {
+    event.preventDefault();
+    $('#saveEquipmentButton').click();
+  }
+});
 $('#saveEquipmentButton').addEventListener('click', async () => {
   $('#equipmentMessage').textContent = '';
   if (!equipmentForm.reportValidity()) return;
@@ -4062,6 +4068,12 @@ $('#deleteButton').addEventListener('click', async () => {
   }
 });
 
+maintenanceForm.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey && event.target.tagName !== 'TEXTAREA') {
+    event.preventDefault();
+    $('#saveMaintenanceButton').click();
+  }
+});
 $('#saveMaintenanceButton').addEventListener('click', async () => {
   $('#maintenanceMessage').textContent = '';
   if (!maintenanceForm.reportValidity()) return;
@@ -4089,6 +4101,12 @@ $('#saveMaintenanceButton').addEventListener('click', async () => {
   }
 });
 
+stockForm.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey && event.target.tagName !== 'TEXTAREA') {
+    event.preventDefault();
+    $('#saveStockButton').click();
+  }
+});
 $('#saveStockButton').addEventListener('click', async () => {
   $('#stockMessage').textContent = '';
   if (!stockForm.reportValidity()) return;
@@ -4182,6 +4200,12 @@ $('#userAdminList').addEventListener('click', async (event) => {
   }
 });
 
+passwordForm.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey && event.target.tagName !== 'TEXTAREA') {
+    event.preventDefault();
+    $('#savePasswordButton').click();
+  }
+});
 $('#savePasswordButton').addEventListener('click', async () => {
   $('#passwordMessage').textContent = '';
   if (!passwordForm.reportValidity()) return;
