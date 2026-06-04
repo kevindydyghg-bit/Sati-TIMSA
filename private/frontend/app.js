@@ -3508,9 +3508,7 @@ noteForm.addEventListener('submit', async (event) => {
   const data = Object.fromEntries(new FormData(noteForm));
   const submitBtn = noteForm.querySelector('button[type="submit"]');
   if (submitBtn) submitBtn.disabled = true;
-  const offset = new Date().getTimezoneOffset();
-  const tz = `${offset <= 0 ? '+' : '-'}${String(Math.abs(Math.trunc(offset / 60))).padStart(2, '0')}:${String(Math.abs(offset % 60)).padStart(2, '0')}`;
-  const dueAtTz = data.due_at + tz;
+  const dueAtTz = new Date(data.due_at).toISOString();
   try {
     const result = await api('/notes', {
       method: 'POST',
