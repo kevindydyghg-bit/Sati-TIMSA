@@ -7,7 +7,7 @@ const router = express.Router();
 
 const noteSchema = z.object({
   text: z.string().trim().min(1).max(260),
-  due_at: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/))
+  due_at: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?([+-]\d{2}:\d{2}|Z)?$/))
 });
 
 router.get('/', authenticate, async (req, res, next) => {

@@ -3508,10 +3508,13 @@ noteForm.addEventListener('submit', async (event) => {
   const data = Object.fromEntries(new FormData(noteForm));
   const submitBtn = noteForm.querySelector('button[type="submit"]');
   if (submitBtn) submitBtn.disabled = true;
+  const offset = new Date().getTimezoneOffset();
+  const tz = `${offset <= 0 ? '+' : '-'}${String(Math.abs(Math.trunc(offset / 60))).padStart(2, '0')}:${String(Math.abs(offset % 60)).padStart(2, '0')}`;
+  const dueAtTz = data.due_at + tz;
   try {
     const result = await api('/notes', {
       method: 'POST',
-      body: JSON.stringify({ text: data.text.trim(), due_at: data.due_at })
+      body: JSON.stringify({ text: data.text.trim(), due_at: dueAtTz })
     });
     if (!result) throw new Error('Empty response');
     state.notes.unshift({
@@ -3526,7 +3529,7 @@ noteForm.addEventListener('submit', async (event) => {
     state.notes.unshift({
       id: globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : String(Date.now()),
       text: data.text.trim(),
-      dueAt: data.due_at,
+      dueAt: dueAtTz,
       userId: state.user?.id || 'system',
       userName: state.user?.name || uiText('Usuario', 'User'),
       createdAt: new Date().toISOString()
