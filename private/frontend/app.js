@@ -409,6 +409,70 @@ const translationPairs = [
   ['Anterior', 'Previous'],
   ['Siguiente', 'Next'],
   ['Ultima', 'Last'],
+  ['Creacion', 'Creation'],
+  ['Actualizacion', 'Update'],
+  ['Eliminacion', 'Deletion'],
+  ['Imagen', 'Image'],
+  ['Acceso', 'Access'],
+  ['Movimiento registrado en el sistema', 'Movement recorded in the system'],
+  ['Sin usuario asignado', 'No user assigned'],
+  ['Sin serie', 'No serial'],
+  ['Sin equipos para clasificar.', 'No equipment to classify.'],
+  ['Sin disponibilidad para esta consulta.', 'No availability for this query.'],
+  ['registrados', 'registered'],
+  ['Actualizar', 'Update'],
+  ['Detalles de stock', 'Stock details'],
+  ['Stock de almacenamiento', 'Storage stock'],
+  ['ID de inventario', 'Inventory ID'],
+  ['Nombre de usuario', 'Username'],
+  ['Numero de serie', 'Serial number'],
+  ['Cantidad', 'Quantity'],
+  ['Ubicacion', 'Location'],
+  ['Area', 'Area'],
+  ['Actualizado ', 'Updated '],
+  ['Modelo', 'Model'],
+  ['Compra', 'Purchase'],
+  ['Garantia', 'Warranty'],
+  ['Proveedor', 'Supplier'],
+  ['Respuesta invalida del servidor.', 'Invalid server response.'],
+  ['Solicitud fallida. Verifique que la API de produccion este disponible.', 'Request failed. Check that the production API is available.'],
+  ['No se pudieron cargar las estadisticas del dashboard.', 'Could not load dashboard statistics.'],
+  ['No se pudieron cargar las graficas del dashboard.', 'Could not load dashboard charts.'],
+  ['No se pudo validar el CSV.', 'Could not validate the CSV.'],
+  ['No se pudo importar el CSV.', 'Could not import the CSV.'],
+  ['No se pudo exportar el PDF.', 'Could not export the PDF.'],
+  ['No se pudo exportar el Excel.', 'Could not export the Excel.'],
+  ['No se pudieron exportar los cambios.', 'Could not export the changes.'],
+  ['No se pudo exportar auditoria.', 'Could not export audit.'],
+  ['Auditoria exportada correctamente.', 'Audit exported successfully.'],
+  ['Equipo actualizado correctamente.', 'Equipment updated successfully.'],
+  ['Equipo guardado correctamente.', 'Equipment saved successfully.'],
+  ['Stock actualizado correctamente.', 'Stock updated successfully.'],
+  ['Stock guardado correctamente.', 'Stock saved successfully.'],
+  ['Usuario actualizado.', 'User updated.'],
+  ['Ajustes restablecidos.', 'Settings reset.'],
+  ['Escriba su nueva contrasena para continuar.', 'Enter your new password to continue.'],
+  ['Ocultar contrasena', 'Hide password'],
+  ['Mostrar contrasena', 'Show password'],
+  ['Chart.js no esta disponible.', 'Chart.js is not available.'],
+  ['Actualizar mantenimiento', 'Update maintenance'],
+  ['Modificar dispositivo en stock', 'Edit stock device'],
+  ['Inventario de activos', 'Asset inventory'],
+  ['Inventario de accesorios', 'Accessory inventory'],
+  ['Listado filtrado por tipo, marca y modelo', 'List filtered by type, brand and model'],
+  ['No se pudo cerrar la sesion en servidor:', 'Could not logout on server:'],
+  ['Carga secundaria no disponible:', 'Secondary load not available:'],
+  ['No se pudo obtener token CSRF:', 'Could not get CSRF token:'],
+  ['No se pudo limpiar sesion previa:', 'Could not clear previous session:'],
+  ['Error cargando estadisticas del dashboard:', 'Error loading dashboard statistics:'],
+  ['Nueva contrasena maxima de 12 caracteres:', 'New password max 12 characters:'],
+  ['CSV con errores:', 'CSV with errors:'],
+  ['debe estar entre 1990 y 2100.', 'must be between 1990 and 2100.'],
+  ['listo para guardarse en la base de datos.', 'ready to be saved to the database.'],
+  ['Detalle de equipo', 'Equipment detail'],
+  ['Detalle de accesorio', 'Accessory detail'],
+  ['Nuevo equipo', 'New equipment'],
+  ['Nuevo accesorio', 'New accessory'],
 ];
 
 document.body.appendChild(equipmentPreview);
@@ -451,12 +515,12 @@ async function api(path, options = {}) {
     payload = await response.json();
   } catch {
     if (response.ok) {
-      throw new Error('Respuesta invalida del servidor.');
+      throw new Error(uiText('Respuesta invalida del servidor.', 'Invalid server response.'));
     }
     payload = {};
   }
   if (!response.ok) {
-    throw new Error(payload.message || 'Solicitud fallida. Verifique que la API de produccion este disponible.');
+    throw new Error(payload.message || uiText('Solicitud fallida. Verifique que la API de produccion este disponible.', 'Request failed. Check that the production API is available.'));
   }
   return payload;
 }
@@ -660,8 +724,8 @@ function translateStaticText() {
   nodes.forEach((node) => {
     node.nodeValue = translateValue(node.nodeValue, map);
   });
-  document.querySelectorAll('[placeholder],[aria-label],[title]').forEach((element) => {
-    ['placeholder', 'aria-label', 'title'].forEach((attribute) => {
+  document.querySelectorAll('[placeholder],[aria-label],[title],[data-label]').forEach((element) => {
+    ['placeholder', 'aria-label', 'title', 'data-label'].forEach((attribute) => {
       if (element.hasAttribute(attribute)) {
         element.setAttribute(attribute, translateValue(element.getAttribute(attribute), map));
       }
@@ -1289,13 +1353,13 @@ async function loadDashboardStats() {
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(payload.message || 'No se pudieron cargar las estadisticas del dashboard.');
+      throw new Error(payload.message || uiText('No se pudieron cargar las estadisticas del dashboard.', 'Could not load dashboard statistics.'));
     }
     state.dashboardStats = payload;
     renderDashboardStats(payload);
   } catch (error) {
     console.error('Error cargando estadisticas del dashboard:', error);
-    toast('No se pudieron cargar las graficas del dashboard.', 'error');
+    toast(uiText('No se pudieron cargar las graficas del dashboard.', 'Could not load dashboard charts.'), 'error');
   }
 }
 
@@ -1779,16 +1843,16 @@ function auditSummary(event) {
     metadata.name || metadata.model || metadata.status || metadata.phase,
     metadata.reason || metadata.note || metadata.notes
   ].filter(Boolean);
-  return parts.length ? parts.join(' · ') : 'Movimiento registrado en el sistema';
+  return parts.length ? parts.join(' · ') : uiText('Movimiento registrado en el sistema', 'Movement recorded in the system');
 }
 
 function actionLabel(action) {
   return {
-    CREATE: 'Creacion',
-    UPDATE: 'Actualizacion',
-    DELETE: 'Eliminacion',
-    IMAGE_UPLOAD: 'Imagen',
-    LOGIN: 'Acceso'
+    CREATE: uiText('Creacion', 'Creation'),
+    UPDATE: uiText('Actualizacion', 'Update'),
+    DELETE: uiText('Eliminacion', 'Deletion'),
+    IMAGE_UPLOAD: uiText('Imagen', 'Image'),
+    LOGIN: uiText('Acceso', 'Access')
   }[action] || action;
 }
 
@@ -2480,7 +2544,7 @@ function historyAssignmentText(entry) {
   if (previous) {
     return uiText(`Sin usuario asignado (antes: ${previous})`, `No user assigned (was: ${previous})`);
   }
-  return 'Sin usuario asignado';
+  return uiText('Sin usuario asignado', 'No user assigned');
 }
 
 function historyCommentText(entry) {
@@ -2542,8 +2606,8 @@ async function openHardwareModel(modelId) {
   $('#statusFilter').value = '';
   setView('inventory', { skipLoad: true });
   $('#backButton').classList.remove('hidden');
-  $('#viewTitle').textContent = state.inventoryDrill.scope === 'accessories' ? 'Inventario de accesorios' : 'Inventario de activos';
-  $('#viewSubtitle').textContent = 'Listado filtrado por tipo, marca y modelo';
+  $('#viewTitle').textContent = state.inventoryDrill.scope === 'accessories' ? uiText('Inventario de accesorios', 'Accessory inventory') : uiText('Inventario de activos', 'Asset inventory');
+  $('#viewSubtitle').textContent = uiText('Listado filtrado por tipo, marca y modelo', 'List filtered by type, brand and model');
   state.inventoryScope = state.inventoryDrill.scope;
   syncTypeFilterOptions();
   $('#typeFilter').value = state.inventoryDrill.typeId;
@@ -2628,8 +2692,8 @@ function openEquipment(item = null) {
   $('#deleteButton').classList.toggle('hidden', !item || !writable);
   $('#saveEquipmentButton').classList.toggle('hidden', !writable);
   $('#dialogTitle').textContent = item
-    ? `Detalle de ${isAccessoryItem(item) ? 'accesorio' : 'equipo'}`
-    : `Nuevo ${state.inventoryScope === 'accessories' ? 'accesorio' : 'equipo'}`;
+    ? (isAccessoryItem(item) ? uiText('Detalle de accesorio', 'Accessory detail') : uiText('Detalle de equipo', 'Equipment detail'))
+    : (state.inventoryScope === 'accessories' ? uiText('Nuevo accesorio', 'New accessory') : uiText('Nuevo equipo', 'New equipment'));
 
   equipmentForm.elements.id.value = item?.id || '';
   if (item) {
@@ -2770,10 +2834,10 @@ async function importCsvFile(file) {
     body: formData
   });
   const preview = await previewResponse.json().catch(() => ({}));
-  if (!previewResponse.ok) throw new Error(preview.message || 'No se pudo validar el CSV.');
+  if (!previewResponse.ok)     throw new Error(preview.message || uiText('No se pudo validar el CSV.', 'Could not validate the CSV.'));
   if (!preview.ready) {
     const firstError = preview.rows?.find((row) => row.errors?.length)?.errors?.[0] || 'Revise el CSV.';
-    throw new Error(`CSV con errores: ${firstError}`);
+    throw new Error(`${uiText('CSV con errores:', 'CSV with errors:')} ${firstError}`);
   }
   if (!confirm(uiText(`Importar ${preview.valid} equipos desde CSV?`, `Import ${preview.valid} equipment from CSV?`))) return;
 
@@ -2786,7 +2850,7 @@ async function importCsvFile(file) {
     body: commitData
   });
   const result = await commitResponse.json().catch(() => ({}));
-  if (!commitResponse.ok) throw new Error(result.message || 'No se pudo importar el CSV.');
+  if (!commitResponse.ok)     throw new Error(result.message || uiText('No se pudo importar el CSV.', 'Could not import the CSV.'));
   toast(uiText(`Importacion completa: ${result.imported} equipos.`, `Import complete: ${result.imported} equipment.`), 'success');
   await loadLookups();
   await loadInventory();
@@ -2801,15 +2865,15 @@ function csvCell(value, delimiter = ';') {
 
 function downloadImportTemplate() {
   const headers = [
-    'ID',
-    'Tipo',
-    'Marca',
-    'Modelo',
-    'Numero De Serie',
-    'ID De Inventario',
-    'Ubicacion',
-    'Area',
-    'Nombre De Usuario'
+    uiText('ID', 'ID'),
+    uiText('Tipo', 'Type'),
+    uiText('Marca', 'Brand'),
+    uiText('Modelo', 'Model'),
+    uiText('Numero De Serie', 'Serial Number'),
+    uiText('ID De Inventario', 'Inventory ID'),
+    uiText('Ubicacion', 'Location'),
+    uiText('Area', 'Area'),
+    uiText('Nombre De Usuario', 'Username')
   ];
   const rows = [
     ['1', 'Laptop', 'Marca Ejemplo', 'Modelo Ejemplo', 'SERIE-EJEMPLO-001', 'INV-EJEMPLO-001', '2D', 'Area Ejemplo', 'USUARIO-EJEMPLO'],
@@ -2845,7 +2909,7 @@ function fillMaintenanceEquipmentOptions(selectedId = '') {
 function openMaintenance(item = null) {
   maintenanceForm.reset();
   $('#maintenanceMessage').textContent = '';
-  $('#maintenanceDialogTitle').textContent = item ? 'Actualizar mantenimiento' : 'Agregar mantenimiento';
+  $('#maintenanceDialogTitle').textContent = item ? uiText('Actualizar mantenimiento', 'Update maintenance') : uiText('Agregar mantenimiento', 'Add maintenance');
   fillMaintenanceEquipmentOptions(item?.equipment_id || '');
   maintenanceForm.elements.id.value = item?.id || '';
   maintenanceForm.elements.equipment_id.disabled = Boolean(item);
@@ -2857,7 +2921,7 @@ function openMaintenance(item = null) {
 function openStockDialog(item = null) {
   stockForm.reset();
   $('#stockMessage').textContent = '';
-  $('#stockDialogTitle').textContent = item ? 'Modificar dispositivo en stock' : 'Agregar dispositivo en stock';
+  $('#stockDialogTitle').textContent = item ? uiText('Modificar dispositivo en stock', 'Edit stock device') : uiText('Agregar dispositivo en stock', 'Add stock device');
   fillElementSelect(stockForm.elements.location_id, inventoryLocations(), 'Seleccionar');
   stockForm.elements.id.value = item?.id || '';
   stockForm.elements.item_code.value = item?.item_code || '';
@@ -2895,7 +2959,7 @@ function normalizeOptionalDateField(name, label) {
   const validFormat = /^\d{4}-\d{2}-\d{2}$/.test(value);
   const year = Number(value.slice(0, 4));
   if (!validFormat || year < 1990 || year > 2100) {
-    throw new Error(`${label} debe estar entre 1990 y 2100.`);
+    throw new Error(`${label} ${uiText('debe estar entre 1990 y 2100.', 'must be between 1990 and 2100.')}`);
   }
   return value;
 }
@@ -2916,8 +2980,8 @@ function formPayload() {
     }
   }
 
-  data.purchase_date = normalizeOptionalDateField('purchase_date', 'Fecha de compra');
-  data.warranty_until = normalizeOptionalDateField('warranty_until', 'Garantia hasta');
+  data.purchase_date = normalizeOptionalDateField('purchase_date', uiText('Fecha de compra', 'Purchase date'));
+  data.warranty_until = normalizeOptionalDateField('warranty_until', uiText('Garantia hasta', 'Warranty until'));
   return data;
 }
 
@@ -2937,58 +3001,58 @@ function openCatalogDialog(type) {
 
   const templates = {
     type: {
-      title: 'Agregar tipo',
-      html: '<label class="wide">Tipo nuevo<input name="name" required minlength="2" maxlength="80" placeholder="Ej. Scanner"></label>'
+      title: uiText('Agregar tipo', 'Add type'),
+      html: `<label class="wide">${uiText('Tipo nuevo', 'New type')}<input name="name" required minlength="2" maxlength="80" placeholder="${uiText('Ej. Scanner', 'E.g. Scanner')}"></label>`
     },
     brand: {
-      title: 'Agregar marca',
-      html: '<label class="wide">Marca nueva<input name="name" required minlength="2" maxlength="80" placeholder="Ej. Samsung"></label>'
+      title: uiText('Agregar marca', 'Add brand'),
+      html: `<label class="wide">${uiText('Marca nueva', 'New brand')}<input name="name" required minlength="2" maxlength="80" placeholder="${uiText('Ej. Samsung', 'E.g. Samsung')}"></label>`
     },
     model: {
-      title: 'Agregar modelo',
+      title: uiText('Agregar modelo', 'Add model'),
       html: `
-        <label>Marca
+        <label>${uiText('Marca', 'Brand')}
           <select name="brand_id" required>
             ${state.lookups.brands.map((brand) => `
               <option value="${brand.id}" ${String(brand.id) === String(equipmentForm.elements.brand_id.value) ? 'selected' : ''}>${escapeHtml(brand.name)}</option>
             `).join('')}
           </select>
         </label>
-        <label class="wide">Modelo nuevo<input name="name" required minlength="2" maxlength="120" placeholder="Ej. Latitude 5450"></label>
+        <label class="wide">${uiText('Modelo nuevo', 'New model')}<input name="name" required minlength="2" maxlength="120" placeholder="${uiText('Ej. Latitude 5450', 'E.g. Latitude 5450')}"></label>
       `
     },
     location: {
-      title: 'Agregar ubicacion',
+      title: uiText('Agregar ubicacion', 'Add location'),
       html: `
-        <label>Ubicacion<input name="name" required minlength="2" maxlength="120" placeholder="Ej. Patio de Maniobras"></label>
-        <label>Area inicial<input name="area_name" required minlength="2" maxlength="120" value="General"></label>
-        <label class="wide">Direccion o referencia<input name="address" maxlength="500" placeholder="Referencia fisica opcional"></label>
+        <label>${uiText('Ubicacion', 'Location')}<input name="name" required minlength="2" maxlength="120" placeholder="${uiText('Ej. Patio de Maniobras', 'E.g. Maneuvering Yard')}"></label>
+        <label>${uiText('Area inicial', 'Initial area')}<input name="area_name" required minlength="2" maxlength="120" value="${uiText('General', 'General')}"></label>
+        <label class="wide">${uiText('Direccion o referencia', 'Address or reference')}<input name="address" maxlength="500" placeholder="${uiText('Referencia fisica opcional', 'Optional physical reference')}"></label>
       `
     },
     area: {
-      title: 'Agregar area',
+      title: uiText('Agregar area', 'Add area'),
       html: `
-        <label>Ubicacion
+        <label>${uiText('Ubicacion', 'Location')}
           <select name="location_id" required>
             ${state.lookups.locations.map((location) => `
               <option value="${location.id}" ${String(location.id) === String(activeLocationId) ? 'selected' : ''}>${escapeHtml(location.name)}</option>
             `).join('')}
           </select>
         </label>
-        <label class="wide">Area nueva<input name="name" required minlength="2" maxlength="120" placeholder="Ej. Soporte TI"></label>
+        <label class="wide">${uiText('Area nueva', 'New area')}<input name="name" required minlength="2" maxlength="120" placeholder="${uiText('Ej. Soporte TI', 'E.g. IT Support')}"></label>
       `
     },
     [fieldKeys.au]: {
-      title: 'Agregar nombre de usuario',
-      html: `<label class="wide">Nombre de usuario<input name="${fieldKeys.au}" required minlength="2" maxlength="140" placeholder="Ej. Usuario"></label>`
+      title: uiText('Agregar nombre de usuario', 'Add username'),
+      html: `<label class="wide">${uiText('Nombre de usuario', 'Username')}<input name="${fieldKeys.au}" required minlength="2" maxlength="140" placeholder="${uiText('Ej. Usuario', 'E.g. User')}"></label>`
     },
     supplier: {
-      title: 'Agregar proveedor',
-      html: '<label class="wide">Proveedor nuevo<input name="supplier" required minlength="2" maxlength="140" placeholder="Ej. Zebra"></label>'
+      title: uiText('Agregar proveedor', 'Add supplier'),
+      html: `<label class="wide">${uiText('Proveedor nuevo', 'New supplier')}<input name="supplier" required minlength="2" maxlength="140" placeholder="${uiText('Ej. Zebra', 'E.g. Zebra')}"></label>`
     },
     serial: {
-      title: 'Agregar serie',
-      html: '<label class="wide">Numero de serie<input name="serial_number" required minlength="2" maxlength="140" placeholder="Ej. 5CD1234ABC"></label>'
+      title: uiText('Agregar serie', 'Add serial'),
+      html: `<label class="wide">${uiText('Numero de serie', 'Serial number')}<input name="serial_number" required minlength="2" maxlength="140" placeholder="${uiText('Ej. 5CD1234ABC', 'E.g. 5CD1234ABC')}"></label>`
     }
   };
 
@@ -3110,7 +3174,7 @@ async function saveCatalogEntry() {
 
     catalogDialog.close();
     const label = data.name || data[fieldKeys.au] || data.supplier || data.serial_number;
-    $('#equipmentMessage').textContent = `${label} listo para guardarse en la base de datos.`;
+    $('#equipmentMessage').textContent = `${label} ${uiText('listo para guardarse en la base de datos.', 'ready to be saved to the database.')}`;
   } catch (error) {
     $('#catalogMessage').textContent = error.message;
   }
@@ -3132,7 +3196,7 @@ async function exportInventoryPdf() {
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
-    throw new Error(payload.message || 'No se pudo exportar el PDF.');
+    throw new Error(payload.message || uiText('No se pudo exportar el PDF.', 'Could not export the PDF.'));
   }
 
   const blob = await response.blob();
@@ -3162,7 +3226,7 @@ async function exportInventoryExcel() {
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
-    throw new Error(payload.message || 'No se pudo exportar el Excel.');
+    throw new Error(payload.message || uiText('No se pudo exportar el Excel.', 'Could not export the Excel.'));
   }
 
   const blob = await response.blob();
@@ -3229,7 +3293,7 @@ function applyResetLinkParams() {
   const resetCode = params.get('reset_code');
   if (!resetUser && !resetCode) return;
 
-  showResetPanel('Escriba su nueva contrasena para continuar.');
+    showResetPanel(uiText('Escriba su nueva contrasena para continuar.', 'Enter your new password to continue.'));
   if (resetUser) resetForm.elements.username.value = resetUser;
   if (resetCode) resetForm.elements.reset_code.value = resetCode;
 
@@ -3276,7 +3340,7 @@ $('#passwordToggle').addEventListener('click', () => {
   const secretInput = $('#loginForm').elements[fieldKeys.pw];
   const isSecret = secretInput.type === fieldKeys.pw;
   secretInput.type = isSecret ? 'text' : fieldKeys.pw;
-  $('#passwordToggle').setAttribute('aria-label', isSecret ? 'Ocultar contrasena' : 'Mostrar contrasena');
+  $('#passwordToggle').setAttribute('aria-label', isSecret ? uiText('Ocultar contrasena', 'Hide password') : uiText('Mostrar contrasena', 'Show password'));
 });
 
 $('#requestResetButton').addEventListener('click', async () => {
@@ -3358,7 +3422,7 @@ noteForm.addEventListener('submit', (event) => {
     text: data.text.trim(),
     dueAt: data.due_at,
     userId: state.user?.id || 'system',
-    userName: state.user?.name || 'Usuario',
+    userName: state.user?.name || uiText('Usuario', 'User'),
     createdAt: new Date().toISOString()
   });
   saveNotes();
@@ -3587,7 +3651,7 @@ $('#exportRecentButton').addEventListener('click', async () => {
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
-    toast(payload.message || 'No se pudieron exportar los cambios.', 'error');
+    toast(payload.message || uiText('No se pudieron exportar los cambios.', 'Could not export the changes.'), 'error');
     return;
   }
   const blob = await response.blob();
@@ -3614,7 +3678,7 @@ $('#resetSettingsButton').addEventListener('click', () => {
   state.settings = defaultSettings();
   saveSettingsState();
   applySettings();
-  $('#settingsMessage').textContent = 'Ajustes restablecidos.';
+  $('#settingsMessage').textContent = uiText('Ajustes restablecidos.', 'Settings reset.');
 });
 
 $('#applyStockFiltersButton').addEventListener('click', loadStock);
@@ -3667,7 +3731,7 @@ $('#exportAuditButton').addEventListener('click', async () => {
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
-    toast(payload.message || 'No se pudo exportar auditoria.', 'error');
+    toast(payload.message || uiText('No se pudo exportar auditoria.', 'Could not export audit.'), 'error');
     return;
   }
   const blob = await response.blob();
@@ -3679,7 +3743,7 @@ $('#exportAuditButton').addEventListener('click', async () => {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-  toast('Auditoria exportada correctamente.', 'success');
+    toast(uiText('Auditoria exportada correctamente.', 'Audit exported successfully.'), 'success');
 });
 
 $('#maintenanceList').addEventListener('click', (event) => {
@@ -3843,7 +3907,7 @@ $('#saveEquipmentButton').addEventListener('click', async () => {
     if (state.inventoryScope === 'all') {
       await loadDashboardIfConsole();
     }
-    toast(id ? 'Equipo actualizado correctamente.' : 'Equipo guardado correctamente.', 'success');
+    toast(id ? uiText('Equipo actualizado correctamente.', 'Equipment updated successfully.') : uiText('Equipo guardado correctamente.', 'Equipment saved successfully.'), 'success');
   } catch (error) {
     $('#equipmentMessage').textContent = error.message;
   } finally {
@@ -3909,7 +3973,7 @@ $('#saveStockButton').addEventListener('click', async () => {
     stockDialog.close();
     await loadStock();
     await loadDashboardIfConsole();
-    toast(id ? 'Stock actualizado correctamente.' : 'Stock guardado correctamente.', 'success');
+    toast(id ? uiText('Stock actualizado correctamente.', 'Stock updated successfully.') : uiText('Stock guardado correctamente.', 'Stock saved successfully.'), 'success');
   } catch (error) {
     $('#stockMessage').textContent = error.message;
   } finally {
@@ -3970,10 +4034,10 @@ $('#userAdminList').addEventListener('click', async (event) => {
         body: JSON.stringify({ is_active: toggle.dataset.active === 'true' })
       });
       await loadUsers();
-      toast('Usuario actualizado.', 'success');
+      toast(uiText('Usuario actualizado.', 'User updated.'), 'success');
     }
     if (reset) {
-      const secret = prompt('Nueva contrasena maxima de 12 caracteres:');
+      const secret = prompt(uiText('Nueva contrasena maxima de 12 caracteres:', 'New password max 12 characters:'));
       if (!secret) return;
       await api(apiRoute('users', reset.dataset.userReset, fieldKeys.pw), {
         method: 'POST',
