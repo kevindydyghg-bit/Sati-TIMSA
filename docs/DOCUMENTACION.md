@@ -1,109 +1,169 @@
-# SATI-TIMSA — Documentacion
+# SATI-TIMSA — Documentación
 
-Sistema para que el departamento de TI de Hutchison Ports TIMSA deje de usar Excel y tenga todo el inventario centralizado, siempre actualizado y con trazabilidad.
+**Sistema de Administración de Tecnologías de la Información**
 
-## De un vistazo
+Control de activos TI, accesorios, stock, mantenimiento y auditoría para Hutchison Ports TIMSA. Reemplaza el control en Excel por un registro único, consultable y trazable desde cualquier navegador.
 
-| Que problema resuelve | Como |
-|---|---|
-| Inventario desactualizado | Los datos estan en vivo, no en archivos |
-| Equipos perdidos | Cada activo tiene codigo de barras para etiquetar |
-| Sin trazabilidad | Cada accion queda registrada (quien, cuando, que) |
-| Mantenimiento sin control | Seguimiento por fases con historial |
+---
 
-## Modulos
+## Arquitectura
+
+```
+Navegador (HTML + CSS + JS vanilla)
+       ↕ API REST (fetch + JSON)
+   Node.js + Express (backend)
+       ↕ SQL parametrizado
+    PostgreSQL (base de datos)
+```
+
+- **Frontend**: HTML, CSS, JavaScript nativo. Sin frameworks. Soporte Español/Inglés con traducción en vivo.
+- **Backend**: Node.js con Express. API REST con JWT, CSRF doble cookie y rate limiting.
+- **Base de datos**: PostgreSQL en Supabase. Migraciones automáticas al iniciar.
+- **Infraestructura**: Vercel (serverless). Cada push a main despliega automáticamente.
+
+---
+
+## Estructura del proyecto
+
+```
+sati-timsa/
+├── api/                      Entrada serverless para Vercel
+├── backend/src/
+│   ├── config/               Env, pool de PostgreSQL
+│   ├── middleware/            Auth JWT, CSRF, error handler
+│   ├── routes/               10 módulos (auth, inventory, stock,
+│   │                         maintenance, print, users, audit,
+│   │                         dashboard, lookups, notes)
+│   ├── services/              Auditoría, mail, blacklist de tokens
+│   └── scripts/              Creación de admin, ejecutor SQL
+├── db/                       Schema, seed y migraciones SQL
+├── frontend/                 Archivos públicos (HTML, CSS, JS)
+├── private/frontend/         JS fuente antes de minificar/ofuscar
+└── scripts/                  Build, backup, test SMTP, print relay
+```
+
+---
+
+## Módulos
 
 ### Dashboard
-KPIs, graficas, alertas de stock bajo, garantias por vencer y equipos sin asignar.
+KPIs, gráficas interactivas (Chart.js), alertas de stock bajo, garantías próximas a vencer y equipos sin asignar.
 
 ### Inventario de activos
-Gestion completa: alta, edicion, busqueda por tipo/marca/modelo, perfil con ficha tecnica, codigo de barras, historial, exportacion PDF/CSV, importacion CSV.
+Gestión de equipos (laptops, servidores, monitores, proyectores, routers, switches, tablets, teléfonos, UPS, workstations). Cada activo tiene perfil con ficha técnica, código de barras CODE128, historial y etiqueta para impresión térmica 50×25mm. Exportación a PDF/CSV, importación CSV.
 
 ### Inventario de accesorios
-Perifericos y consumibles (teclados, ratones, camaras, etc.). Se almacenan en la misma tabla que los activos pero el sistema los distingue por tipo. No piden datos de activo (asset_tag, garantia, etc.).
+Periféricos y consumibles (teclados, ratones, cámaras, impresoras, radios, etc.) con cantidad. Se almacenan en la misma tabla que los activos pero el sistema los distingue por tipo.
 
-### Stock
-Dispositivos en almacen por ubicacion y area.
+### Control de stock
+Dispositivos en almacén organizados por ubicación y área. Vista en tabla y en cuadrícula.
 
 ### Mantenimiento
-Fases: Revisado → En proceso → Terminado. Al terminar, el equipo vuelve a activo.
+Seguimiento por fases: Revisado → En proceso → Terminado. Al marcar como terminado, el equipo vuelve a activo automáticamente.
 
-### Auditoria
-Registro de todo: quien creo, edito, elimino, ingreso al sistema. No se puede borrar.
+### Auditoría
+Registro inmutable de todas las acciones del sistema (append-only). No se puede borrar.
 
 ### Cambios recientes
-La auditoria con busqueda, filtros por fecha/usuario/accion y exportacion CSV.
+Auditoría con búsqueda, filtros por fecha/usuario/acción, paginación y exportación CSV.
 
 ### Usuarios
-| Rol | Puede |
-|---|---|
-| ADMIN | Todo |
-| TI | Crear, editar, eliminar inventario, stock, mantenimiento |
-| PERSONAL | Solo ver |
+
+| Rol | Acceso |
+|-----|--------|
+| ADMIN | Control total |
+| TI | CRUD operativo (inventario, stock, mantenimiento) |
+| PERSONAL | Solo lectura |
 
 ### Notas y recordatorios
-Se crean desde el panel de notificaciones (campana). Ahora se guardan en la base de datos, asi que sobreviven a cambios de navegador, dispositivo o sesion. Si el servidor falla, se crean localmente como respaldo.
+Se crean desde el panel de notificaciones. Persisten en base de datos (tabla `notes`), no se pierden al cambiar de navegador o dispositivo. Si el servidor no responde, se crean localmente como respaldo.
 
-## Como se conecta todo
+---
 
-```
-Te logueas → cookie de sesion
-   ↓
-Cada peticion → se valida la cookie, el token CSRF (si vas a escribir), el limite de peticiones
-   ↓
-La API hace SQL parametrizado (nada de inyeccion)
-   ↓
-El frontend recibe JSON y pinta la pantalla
-```
+## Seguridad
 
-## Seguridad en simple
+### Autenticación
+- Cookie `sati_session` (HttpOnly, Secure, SameSite=Strict)
+- JWT firmado con expiración relativa de 2h, máxima absoluta de 12h
+- Blacklist de tokens en DB al cerrar sesión o cambiar contraseña
+- Recordar sesión hasta 7 días
+- Límite de 12 intentos de login por 15 minutos, bloqueo tras 3 fallos
 
-- **Sesion**: cookie HttpOnly + Secure + SameSite. JWT firmado. Al cerrar sesion el token se invalida en DB.
-- **CSRF**: cookie especial + header en cada POST/PUT/DELETE. Si no coinciden, 403.
-- **Rate limit**: 300 peticiones cada 15 min en general, 12 por 15 min para login, 100 cada 15 min para escribir.
-- **Contrasenas**: bcrypt, minimo 8 caracteres.
-- **Headers**: CSP restrictivo, HSTS, X-Frame-Options DENY, etc.
-- **SQL**: siempre parametrizado.
+### CSRF (doble cookie)
+- Cookie `sati_xsrf` + header `x-xsrf-token` obligatorios en POST/PUT/DELETE
+- Si no coinciden, la petición se rechaza con 403
+- Rutas de autenticación exentas
 
-## Para desplegar
+### Rate limiting
+| Límite | Valor | Rutas |
+|--------|-------|-------|
+| Global | 300 / 15 min | Todas las rutas API |
+| Login | 12 / 15 min | `/api/auth/login` |
+| Escritura | 100 / 15 min | Equipo, stock, mantenimiento, usuarios, notas |
 
-Necesitas:
+### Headers HTTP
+CSP restrictivo, HSTS (1 año, preload), X-Frame-Options DENY, sin permisos de cámara/micrófono/GPS.
+
+### Base de datos
+- SQL parametrizado (sin inyección)
+- SSL/TLS obligatorio en producción
+- Check constraints en campos críticos
+- Migraciones automáticas al iniciar el servidor
+
+---
+
+## Despliegue
+
+### Requisitos
 - Node.js 20+
-- PostgreSQL (Supabase gratis)
+- PostgreSQL (Supabase)
 - Cuenta en Vercel
 
-Variables de entorno:
-```
-DATABASE_URL=postgresql://...
-JWT_SECRET=clave_de_32_caracteres
-APP_URL=https://tusitio.com
-PGSSLMODE=require
+### Variables de entorno
+
+| Variable | Descripción |
+|----------|-------------|
+| `DATABASE_URL` | Cadena de conexión PostgreSQL |
+| `JWT_SECRET` | Clave de 32+ caracteres |
+| `APP_URL` | URL pública de la aplicación |
+| `PGSSLMODE` | `require` en producción |
+
+### Comandos
+
+```bash
+npm install                # Instalar dependencias
+npm run build:frontend     # Minificar y ofuscar JS
+npm start                  # Iniciar servidor local (puerto 3000)
+vercel --prod              # Desplegar en Vercel
+npm run print:relay        # Relay local para impresión Zebra
 ```
 
-Comandos:
-```
-npm install
-npm run build:frontend
-npm start                    # local
-vercel --prod                # produccion
-npm run print:relay          # relay para impresion Zebra local
-```
+---
 
-## Impresion Zebra
+## Impresión Zebra
 
-Como la app esta en la nube y la impresora en la red local, al hacer clic en "Imprimir en Zebra" el sistema prueba:
-1. El backend en Vercel (si esta en la misma red)
-2. Un relay local en `localhost:3001` (tienes que tenerlo corriendo)
-3. Descargar el archivo ZPL
+La aplicación está en la nube (Vercel) pero la impresora está en la red local. El botón **Imprimir en Zebra** prueba tres métodos en orden:
+
+1. **Vercel backend** — si el backend alcanza la impresora
+2. **Relay local** — servidor Node.js en `localhost:3001` que reenvía a la impresora vía TCP puerto 9100
+3. **Descargar ZPL** — como último recurso
 
 Para el relay local:
-```
+```bash
 npm run print:relay
 ```
 
-## Lo que cambió (ultimo)
+---
 
-- Notas y recordatorios ahora persistentes en DB
-- Las migraciones se ejecutan correctamente en Vercel (antes no corrian)
-- Enter funciona en formularios: al presionarlo guarda el equipo, accesorio, etc.
-- Enter tambien busca en los campos de busqueda (inventario, stock, cambios recientes)
+## Cambios recientes
+
+| Fecha | Cambio |
+|-------|--------|
+| Junio 2026 | Notas y recordatorios persistentes en DB (tabla `notes`, API CRUD) |
+| Junio 2026 | Fix: migraciones automáticas ahora se ejecutan en Vercel |
+| Junio 2026 | Enter confirma formularios (equipo, accesorio, stock, mantenimiento) |
+| Junio 2026 | Enter ejecuta búsqueda en inventario, stock y cambios recientes |
+| Junio 2026 | Traducción en vivo Español/Inglés con `translateStaticText()` |
+| Junio 2026 | CSRF doble cookie + blacklist de tokens en DB |
+| Junio 2026 | Relay local de impresión Zebra |
+| Junio 2026 | Código de barras CODE128 con JsBarcode |
