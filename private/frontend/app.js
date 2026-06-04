@@ -3506,7 +3506,8 @@ sidebarCollapseButton.addEventListener('click', openSettingsDialog);
 noteForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(noteForm));
-  noteForm.elements.submit.disabled = true;
+  const submitBtn = noteForm.querySelector('button[type="submit"]');
+  if (submitBtn) submitBtn.disabled = true;
   try {
     const result = await api('/notes', {
       method: 'POST',
@@ -3531,7 +3532,7 @@ noteForm.addEventListener('submit', async (event) => {
       createdAt: new Date().toISOString()
     });
   }
-  noteForm.elements.submit.disabled = false;
+  if (submitBtn) submitBtn.disabled = false;
   noteForm.reset();
   noteForm.elements.due_at.value = defaultReminderDate();
   renderNotifications();
