@@ -172,6 +172,7 @@ La tabla `audit_logs` es **append-only** (solo se agregan registros, nunca se bo
 | `locations` | Catalogo de ubicaciones |
 | `areas` | Catalogo de areas (vinculadas a ubicacion) |
 | `audit_logs` | Registro de auditoria (append-only) |
+| `notes` | Notas y recordatorios persistentes por usuario |
 
 ### Seguridad en base de datos
 - **Consultas parametrizadas**: ningun valor concatenado directamente en SQL
@@ -246,7 +247,7 @@ Todas las respuestas HTTP incluyen:
 |--------|-------|-------|
 | Peticiones globales | 300 por 15 minutos | Todas las rutas API |
 | Intentos de login | 12 por 15 minutos | `/api/auth/login` |
-| Escritura (crear/editar) | 100 por 15 minutos | `/api/equipment`, `/api/stock`, `/api/maintenance`, `/api/users` |
+| Escritura (crear/editar) | 100 por 15 minutos | `/api/equipment`, `/api/stock`, `/api/maintenance`, `/api/users`, `/api/notes` |
 
 ### 5.6 Blacklist de Tokens (DB)
 Cuando un usuario cierra sesion o cambia su contrasena, el token JWT se agrega a la tabla `token_blacklist` con un hash SHA-256. Esto asegura que incluso si el token no ha expirado, no pueda reutilizarse. La tabla se limpia automaticamente de tokens mayores a 24 horas. La migracion de la tabla es automatica al iniciar el servidor (`runMigrations`).
@@ -310,6 +311,9 @@ El relay queda escuchando en `http://localhost:3001`. La app en Vercel lo detect
    - **Imprimir en Zebra** — envia el ZPL directamente a la impresora via TCP (puerto 9100)
 4. Para impresion Zebra, asegurar que la IP este configurada en Ajustes
 
+### Notas y recordatorios
+El panel de notificaciones (campana en la barra superior) permite crear notas/recordatorios con fecha y hora. Las notas now se almacenan en la base de datos (tabla `notes`) y persisten entre sesiones y dispositivos. Si el servidor no esta disponible, se crean localmente como fallback.
+
 ### Exportar inventario
 1. En la vista de inventario, usar los filtros deseados
 2. Clic en "Exportar PDF" o "Exportar CSV"
@@ -350,6 +354,11 @@ PGSSLMODE=require
 | Junio 2026 | Eliminacion completa de carga de imagenes (storageService, multer, etc.) |
 | Junio 2026 | Mejora de seguridad: validacion UUID en endpoints |
 | Junio 2026 | Correccion: accesorios ahora guardan correctamente |
+| Junio 2026 | Notas/recordatorios persistentes en DB (`notes`), API CRUD con fallback local |
+| Junio 2026 | Fix: migraciones no se ejecutaban en Vercel (ahora corren al cargar el modulo) |
+| Junio 2026 | Fix: boton submit en formulario de notas (elements.submit era undefined) |
+| Junio 2026 | Enter en formularios de dialogo: equipo, stock, mantenimiento y contrasena guardan con Enter |
+| Junio 2026 | Enter en campos de busqueda: inventario, stock y cambios recientes buscan al presionar Enter |
 
 ---
 

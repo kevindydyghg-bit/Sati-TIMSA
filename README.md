@@ -83,7 +83,7 @@ Tema claro/oscuro, idioma (Espanol/Ingles con traduccion en vivo sin recargar pa
 ### API
 - **CSRF doble cookie**: toda mutacion requiere cookie `sati_xsrf` + header `x-xsrf-token`
 - **CORS**: restringido a origenes configurados
-- **Rate limiting**: 300 requests / 15 min global, 12 / 15 min login, **100 / 15 min escritura** (writeRateLimit en rutas de equipo, stock, mantenimiento, usuarios)
+- **Rate limiting**: 300 requests / 15 min global, 12 / 15 min login, **100 / 15 min escritura** (writeRateLimit en rutas de equipo, stock, mantenimiento, usuarios, notas)
 - **Cache-Control**: `no-store, private` en rutas API
 - **UUID validation**: todos los parametros `:id` en rutas se validan como UUID
 - Logs sanitizados: headers sensibles filtrados (authorization, cookie, etc.)
@@ -103,7 +103,7 @@ Tema claro/oscuro, idioma (Espanol/Ingles con traduccion en vivo sin recargar pa
 - **Consultas parametrizadas**: todas las queries SQL usan `$1, $2, ...` (SQL injection prevenido)
 - Check constraints en campos criticos (status, quantity, phase)
 - Clasificacion de datos por sensibilidad en schema
-- **Auto-migration**: la tabla `token_blacklist` se crea automaticamente al iniciar el servidor
+- **Auto-migration**: las tablas `token_blacklist` y `notes` se crean automaticamente al iniciar el servidor (incluso en Vercel serverless)
 
 ### Roles de Usuario
 | Rol | Acceso |
@@ -131,7 +131,7 @@ sati-timsa/
 ├── backend/src/
 │   ├── config/           Env, pool de PostgreSQL
 │   ├── middleware/        Auth JWT, CSRF, error handler
-│   ├── routes/           9 modulos de rutas (auth, inventory, stock, maintenance, print, users, audit, dashboard, lookups)
+│   ├── routes/           10 modulos de rutas (auth, inventory, stock, maintenance, print, users, audit, dashboard, lookups, notes)
 │   ├── services/          Audit, mail, token blacklist (DB)
 │   └── scripts/          Creacion de admin, ejecutor SQL
 ├── db/                   Schema, seed y migraciones SQL
