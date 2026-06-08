@@ -2440,6 +2440,14 @@ td small {
   border-color: transparent;
   padding: 0.5rem 0.55rem;
   font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.field-with-action:hover .mini-action.delete {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .mini-action.delete:hover {
