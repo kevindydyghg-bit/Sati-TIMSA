@@ -292,22 +292,24 @@ router.delete('/:kind/:id', authenticate, requireWriteAccess, async (req, res, n
 
   try {
     const id = z.coerce.number().int().positive().parse(req.params.id);
-    const item = await db.withTransaction(async (client) => {
-      const fkInfo = catalogFkTables[catalog.table];
-      if (fkInfo) {
-        for (const table of ['equipment', 'stock_items']) {
-          for (const column of fkInfo.cols) {
-            try {
-              await client.query(
-                `UPDATE ${table} SET ${column} = NULL WHERE ${column} = $1`,
-                [id]
-              );
-            } catch (_) {
-              /* column may still be NOT NULL if migration hasn't run, or table may not exist */
-            }
+    /* Clear FK references outside the transaction so a failed UPDATE
+       (e.g. stock_items lacks the column) does not abort the DELETE. */
+    const fkInfo = catalogFkTables[catalog.table];
+    if (fkInfo) {
+      for (const table of ['equipment', 'stock_items']) {
+        for (const column of fkInfo.cols) {
+          try {
+            await db.query(
+              `UPDATE ${table} SET ${column} = NULL WHERE ${column} = $1`,
+              [id]
+            );
+          } catch (_) {
+            /* column may still be NOT NULL if migration hasn't run, or table/column may not exist */
           }
         }
       }
+    }
+    const item = await db.withTransaction(async (client) => {
       const { rows } = await client.query(
         `DELETE FROM ${catalog.table}
          WHERE id = $1
