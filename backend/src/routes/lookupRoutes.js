@@ -303,7 +303,7 @@ router.delete('/:kind/:id', authenticate, requireWriteAccess, async (req, res, n
                 [id]
               );
             } catch (_) {
-              /* stock_items table may not exist */
+              /* column may still be NOT NULL if migration hasn't run, or table may not exist */
             }
           }
         }
