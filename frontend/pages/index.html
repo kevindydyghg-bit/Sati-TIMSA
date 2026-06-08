@@ -555,7 +555,10 @@
             </span>
           </label>
           <label>Ubicacion
-            <select name="location_id" required></select>
+            <span class="field-with-action">
+              <select name="location_id" required></select>
+              <button class="mini-action" type="button" data-add-catalog="location">Agregar</button>
+            </span>
           </label>
           <label>Area<select name="area_id" required></select></label>
           <label>Numero de serie
@@ -640,7 +643,10 @@
           <label>Serie<input name="serial_number" maxlength="140" placeholder="Opcional si se captura por lote"></label>
           <label>Cantidad<input name="quantity" type="number" min="0" step="1" required value="1"></label>
           <label>Ubicacion
-            <select name="location_id" required></select>
+            <span class="field-with-action">
+              <select name="location_id" required></select>
+              <button class="mini-action" type="button" data-add-catalog="location">Agregar</button>
+            </span>
           </label>
           <label>Area
             <span class="field-with-action">
