@@ -561,8 +561,9 @@ router.get('/export/xlsx', authenticate, async (req, res, next) => {
       });
       worksheet.addImage(logoId, {
         tl: { col: 0, row: 0 },
-        ext: { width: 130, height: 40 }
+        ext: { width: 220, height: 65 }
       });
+      worksheet.getRow(1).height = 70;
     } catch (e) {
       console.error('Error al cargar el logo para XLSX:', e.message);
     }
