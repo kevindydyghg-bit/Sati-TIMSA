@@ -1507,6 +1507,7 @@ function syncEquipmentFormMode() {
   });
 
   equipmentForm.elements.status.required = !accessoryMode;
+  equipmentForm.elements.serial_number.required = !accessoryMode;
   equipmentForm.elements.purchase_date.disabled = accessoryMode;
   equipmentForm.elements.warranty_until.disabled = accessoryMode;
   equipmentForm.elements.asset_tag.disabled = accessoryMode;
