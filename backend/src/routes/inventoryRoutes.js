@@ -839,6 +839,7 @@ router.post('/', authenticate, requireWriteAccess, async (req, res, next) => {
 
 router.put('/:id', authenticate, requireWriteAccess, requireValidUuid, async (req, res, next) => {
   try {
+    console.log('PUT /equipment/:id body:', JSON.stringify(req.body));
     const data = equipmentSchema.parse(req.body);
     const updated = await db.withTransaction(async (client) => {
       await validateCatalogRelations(client, data);
@@ -894,6 +895,7 @@ router.put('/:id', authenticate, requireWriteAccess, requireValidUuid, async (re
 
     res.json({ item: updated });
   } catch (error) {
+    console.error('PUT /equipment/:id error:', error.message || error);
     if (error.name === 'ZodError') {
       return res.status(400).json({ message: zodMessage(error) });
     }

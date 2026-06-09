@@ -3068,6 +3068,7 @@ function normalizeOptionalDateField(name, label) {
 }
 
 function formPayload() {
+  console.log('formPayload - form elements:', Array.from(equipmentForm.elements).filter(el => el.name).map(el => `${el.name}=${el.value}`).join(', '));
   const data = Object.fromEntries(new FormData(equipmentForm));
   delete data.id;
   data.quantity = Number(data.quantity || 1);
@@ -4191,6 +4192,8 @@ $('#saveEquipmentButton').addEventListener('click', async () => {
     toast(id ? uiText('Equipo actualizado correctamente.', 'Equipment updated successfully.') : uiText('Equipo guardado correctamente.', 'Equipment saved successfully.'), 'success');
   } catch (error) {
     $('#equipmentMessage').textContent = error.message;
+    console.error('Error al guardar:', error.message);
+    alert('Error: ' + error.message);
   } finally {
     saveButton.disabled = false;
     saveButton.textContent = originalText;
