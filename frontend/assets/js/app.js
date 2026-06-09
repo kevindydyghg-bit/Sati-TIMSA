@@ -1,5 +1,20 @@
+const settingsStorageKey = 'sati_settings';
+
+function readStoredJson(key, fallback) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || 'null');
+    return value ?? fallback;
+  } catch (error) {
+    return fallback;
+  }
+}
+
+function initialSettings() {
+  const saved = readStoredJson(settingsStorageKey, {});
+  return Object.prototype.hasOwnProperty.call(saved, 'language') ? saved : { ...saved, language: 'es' };
+}
+
 const state = {
-  token: null,
   user: null,
   lookups: null,
   items: [],
@@ -11,32 +26,20 @@ const state = {
   stockSummary: { total: 0, available: 0 },
   stockAvailability: [],
   audit: [],
+  auditMeta: { page: 1, limit: 50, total: 0, total_pages: 1 },
+  recent: [],
+  recentMeta: { page: 1, limit: 25, total: 0, total_pages: 1 },
   users: [],
   equipmentProfile: null,
   hardwareGroup: null,
+  inventoryDrill: { scope: 'equipment', typeId: '', brandId: '', modelId: '' },
   inventoryScope: 'all',
-  notes: readStoredNotes()
+  viewHistory: [],
+  settings: initialSettings(),
+  notes: []
 };
 
 const $ = (selector) => document.querySelector(selector);
-const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;'
-}[char]));
-const safeUrl = (value) => {
-  const url = String(value || '').trim();
-  if (!url) return '';
-  if (url.startsWith('/') || url.startsWith('blob:') || url.startsWith('data:image/')) return escapeHtml(url);
-  try {
-    const parsed = new URL(url, window.location.origin);
-    return ['http:', 'https:'].includes(parsed.protocol) ? escapeHtml(url) : '';
-  } catch {
-    return '';
-  }
-};
 const loginView = $('#loginView');
 const dashboardView = $('#dashboardView');
 const inventoryBody = $('#inventoryBody');
@@ -54,6 +57,9 @@ const maintenanceDialog = $('#maintenanceDialog');
 const maintenanceForm = $('#maintenanceForm');
 const stockDialog = $('#stockDialog');
 const stockForm = $('#stockForm');
+const resetForm = $('#resetForm');
+const settingsDialog = $('#settingsDialog');
+const settingsForm = $('#settingsForm');
 const notificationPanel = $('#notificationPanel');
 const noteForm = $('#noteForm');
 const menuButton = $('#menuButton');
@@ -62,10 +68,25 @@ let hoverDetailTimer = null;
 let hoverHideTimer = null;
 let hoverPointer = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 let catalogSource = 'equipment';
+let catalogContextTarget = null;
+let recordContextTarget = null;
 let dashboardChartInstances = {};
-let inventoryRequestId = 0;
-let searchTimer = null;
+let dashboardRefreshTimer = null;
 const apiBaseUrl = String(window.SATI_API_BASE_URL || '').replace(/\/$/, '');
+function getCookieValue(name) {
+  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+const joinKey = (...parts) => parts.join('_');
+const fieldKeys = {
+  au: joinKey('assigned', 'user'),
+  cp: joinKey('current', 'password'),
+  np: joinKey('new', 'password'),
+  rp: joinKey('reset', 'password'),
+  pw: ['pass', 'word'].join('')
+};
+const apiRoute = (...parts) => `/${parts.filter(Boolean).join('/')}`;
+const secretResetRoute = (action) => apiRoute('auth', `${fieldKeys.pw}-reset`, action);
 const assetTypeNames = [
   'laptop',
   'laptops',
@@ -132,6 +153,372 @@ const accessoryTypes = [
   'no-break'
 ];
 
+const translationPairs = [
+  ['Iniciar sesion', 'Sign in'],
+  ['Ingrese sus credenciales para acceder al sistema', 'Enter your credentials to access the system'],
+  ['Usuario', 'User'],
+  ['Contrasena', 'Password'],
+  ['Recordarme', 'Remember me'],
+  ['Olvido su contrasena?', 'Forgot your password?'],
+  ['Entrar', 'Enter'],
+  ['Recuperar contrasena', 'Recover password'],
+  ['Correo de recuperacion', 'Recovery email'],
+  ['Enviar codigo', 'Send code'],
+  ['Codigo', 'Code'],
+  ['Nueva contrasena', 'New password'],
+  ['Cambiar contrasena', 'Change password'],
+  ['Maximo 12 caracteres', 'Maximum 12 characters'],
+  ['Regresar', 'Back'],
+  ['Cerrar', 'Close'],
+  ['Cancelar', 'Cancel'],
+  ['Guardar', 'Save'],
+  ['Guardar ajustes', 'Save settings'],
+  ['Restablecer', 'Reset'],
+  ['Sistema', 'System'],
+  ['Ajustes', 'Settings'],
+  ['Tema', 'Theme'],
+  ['Claro', 'Light'],
+  ['Oscuro', 'Dark'],
+  ['Idioma', 'Language'],
+  ['Espanol', 'Spanish'],
+  ['Densidad', 'Density'],
+  ['Comoda', 'Comfortable'],
+  ['Compacta', 'Compact'],
+  ['Menu lateral', 'Sidebar'],
+  ['Expandido', 'Expanded'],
+  ['Contraido', 'Collapsed'],
+  ['Animaciones', 'Animations'],
+  ['Activadas', 'Enabled'],
+  ['Reducidas', 'Reduced'],
+  ['Filas por pagina', 'Rows per page'],
+  ['Consola de inventario', 'Inventory console'],
+  ['Resumen general del inventario de activos', 'General asset inventory summary'],
+  ['Inventario', 'Inventory'],
+  ['Inventario de activos', 'Asset inventory'],
+  ['Inventario de equipos', 'Equipment inventory'],
+  ['Inventario de accesorios', 'Accessory inventory'],
+  ['Equipos en mantenimiento', 'Maintenance equipment'],
+  ['Stock de almacenamiento', 'Storage stock'],
+  ['Auditoria', 'Audit'],
+  ['Cambios recientes', 'Recent changes'],
+  ['Usuarios', 'Users'],
+  ['Servicios cloud', 'Cloud services'],
+  ['Listado general de activos y accesorios registrados', 'General list of registered assets and accessories'],
+  ['Dashboard general del inventario de activos', 'General asset inventory dashboard'],
+  ['Nuevo activo', 'New asset'],
+  ['Nuevo accesorio', 'New accessory'],
+  ['Nuevo equipo', 'New equipment'],
+  ['Agregar usuario', 'Add user'],
+  ['Total', 'Total'],
+  ['Activos', 'Active'],
+  ['Mantenimiento', 'Maintenance'],
+  ['Inactivos', 'Inactive'],
+  ['Activos registrados', 'Registered assets'],
+  ['Accesorios registrados', 'Registered accessories'],
+  ['Equipos registrados', 'Registered equipment'],
+  ['En operacion', 'In operation'],
+  ['Requieren atencion', 'Need attention'],
+  ['Resguardo o baja', 'Assigned hold or retired'],
+  ['Total Equipos', 'Total equipment'],
+  ['En Mantenimiento', 'In maintenance'],
+  ['Alertas de Stock', 'Stock alerts'],
+  ['Fases revisado o en proceso', 'Reviewed or in-progress phases'],
+  ['TOTAL EQUIPOS', 'TOTAL EQUIPMENT'],
+  ['EN MANTENIMIENTO', 'IN MAINTENANCE'],
+  ['ALERTAS DE STOCK', 'STOCK ALERTS'],
+  ['Items con cantidad menor a 5', 'Items with quantity below 5'],
+  ['Tipos', 'Types'],
+  ['TIPOS', 'TYPES'],
+  ['Distribucion por tipo de equipo', 'Equipment type distribution'],
+  ['Areas', 'Areas'],
+  ['AREAS', 'AREAS'],
+  ['Equipos por area', 'Equipment by area'],
+  ['Estado de mantenimiento', 'Maintenance status'],
+  ['Estado', 'Status'],
+  ['ESTADO', 'STATUS'],
+  ['Salud del inventario', 'Inventory health'],
+  ['Activos principales', 'Top assets'],
+  ['Garantias', 'Warranties'],
+  ['Vencimientos', 'Expirations'],
+  ['Vencidas', 'Expired'],
+  ['Proximos 30 dias', 'Next 30 days'],
+  ['Proximos 90 dias', 'Next 90 days'],
+  ['Distribucion', 'Distribution'],
+  ['Por ubicacion', 'By location'],
+  ['Ordenes por fase', 'Orders by phase'],
+  ['Almacenamiento', 'Storage'],
+  ['Unidades disponibles', 'Available units'],
+  ['Registros en stock', 'Stock records'],
+
+  ['activos', 'assets'],
+  ['Equipo audiovisual inventariado.', 'Inventoried audiovisual equipment.'],
+  ['Marca registrada para el tipo seleccionado.', 'Brand registered for the selected type.'],
+  ['Modelo disponible para la marca seleccionada.', 'Model available for the selected brand.'],
+  ['Ver listado', 'View list'],
+  ['Abrir', 'Open'],
+  ['Sin modelos registrados para esta marca.', 'No models registered for this brand.'],
+  ['Sin marcas registradas para este tipo.', 'No brands registered for this type.'],
+  ['Sin tipos de activos registrados.', 'No asset types registered.'],
+  ['Sin datos por tipo.', 'No data by type.'],
+  ['Sin datos por ubicacion.', 'No data by location.'],
+  ['Sin ordenes de mantenimiento.', 'No maintenance orders.'],
+  ['Buscar inventario', 'Search inventory'],
+  ['Buscar por ID, serie, usuario, ubicacion o modelo', 'Search by ID, serial, user, location or model'],
+  ['Categoria', 'Category'],
+  ['Marca', 'Brand'],
+  ['Modelo', 'Model'],
+  ['Estado', 'Status'],
+  ['Todas', 'All'],
+  ['Todos', 'All'],
+  ['Exportar PDF', 'Export PDF'],
+  ['Exportar Excel', 'Export Excel'],
+  ['Plantilla Excel', 'Excel template'],
+  ['Importar CSV', 'Import CSV'],
+  ['Pagina', 'Page'],
+  ['resultados', 'results'],
+  ['Tipo', 'Type'],
+  ['Numero de serie', 'Serial number'],
+  ['ID de inventario', 'Inventory ID'],
+  ['Ubicacion', 'Location'],
+  ['Area', 'Area'],
+  ['Accion', 'Action'],
+  ['Evento', 'Event'],
+  ['Detalle', 'Detail'],
+  ['Nombre', 'Name'],
+  ['Correo Gmail', 'Gmail email'],
+  ['Rol', 'Role'],
+  ['Ver detalle', 'View details'],
+  ['Sin ID', 'No ID'],
+  ['Sin asignar', 'Unassigned'],
+  ['CRUD TI', 'IT CRUD'],
+  ['Agregar', 'Add'],
+  ['Proveedor', 'Supplier'],
+  ['Fecha de compra', 'Purchase date'],
+  ['Garantia hasta', 'Warranty until'],
+
+  ['Notas', 'Notes'],
+  ['Eliminar', 'Delete'],
+  ['Ficha tecnica', 'Technical sheet'],
+  ['Etiqueta del activo', 'Asset label'],
+  ['Historial', 'History'],
+
+  ['Guardar stock', 'Save stock'],
+  ['Almacen', 'Warehouse'],
+  ['Agregar dispositivo en stock', 'Add stock device'],
+  ['Cantidad', 'Quantity'],
+  ['Serie', 'Serial'],
+  ['Disponibilidad', 'Availability'],
+  ['Menor a mayor por ubicacion y area', 'Lowest to highest by location and area'],
+  ['Registros consultados', 'Queried records'],
+  ['Cantidad disponible', 'Available quantity'],
+  ['Agregar mantenimiento', 'Add maintenance'],
+  ['Equipo', 'Equipment'],
+  ['Revisado', 'Reviewed'],
+  ['En proceso', 'In progress'],
+  ['Terminado', 'Finished'],
+  ['Sin notas registradas.', 'No notes recorded.'],
+  ['Sin equipos enviados a mantenimiento.', 'No equipment sent to maintenance.'],
+  ['Sin dispositivos en stock para esta consulta.', 'No stock devices for this query.'],
+  ['Busqueda', 'Search'],
+  ['Desde', 'From'],
+  ['Hasta', 'To'],
+  ['Filtrar', 'Filter'],
+  ['Exportar CSV', 'Export CSV'],
+  ['Sin cambios para esta consulta.', 'No changes for this query.'],
+  ['Sin eventos de auditoria.', 'No audit events.'],
+  ['Contrasena actual', 'Current password'],
+  ['Nueva contrasena', 'New password'],
+  ['Desactivar', 'Deactivate'],
+  ['Activar', 'Activate'],
+  ['Sin usuarios.', 'No users.'],
+  ['Activo', 'Active'],
+  ['Inactivo', 'Inactive'],
+  ['Base de datos cloud', 'Cloud database'],
+  ['Interfaz operativa', 'Operational interface'],
+  ['Editar nombre', 'Edit name'],
+  ['Eliminar opcion', 'Delete option'],
+  ['Nuevo nombre:', 'New name:'],
+  ['Catalogo actualizado.', 'Catalog updated.'],
+  ['Catalogo eliminado.', 'Catalog deleted.'],
+  ['Seleccione primero una opcion para editarla.', 'Select an option first to edit it.'],
+  ['No se puede editar este catalogo.', 'This catalog cannot be edited.'],
+  ['Seguro que desea eliminar esta opcion?', 'Are you sure you want to delete this option?'],
+  ['Modificar', 'Edit'],
+  ['Imprimir etiqueta', 'Print label'],
+  ['Descargar ZPL', 'Download ZPL'],
+  ['Imprimir en Zebra', 'Print to Zebra'],
+  ['Imprimiendo...', 'Printing...'],
+  ['Codigo de barras', 'Barcode'],
+  ['Etiqueta generada para impresion', 'Label ready for printing'],
+  ['Usuario actualizado.', 'User updated.'],
+  ['Usuario eliminado.', 'User deleted.'],
+  ['Stock eliminado.', 'Stock deleted.'],
+  ['Equipo eliminado.', 'Equipment deleted.'],
+  ['Seguro que desea eliminar este registro?', 'Are you sure you want to delete this record?'],
+  ['Editar usuario', 'Edit user'],
+  ['Guardar usuario', 'Save user'],
+  ['Actualizar usuario', 'Update user'],
+  ['Contrasena inicial', 'Initial password'],
+  ['Nueva contrasena opcional', 'Optional new password'],
+  ['Abrir enlace', 'Open link'],
+  ['No se pudo abrir la ventana de impresion.', 'Could not open the print window.'],
+  ['Usuario guardado correctamente.', 'User saved successfully.'],
+  ['No puede eliminar su propio usuario.', 'You cannot delete your own user.'],
+  ['Seguimiento por fases de revision, proceso y termino', 'Review, process and completion tracking'],
+  ['Actualizado', 'Updated'],
+  ['Sin proveedor', 'No supplier'],
+  ['Sin fecha', 'No date'],
+  ['Sin garantia', 'No warranty'],
+  ['Actualizado por', 'Updated by'],
+  ['Sin comentarios guardados.', 'No saved comments.'],
+  ['Sin mantenimiento.', 'No maintenance.'],
+  ['Consultar', 'Query'],
+  ['PDF generado correctamente.', 'PDF generated successfully.'],
+  ['Excel generado correctamente.', 'Excel generated successfully.'],
+  ['Cambios recientes exportados.', 'Recent changes exported.'],
+  ['Ajustes aplicados correctamente.', 'Settings applied successfully.'],
+  ['Contrasena reiniciada.', 'Password reset.'],
+  ['Agregado por', 'Added by'],
+  ['Sin notas pendientes.', 'No pending notes.'],
+  ['Equipo reparado y regresado a activo', 'Equipment repaired and returned to active'],
+  ['Equipo reparado.', 'Equipment repaired.'],
+  ['Reparado: ', 'Repaired: '],
+  ['Guardando...', 'Saving...'],
+  ['Expandir menu', 'Expand menu'],
+  ['Contraer menu', 'Collapse menu'],
+  ['Pase el cursor para ver detalles completos.', 'Hover for full details.'],
+  ['Detalles completos', 'Full details'],
+  ['Importar equipos desde CSV?', 'Import equipment from CSV?'],
+  ['Importacion completa: equipos.', 'Import complete: equipment.'],
+  ['Eliminar este equipo del inventario?', 'Delete this equipment from inventory?'],
+  ['Seleccionar equipo', 'Select equipment'],
+  ['Cargando inventario...', 'Loading inventory...'],
+  ['Mostrando eventos', 'Showing events'],
+  ['eventos', 'events'],
+  ['Sin cambios para esta consulta.', 'No changes for this query.'],
+  ['Sin eventos de auditoria.', 'No audit events.'],
+  ['Buscar inventario', 'Search inventory'],
+  ['Buscar por ID, serie, usuario, ubicacion o modelo', 'Search by ID, serial, user, location or model'],
+  ['Abrir ajustes', 'Open settings'],
+  ['Eliminar opcion', 'Delete option'],
+  ['Sin notas', 'No notes'],
+  ['Sin mantenimiento.', 'No maintenance.'],
+  ['Sistema', 'System'],
+  ['Primera', 'First'],
+  ['Anterior', 'Previous'],
+  ['Siguiente', 'Next'],
+  ['Ultima', 'Last'],
+  ['Creacion', 'Creation'],
+  ['Actualizacion', 'Update'],
+  ['Eliminacion', 'Deletion'],
+  ['Imagen', 'Image'],
+  ['Acceso', 'Access'],
+  ['Movimiento registrado en el sistema', 'Movement recorded in the system'],
+  ['Sin usuario asignado', 'No user assigned'],
+  ['Sin serie', 'No serial'],
+  ['Sin equipos para clasificar.', 'No equipment to classify.'],
+  ['Sin disponibilidad para esta consulta.', 'No availability for this query.'],
+  ['registrados', 'registered'],
+  ['Actualizar', 'Update'],
+  ['Detalles de stock', 'Stock details'],
+  ['Stock de almacenamiento', 'Storage stock'],
+  ['ID de inventario', 'Inventory ID'],
+  ['Nombre de usuario', 'Username'],
+  ['Numero de serie', 'Serial number'],
+  ['Cantidad', 'Quantity'],
+  ['Ubicacion', 'Location'],
+  ['Area', 'Area'],
+  ['Actualizado ', 'Updated '],
+  ['Modelo', 'Model'],
+  ['Compra', 'Purchase'],
+  ['Garantia', 'Warranty'],
+  ['Proveedor', 'Supplier'],
+  ['Respuesta invalida del servidor.', 'Invalid server response.'],
+  ['Solicitud fallida. Verifique que la API de produccion este disponible.', 'Request failed. Check that the production API is available.'],
+  ['No se pudieron cargar las estadisticas del dashboard.', 'Could not load dashboard statistics.'],
+  ['No se pudieron cargar las graficas del dashboard.', 'Could not load dashboard charts.'],
+  ['No se pudo validar el CSV.', 'Could not validate the CSV.'],
+  ['No se pudo importar el CSV.', 'Could not import the CSV.'],
+  ['No se pudo exportar el PDF.', 'Could not export the PDF.'],
+  ['No se pudo exportar el Excel.', 'Could not export the Excel.'],
+  ['No se pudieron exportar los cambios.', 'Could not export the changes.'],
+  ['No se pudo exportar auditoria.', 'Could not export audit.'],
+  ['Auditoria exportada correctamente.', 'Audit exported successfully.'],
+  ['Equipo actualizado correctamente.', 'Equipment updated successfully.'],
+  ['Equipo guardado correctamente.', 'Equipment saved successfully.'],
+  ['Stock actualizado correctamente.', 'Stock updated successfully.'],
+  ['Stock guardado correctamente.', 'Stock saved successfully.'],
+  ['Usuario actualizado.', 'User updated.'],
+  ['Ajustes restablecidos.', 'Settings reset.'],
+  ['Escriba su nueva contrasena para continuar.', 'Enter your new password to continue.'],
+  ['Ocultar contrasena', 'Hide password'],
+  ['Mostrar contrasena', 'Show password'],
+  ['Chart.js no esta disponible.', 'Chart.js is not available.'],
+  ['Actualizar mantenimiento', 'Update maintenance'],
+  ['Modificar dispositivo en stock', 'Edit stock device'],
+  ['Inventario de activos', 'Asset inventory'],
+  ['Inventario de accesorios', 'Accessory inventory'],
+  ['Listado filtrado por tipo, marca y modelo', 'List filtered by type, brand and model'],
+  ['No se pudo cerrar la sesion en servidor:', 'Could not logout on server:'],
+  ['Carga secundaria no disponible:', 'Secondary load not available:'],
+  ['No se pudo obtener token CSRF:', 'Could not get CSRF token:'],
+  ['No se pudo limpiar sesion previa:', 'Could not clear previous session:'],
+  ['Error cargando estadisticas del dashboard:', 'Error loading dashboard statistics:'],
+  ['Nueva contrasena maxima de 12 caracteres:', 'New password max 12 characters:'],
+  ['CSV con errores:', 'CSV with errors:'],
+  ['debe estar entre 1990 y 2100.', 'must be between 1990 and 2100.'],
+  ['listo para guardarse en la base de datos.', 'ready to be saved to the database.'],
+  ['Detalle de equipo', 'Equipment detail'],
+  ['Detalle de accesorio', 'Accessory detail'],
+  ['Nuevo equipo', 'New equipment'],
+  ['Nuevo accesorio', 'New accessory'],
+  ['Sistema de inventario SATI-TIMSA', 'SATI-TIMSA Inventory System'],
+  ['Solicite un codigo de 4 digitos y capture una nueva contrasena para entrar nuevamente.', 'Request a 4-digit code and set a new password to log in again.'],
+  ['Si el usuario ya tiene correo registrado, el codigo llegara ahi. Si no, escriba un correo para recibirlo.', 'If the user already has a registered email, the code will arrive there. If not, enter an email to receive it.'],
+  ['usuario@empresa.com', 'user@company.com'],
+  ['Menu', 'Menu'],
+  ['Recordatorio', 'Reminder'],
+  ['Escribe una nota para seguimiento...', 'Write a note for follow-up...'],
+  ['Fecha y hora', 'Date and time'],
+  ['Guardar nota', 'Save note'],
+  ['Sin registros para mostrar.', 'No records to show.'],
+  ['Resultados por pagina', 'Results per page'],
+  ['Buscar', 'Search'],
+  ['Nombre, modelo o serie', 'Name, model or serial'],
+  ['Entidad', 'Entity'],
+  ['Serie, usuario, entidad o detalle', 'Serial, user, entity or detail'],
+  ['Cambios por pagina', 'Changes per page'],
+  ['Administracion de usuarios', 'User administration'],
+  ['Solo el rol ADMIN puede crear usuarios, cambiar roles, activar o bloquear cuentas y reiniciar contrasenas.', 'Only ADMIN role can create users, change roles, activate or block accounts and reset passwords.'],
+  ['Base de datos cloud para inventario, usuarios, roles, auditoria y disponibilidad.', 'Cloud database for inventory, users, roles, audit and availability.'],
+  ['Servicios de autenticacion, catalogos, inventario y usuarios.', 'Authentication services, catalogs, inventory and users.'],
+  ['Interfaz operativa preparada para despliegue web de produccion.', 'Operational interface ready for production web deployment.'],
+  ['ID de stock', 'Stock ID'],
+  ['Ej. STOCK-PILA-001', 'E.g. STOCK-PILA-001'],
+  ['Laptop, monitor, radio...', 'Laptop, monitor, radio...'],
+  ['Latitude 5440', 'Latitude 5440'],
+  ['Opcional si se captura por lote', 'Optional if batched'],
+  ['Diagnostico, refacciones, seguimiento o resultado...', 'Diagnosis, parts, follow-up or result...'],
+  ['Ej. 400001', 'E.g. 400001'],
+  ['Proveedor o responsable externo', 'Supplier or external responsible'],
+  ['IP Impresora Zebra', 'Zebra Printer IP'],
+  ['10.132.4.51', '10.132.4.51'],
+  ['Admin - todo acceso', 'Admin - full access'],
+  ['TI - CRUD de inventario', 'IT - inventory CRUD'],
+  ['Personal - lectura y busqueda', 'Staff - read and search'],
+  ['usuario', 'user'],
+  ['usuario@gmail.com', 'user@gmail.com'],
+  ['Agregar registro', 'Add record'],
+  ['Catalogos', 'Catalogs'],
+  ['Bitacora operativa con busqueda, filtros y paginacion para revisar toda la actividad del sistema.', 'Operational log with search, filters and pagination to review all system activity.'],
+  ['Notificaciones', 'Notifications'],
+  ['Notas y recordatorios', 'Notes and reminders'],
+  ['Cerrar sesion', 'Logout'],
+  ['Resguardo', 'Assigned hold'],
+  ['Baja', 'Retired'],
+  ['No se pudo conectar con la impresora. ¿Descargar archivo ZPL para imprimir manualmente?', 'Could not connect to printer. Download ZPL file to print manually?'],
+];
+
 document.body.appendChild(equipmentPreview);
 
 function canWrite() {
@@ -142,34 +529,23 @@ function isAdmin() {
   return state.user?.role === 'ADMIN';
 }
 
-function readStoredNotes() {
-  try {
-    const notes = JSON.parse(localStorage.getItem('sati_notes') || '[]');
-    return Array.isArray(notes) ? notes : [];
-  } catch {
-    localStorage.removeItem('sati_notes');
-    return [];
-  }
-}
-
-function saveAuthSession() {
-  sessionStorage.setItem('sati_token', state.token || '');
-  sessionStorage.setItem('sati_user', JSON.stringify(state.user || null));
-}
-
-function clearAuthSession() {
-  sessionStorage.removeItem('sati_token');
-  sessionStorage.removeItem('sati_user');
-  localStorage.removeItem('sati_token');
-  localStorage.removeItem('sati_user');
+function clearStoredAuth() {
+  const legacyKeys = ['sati_token', 'sati_user', 'sati_auth_expires_at', 'sati_auth_remember'];
+  [localStorage, sessionStorage].forEach((storage) => {
+    legacyKeys.forEach((key) => storage.removeItem(key));
+  });
 }
 
 async function api(path, options = {}) {
+  const mutating = options.method && !['GET', 'HEAD'].includes(options.method);
+  const xsrfToken = getCookieValue('sati_xsrf');
   const response = await fetch(`${apiBaseUrl}/api${path}`, {
     ...options,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(state.token ? { Authorization: `Bearer ${state.token}` } : {}),
+      'X-Requested-With': 'XMLHttpRequest',
+      ...(xsrfToken && mutating ? { 'x-xsrf-token': xsrfToken } : {}),
       ...(options.headers || {})
     }
   });
@@ -178,9 +554,17 @@ async function api(path, options = {}) {
     return null;
   }
 
-  const payload = await response.json().catch(() => ({}));
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    if (response.ok) {
+      throw new Error(uiText('Respuesta invalida del servidor.', 'Invalid server response.'));
+    }
+    payload = {};
+  }
   if (!response.ok) {
-    throw new Error(payload.message || 'Solicitud fallida. Verifique que la API de produccion este disponible.');
+    throw new Error(payload.message || uiText('Solicitud fallida. Verifique que la API de produccion este disponible.', 'Request failed. Check that the production API is available.'));
   }
   return payload;
 }
@@ -194,7 +578,8 @@ function showDashboard() {
   updateAuthUi();
   applySidebarState();
   renderNotifications();
-  setView('inventory');
+  loadNotes();
+  setView('console');
 }
 
 function updateAuthUi() {
@@ -208,74 +593,270 @@ function updateAuthUi() {
   $('#downloadTemplateButton').style.display = writable ? 'inline-flex' : 'none';
   $('#importCsvButton').style.display = writable ? 'inline-flex' : 'none';
   $('#exportPdfButton').style.display = writable ? 'inline-flex' : 'none';
-  $('#newUserButton').style.display = isAdmin() ? '' : 'none';
+  $('#exportExcelButton').style.display = writable ? 'inline-flex' : 'none';
+  $('#newUserButton').classList.toggle('hidden', !isAdmin());
+  document.querySelectorAll('[data-admin-only]').forEach((element) => {
+    element.classList.toggle('hidden', !isAdmin());
+  });
 
   document.querySelectorAll('nav a[data-view]').forEach((link) => {
-    if (link.dataset.view === 'users') {
-      link.style.display = isAdmin() ? '' : 'none';
-    } else if (link.dataset.view === 'audit') {
-      link.style.display = canWrite() ? '' : 'none';
-    } else {
-      link.style.display = '';
-    }
+    link.style.display = '';
   });
 }
 
 function applySidebarState() {
-  const collapsed = localStorage.getItem('sati_sidebar_collapsed') === 'true';
+  const collapsed = state.settings.sidebar === 'collapsed' || localStorage.getItem('sati_sidebar_collapsed') === 'true';
   dashboardView.classList.toggle('sidebar-collapsed', collapsed);
   menuButton.setAttribute('aria-expanded', String(!collapsed));
-  menuButton.setAttribute('aria-label', collapsed ? 'Expandir menu' : 'Contraer menu');
-  sidebarCollapseButton.setAttribute('aria-label', collapsed ? 'Expandir' : 'Contraer');
+  menuButton.setAttribute('aria-label', collapsed ? uiText('Expandir menu', 'Expand menu') : uiText('Contraer menu', 'Collapse menu'));
+  sidebarCollapseButton.setAttribute('aria-label', uiText('Abrir ajustes', 'Open settings'));
 }
 
 function toggleSidebar() {
   const collapsed = !dashboardView.classList.contains('sidebar-collapsed');
+  state.settings.sidebar = collapsed ? 'collapsed' : 'expanded';
   dashboardView.classList.toggle('sidebar-collapsed', collapsed);
   localStorage.setItem('sati_sidebar_collapsed', String(collapsed));
+  saveSettingsState();
   applySidebarState();
 }
 
-function setView(view) {
-  const views = {
-    inventory: ['Consola de inventario', 'Resumen general del inventario de activos'],
+function defaultSettings() {
+  return {
+    theme: 'light',
+    language: 'es',
+    density: 'comfortable',
+    sidebar: 'expanded',
+    motion: 'on',
+    pageSize: '25',
+    printerIP: '10.132.4.51'
+  };
+}
+
+function normalizedSettings() {
+  return { ...defaultSettings(), ...(state.settings || {}) };
+}
+
+function saveSettingsState() {
+  state.settings = normalizedSettings();
+  localStorage.setItem(settingsStorageKey, JSON.stringify(state.settings));
+}
+
+function effectiveTheme(settings = normalizedSettings()) {
+  if (settings.theme !== 'system') return settings.theme;
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function applySettings() {
+  state.settings = normalizedSettings();
+  const theme = effectiveTheme(state.settings);
+  document.body.dataset.theme = theme;
+  document.body.dataset.density = state.settings.density;
+  document.body.dataset.motion = state.settings.motion;
+  document.documentElement.lang = state.settings.language === 'en' ? 'en' : 'es';
+  $('#pageSizeSelect').value = state.settings.pageSize;
+  state.inventoryMeta.limit = Number(state.settings.pageSize || 25);
+  localStorage.setItem('sati_sidebar_collapsed', String(state.settings.sidebar === 'collapsed'));
+  applySidebarState();
+  syncSettingsForm();
+  updateLanguageLabels();
+  if (state.dashboardStats && window.Chart) {
+    renderDashboardStats(state.dashboardStats);
+  }
+}
+
+function syncSettingsForm() {
+  if (!settingsForm) return;
+  const settings = normalizedSettings();
+  settingsForm.elements.theme.value = settings.theme;
+  settingsForm.elements.language.value = settings.language;
+  settingsForm.elements.density.value = settings.density;
+  settingsForm.elements.sidebar.value = settings.sidebar;
+  settingsForm.elements.motion.value = settings.motion;
+  settingsForm.elements.pageSize.value = settings.pageSize;
+  if (settingsForm.elements.printerIP) {
+    settingsForm.elements.printerIP.value = settings.printerIP || '';
+  }
+}
+
+function openSettingsDialog() {
+  $('#settingsMessage').textContent = '';
+  syncSettingsForm();
+  settingsDialog.showModal();
+}
+
+function viewCopy(view) {
+  const es = {
+    console: ['Consola de inventario', 'Dashboard general del inventario de activos'],
+    inventory: ['Inventario', 'Listado general de activos y accesorios registrados'],
     hardware: ['Inventario de activos', 'Laptops, monitores, desktops, red, servidores y movilidad'],
     equipment: ['Inventario de activos', 'Clasificacion por tipo de activo'],
     accessories: ['Inventario de accesorios', 'Perifericos y accesorios asignados o en resguardo'],
     maintenance: ['Equipos en mantenimiento', 'Seguimiento por fases de revision, proceso y termino'],
     stock: ['Stock de almacenamiento', 'Disponibilidad por ubicacion y area'],
     audit: ['Auditoria', 'Eventos recientes y controles del sistema'],
-    cloud: ['Servicios cloud', 'Servicios conectados al sistema SATI-TIMSA'],
-    users: ['Usuarios', 'Gestion de acceso y roles del sistema']
+    recent: ['Cambios recientes', 'Actividad completa con filtros, busqueda y paginacion'],
+    users: ['Usuarios', 'Alta, roles y seguridad de acceso'],
+    cloud: ['Servicios cloud', 'Vercel, Supabase PostgreSQL y Supabase Storage']
   };
+  const en = {
+    console: ['Inventory console', 'General asset inventory dashboard'],
+    inventory: ['Inventory', 'General list of registered assets and accessories'],
+    hardware: ['Asset inventory', 'Laptops, monitors, desktops, network, servers and mobility'],
+    equipment: ['Asset inventory', 'Classification by asset type'],
+    accessories: ['Accessory inventory', 'Assigned or stored peripherals and accessories'],
+    maintenance: ['Maintenance equipment', 'Review, process and completion tracking'],
+    stock: ['Storage stock', 'Availability by location and area'],
+    audit: ['Audit', 'Recent events and system controls'],
+    recent: ['Recent changes', 'Full activity with filters, search and pagination'],
+    users: ['Users', 'Access creation, roles and security'],
+    cloud: ['Cloud services', 'Vercel, Supabase PostgreSQL and Supabase Storage']
+  };
+  const catalog = normalizedSettings().language === 'en' ? en : es;
+  return catalog[view] || catalog.console;
+}
+
+function translationMap(language) {
+  const map = new Map();
+  translationPairs.forEach(([es, en]) => {
+    map.set(es, language === 'en' ? en : es);
+    map.set(en, language === 'en' ? en : es);
+  });
+  return map;
+}
+
+function uiText(es, en) {
+  return normalizedSettings().language === 'en' ? en : es;
+}
+
+function translateValue(value, map) {
+  const text = String(value ?? '');
+  const trimmed = text.trim();
+  if (!trimmed) return text;
+  const translated = map.get(trimmed);
+  if (translated) return text.replace(trimmed, translated);
+
+  const language = normalizedSettings().language === 'en' ? 'en' : 'es';
+  const patterns = [
+    [/^(\d+) registrados$/i, language === 'en' ? '$1 registered' : '$1 registrados'],
+    [/^(\d+) registered$/i, language === 'en' ? '$1 registered' : '$1 registrados'],
+    [/^(\d+) activos registrados$/i, language === 'en' ? '$1 registered assets' : '$1 activos registrados'],
+    [/^(\d+) registered assets$/i, language === 'en' ? '$1 registered assets' : '$1 activos registrados'],
+    [/^(\d+) disponibles$/i, language === 'en' ? '$1 available' : '$1 disponibles'],
+    [/^(\d+) available$/i, language === 'en' ? '$1 available' : '$1 disponibles'],
+    [/^Mostrando (\d+) resultados$/i, language === 'en' ? 'Showing $1 results' : 'Mostrando $1 resultados'],
+    [/^Showing (\d+) results$/i, language === 'en' ? 'Showing $1 results' : 'Mostrando $1 resultados'],
+    [/^Pagina (\d+) de (\d+)$/i, language === 'en' ? 'Page $1 of $2' : 'Pagina $1 de $2'],
+    [/^Page (\d+) of (\d+)$/i, language === 'en' ? 'Page $1 of $2' : 'Pagina $1 de $2'],
+    [/^Mostrando (\d+) eventos$/i, language === 'en' ? 'Showing $1 events' : 'Mostrando $1 eventos'],
+    [/^Showing (\d+) events$/i, language === 'en' ? 'Showing $1 events' : 'Mostrando $1 eventos'],
+    [/^Mostrando (\d+) cambios$/i, language === 'en' ? 'Showing $1 changes' : 'Mostrando $1 cambios'],
+    [/^Showing (\d+) changes$/i, language === 'en' ? 'Showing $1 changes' : 'Mostrando $1 cambios'],
+    [/^(\d+) por pagina$/i, language === 'en' ? '$1 per page' : '$1 por pagina'],
+    [/^(\d+) per page$/i, language === 'en' ? '$1 per page' : '$1 por pagina']
+  ];
+  const match = patterns.find(([pattern]) => pattern.test(trimmed));
+  return match ? text.replace(trimmed, trimmed.replace(match[0], match[1])) : text;
+}
+
+function translateStaticText() {
+  const language = normalizedSettings().language === 'en' ? 'en' : 'es';
+  const map = translationMap(language);
+  const skipTags = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'CANVAS', 'SVG', 'PATH']);
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (!node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+      if (skipTags.has(node.parentElement?.tagName)) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach((node) => {
+    node.nodeValue = translateValue(node.nodeValue, map);
+  });
+  document.querySelectorAll('[placeholder],[aria-label],[title],[data-label]').forEach((element) => {
+    ['placeholder', 'aria-label', 'title', 'data-label'].forEach((attribute) => {
+      if (element.hasAttribute(attribute)) {
+        element.setAttribute(attribute, translateValue(element.getAttribute(attribute), map));
+      }
+    });
+  });
+}
+
+function updateLanguageLabels() {
+  const english = normalizedSettings().language === 'en';
+  const navLabels = {
+    console: english ? 'Inventory console' : 'Consola de inventario',
+    inventory: english ? 'Inventory' : 'Inventario',
+    hardware: english ? 'Asset inventory' : 'Inventario de activos',
+    equipment: english ? 'Equipment inventory' : 'Inventario de equipos',
+    accessories: english ? 'Accessory inventory' : 'Inventario de accesorios',
+    maintenance: english ? 'Maintenance' : 'Equipos en mantenimiento',
+    stock: english ? 'Storage stock' : 'Stock de almacenamiento',
+    audit: english ? 'Audit' : 'Auditoria',
+    recent: english ? 'Recent changes' : 'Cambios recientes',
+    users: english ? 'Users' : 'Usuarios',
+    cloud: english ? 'Cloud services' : 'Servicios cloud'
+  };
+  document.querySelectorAll('nav a[data-view]').forEach((link) => {
+    const icon = link.querySelector('.nav-icon')?.outerHTML || '';
+    link.innerHTML = `${icon} ${navLabels[link.dataset.view] || link.dataset.view}`;
+  });
+  const currentView = dashboardView?.dataset.currentView || 'console';
+  const selected = viewCopy(currentView);
+  $('#viewTitle').textContent = selected[0];
+  $('#viewSubtitle').textContent = selected[1];
+  translateStaticText();
+}
+
+function setView(view, options = {}) {
+  const currentView = dashboardView.dataset.currentView;
+  if (!options.fromHistory && currentView && currentView !== view) {
+    state.viewHistory.push(currentView);
+    state.viewHistory = state.viewHistory.slice(-12);
+  }
 
   if (view === 'accessories') state.inventoryScope = 'accessories';
   if (view === 'equipment') state.inventoryScope = 'equipment';
   if (view === 'inventory') state.inventoryScope = 'all';
-
-  const selected = views[view] || views.inventory;
-  $('#viewTitle').textContent = selected[0];
-  $('#viewSubtitle').textContent = selected[1];
-  $('#backButton').classList.toggle('hidden', view === 'inventory');
-  $('#newEquipmentButton').innerHTML = `<span class="button-icon">+</span>${view === 'accessories' ? 'Nuevo accesorio' : 'Nuevo activo'}`;
-  const totalMetricLabel = $('#metricsView article:first-child small');
-  if (totalMetricLabel) {
-    totalMetricLabel.textContent = view === 'accessories' ? 'Accesorios registrados' : 'Activos registrados';
+  if (view === 'console') state.inventoryScope = 'all';
+  if (['hardware', 'equipment', 'accessories'].includes(view)) {
+    state.inventoryDrill = {
+      scope: view === 'accessories' ? 'accessories' : 'equipment',
+      typeId: '',
+      brandId: '',
+      modelId: ''
+    };
   }
 
-  const hideDashboardWidgets = view === 'audit' || view === 'cloud' || view === 'stock' || view === 'users';
+  const selected = viewCopy(view);
+  dashboardView.dataset.currentView = view;
+  syncDashboardRefreshTimer();
+  $('.workspace')?.classList.toggle('workspace--console', view === 'console');
+  $('#viewTitle').textContent = selected[0];
+  $('#viewSubtitle').textContent = selected[1];
+  $('#backButton').classList.toggle('hidden', view === 'console');
+  $('#newEquipmentButton').innerHTML = `<span class="button-icon">+</span>${view === 'accessories' ? uiText('Nuevo accesorio', 'New accessory') : uiText('Nuevo activo', 'New asset')}`;
+  const totalMetricLabel = $('#metricsView article:first-child small');
+  if (totalMetricLabel) {
+    totalMetricLabel.textContent = view === 'accessories' ? uiText('Accesorios registrados', 'Registered accessories') : uiText('Activos registrados', 'Registered assets');
+  }
+
+  const hideDashboardWidgets = view !== 'console';
   $('#metricsView').classList.toggle('hidden', hideDashboardWidgets);
   $('#dashboardKpis').classList.toggle('hidden', hideDashboardWidgets);
   $('#dashboardCharts').classList.toggle('hidden', hideDashboardWidgets);
   $('#dashboardInsights').classList.toggle('hidden', hideDashboardWidgets);
-  activatePanel('inventoryView', view === 'inventory' || view === 'accessories');
-  activatePanel('hardwareView', view === 'hardware');
-  activatePanel('equipmentView', view === 'equipment');
+  activatePanel('inventoryView', view === 'inventory');
+  activatePanel('hardwareView', ['hardware', 'equipment', 'accessories'].includes(view));
+  activatePanel('equipmentView', false);
   activatePanel('maintenanceView', view === 'maintenance');
   activatePanel('stockView', view === 'stock');
   activatePanel('auditView', view === 'audit');
-  activatePanel('cloudView', view === 'cloud');
+  activatePanel('recentView', view === 'recent');
   activatePanel('usersView', view === 'users');
+  activatePanel('cloudView', view === 'cloud');
   hideHoverDetails();
 
   document.querySelectorAll('nav a[data-view]').forEach((link) => {
@@ -283,7 +864,14 @@ function setView(view) {
   });
 
   syncTypeFilterOptions();
-  if (view === 'equipment') renderEquipmentTypeList();
+  if (view === 'inventory' && !options.skipLoad) {
+    state.inventoryScope = 'all';
+    loadInventory();
+  }
+  if (view === 'console' && !options.skipLoad) {
+    loadDashboardIfConsole();
+  }
+  if (['hardware', 'equipment', 'accessories'].includes(view)) renderHardwareTypeGrid();
   if (view === 'maintenance') {
     renderMaintenanceView();
     loadMaintenance();
@@ -296,9 +884,18 @@ function setView(view) {
     renderAuditView();
     loadAudit();
   }
+  if (view === 'recent') {
+    renderRecentChangesView();
+    loadRecentChanges();
+  }
   if (view === 'users') {
+    if (!isAdmin()) {
+      setView('console');
+      return;
+    }
     loadUsers();
   }
+  translateStaticText();
 }
 
 function activatePanel(id, active) {
@@ -317,11 +914,32 @@ function showLogin() {
   loginView.classList.remove('screen-enter');
   void loginView.offsetWidth;
   loginView.classList.add('screen-enter');
+  $('#loginForm').reset();
   const rememberedUsername = localStorage.getItem('sati_remember_username') || '';
-  if (rememberedUsername && !$('#loginForm').elements.username.value) {
+  if (rememberedUsername) {
     $('#loginForm').elements.username.value = rememberedUsername;
     $('#loginForm').elements.remember_username.checked = true;
   }
+}
+
+async function startSession(credentials, rememberUsername = false) {
+  const payload = await api('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...credentials,
+      remember: rememberUsername
+    })
+  });
+  state.user = payload.user;
+  clearStoredAuth();
+  if (rememberUsername) {
+    localStorage.setItem('sati_remember_username', credentials.username);
+  } else {
+    localStorage.removeItem('sati_remember_username');
+  }
+  closeResetPanel();
+  showDashboard();
+  await loadInitialDashboardData();
 }
 
 function closeOpenDialogs() {
@@ -329,9 +947,12 @@ function closeOpenDialogs() {
 }
 
 function defaultReminderDate() {
-  const date = new Date(Date.now() + 60 * 60 * 1000);
-  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-  return date.toISOString().slice(0, 16);
+  const date = new Date();
+  return date.getFullYear() + '-' +
+    String(date.getMonth() + 1).padStart(2, '0') + '-' +
+    String(date.getDate()).padStart(2, '0') + 'T' +
+    String(date.getHours()).padStart(2, '0') + ':' +
+    String(date.getMinutes()).padStart(2, '0');
 }
 
 function formatDate(value) {
@@ -341,8 +962,241 @@ function formatDate(value) {
   }).format(new Date(value));
 }
 
-function saveNotes() {
-  localStorage.setItem('sati_notes', JSON.stringify(state.notes));
+async function loadDashboardIfConsole() {
+  if (dashboardView.dataset.currentView === 'console') {
+    await loadDashboard();
+  }
+}
+
+function syncDashboardRefreshTimer() {
+  clearInterval(dashboardRefreshTimer);
+  dashboardRefreshTimer = null;
+  if (dashboardView.dataset.currentView !== 'console') return;
+  dashboardRefreshTimer = setInterval(() => {
+    if (dashboardView.dataset.currentView === 'console' && !dashboardView.classList.contains('hidden')) {
+      loadDashboard().catch(() => {});
+    }
+  }, 30000);
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+const RAW = Symbol('raw');
+function raw(value) { return { [RAW]: true, value: value == null ? '' : String(value) }; }
+function esc(strings, ...values) {
+  let result = '';
+  for (let i = 0; i < strings.length; i++) {
+    result += strings[i];
+    if (i < values.length) {
+      const v = values[i];
+      if (v && v[RAW]) { result += v.value; }
+      else { result += escapeHtml(v); }
+    }
+  }
+  return result;
+}
+
+function assetLabelHtml(item) {
+  const type = String(item.equipment_type || '').toUpperCase();
+  const serial = escapeHtml(item.serial_number || 'S/N');
+  const assetId = escapeHtml(item.asset_tag || item.serial_number || 'SIN-ID');
+  return `
+    <section class="label-card">
+      <div class="label-header">
+        <span>HUTCHISONPORTS TIMSA</span>
+        <span>ID: ${assetId}</span>
+      </div>
+      <div class="label-type">${escapeHtml(type)}</div>
+      <div class="label-barcode">
+        <svg id="printBarcode" data-value="${serial}"></svg>
+      </div>
+      <div class="label-serial">${serial}</div>
+      <div class="label-footer">Propiedad de TIMSA</div>
+    </section>
+  `;
+}
+
+function zplEscape(text) {
+  return String(text).replace(/[\^~\\]/g, '').substring(0, 80);
+}
+
+function generateZpl(item) {
+  const type = zplEscape(String(item.equipment_type || '').toUpperCase());
+  const serial = zplEscape(item.serial_number || 'S/N');
+  const assetId = zplEscape(item.asset_tag || item.serial_number || 'SIN-ID');
+  return `^XA
+^PW408
+^LL200
+^MTT
+^MNN
+^PR3
+^MD15
+^CI28
+^LH5,2
+^FO5,3^A0N,16,20^FB260,1,,L^FDHUTCHISONPORTS TIMSA^FS
+^FO260,3^A0N,16,20^FB138,1,,R^FDID: ${assetId}^FS
+^FO5,30^A0N,28,32^FB398,1,,C^FD${type}^FS
+^FO30,68^BY2,2,55^BCN,55,N,N,N^FD${assetId}^FS
+^FO5,135^A0N,18,22^FB398,1,,C^FD${serial}^FS
+^FO5,170^A0N,14,18^FB398,1,,C^FDPropiedad de TIMSA^FS
+^XZ`;
+}
+
+function downloadZpl() {
+  const item = state.equipmentProfile?.item;
+  if (!item) return;
+  const zpl = generateZpl(item);
+  const blob = new Blob([zpl], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.download = `etiqueta-${item.asset_tag || item.serial_number || 'activo'}.zpl`;
+  a.href = url;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast(uiText('Archivo ZPL descargado', 'ZPL file downloaded'), 'success');
+}
+
+async function printToZebra() {
+  const item = state.equipmentProfile?.item;
+  if (!item) return;
+  let printerIP = (normalizedSettings().printerIP || '').trim();
+  if (!printerIP || printerIP === 'CAMBIAR_IP') {
+    printerIP = prompt(uiText('Ingrese la IP de la impresora Zebra:', 'Enter Zebra printer IP:'), '10.132.4.51');
+    if (!printerIP) return;
+    state.settings.printerIP = printerIP;
+    saveSettingsState();
+  }
+  const zpl = generateZpl(item);
+  const button = $('#printToZebraButton');
+  if (button) button.disabled = true;
+  let sent = false;
+  const body = JSON.stringify({ zpl, printerIP });
+
+  try {
+    const res = await api('/print/zpl', { method: 'POST', body });
+    toast(res.message || uiText('Etiqueta enviada a la impresora.', 'Label sent to printer.'), 'success');
+    sent = true;
+  } catch {
+    try {
+      const relayRes = await fetch('http://localhost:3001/api/print/zpl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body
+      });
+      if (relayRes.ok) {
+        const data = await relayRes.json();
+        toast(data.message || uiText('Etiqueta enviada a la impresora.', 'Label sent to printer.'), 'success');
+        sent = true;
+      } else {
+        throw new Error();
+      }
+    } catch {
+      const download = confirm(
+        uiText(
+          'No se pudo conectar con la impresora. ¿Descargar archivo ZPL para imprimir manualmente?',
+          'Could not connect to printer. Download ZPL file to print manually?'
+        )
+      );
+      if (download) downloadZpl();
+    }
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+function renderAssetLabel(item) {
+  const container = $('#equipmentLabelPreview');
+  if (!container) return;
+  container.innerHTML = assetLabelHtml(item) + `
+    <div class="label-actions">
+      <button class="ghost" type="button" id="printAssetLabelButton">${uiText('Imprimir etiqueta', 'Print label')}</button>
+      <button class="ghost" type="button" id="downloadZplButton">${uiText('Descargar ZPL', 'Download ZPL')}</button>
+      <button class="ghost" type="button" id="printToZebraButton">${uiText('Imprimir en Zebra', 'Print to Zebra')}</button>
+    </div>
+  `;
+  try {
+    JsBarcode('#printBarcode', String(item.serial_number || 'S/N'), {
+      format: 'CODE128',
+      width: 1.8,
+      height: 40,
+      displayValue: false,
+      margin: 0,
+      background: '#ffffff'
+    });
+  } catch (e) {
+    console.warn('Barcode generation failed:', e);
+  }
+  $('#printAssetLabelButton')?.addEventListener('click', printAssetLabel);
+  $('#downloadZplButton')?.addEventListener('click', downloadZpl);
+  $('#printToZebraButton')?.addEventListener('click', printToZebra);
+}
+
+function printAssetLabel() {
+  if (!state.equipmentProfile?.item) return;
+  const preview = $('#equipmentLabelPreview');
+  if (!preview) return;
+  const wrapper = document.createElement('div');
+  wrapper.className = 'label-print-wrapper';
+  wrapper.innerHTML = preview.querySelector('.label-card')?.outerHTML || '';
+  wrapper.style.cssText = 'position:fixed;top:0;left:0;width:50mm;z-index:9999;background:#fff;';
+  document.body.appendChild(wrapper);
+  const svg = wrapper.querySelector('#printBarcode');
+  if (svg) {
+    const clone = svg.cloneNode(true);
+    clone.id = 'printBc';
+    svg.parentNode.replaceChild(clone, svg);
+  }
+  toast(uiText('Etiqueta generada para impresion', 'Label ready for printing'), 'success');
+  window.print();
+  wrapper.remove();
+}
+
+function toast(message, type = 'info') {
+  let container = $('#toastStack');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toastStack';
+    container.className = 'toast-stack';
+    document.body.appendChild(container);
+  }
+
+  const item = document.createElement('div');
+  item.className = `toast toast--${type}`;
+  item.setAttribute('role', 'status');
+  item.textContent = message;
+  container.appendChild(item);
+  setTimeout(() => item.classList.add('toast--show'), 20);
+  setTimeout(() => {
+    item.classList.remove('toast--show');
+    setTimeout(() => item.remove(), 220);
+  }, type === 'error' ? 6500 : 4200);
+}
+
+async function loadNotes() {
+  try {
+    const data = await api('/notes');
+    state.notes = (data.notes || []).map((note) => ({
+      id: note.id,
+      text: note.text,
+      dueAt: note.due_at,
+      userId: note.user_id,
+      userName: note.user_name,
+      createdAt: note.created_at
+    }));
+    renderNotifications();
+  } catch {
+    state.notes = [];
+    renderNotifications();
+  }
 }
 
 function renderNotifications() {
@@ -361,11 +1215,12 @@ function renderNotifications() {
         <span>${escapeHtml(formatDate(note.dueAt))}</span>
       </div>
       <footer>
-        <span>Agregado por ${escapeHtml(note.userName)}</span>
-        <button class="ghost note-delete" type="button" data-note-delete="${escapeHtml(note.id)}">Eliminar</button>
+        <span>${uiText('Agregado por', 'Added by')} ${escapeHtml(note.userName)}</span>
+        <button class="ghost note-delete" type="button" data-note-delete="${escapeHtml(note.id)}">${uiText('Eliminar', 'Delete')}</button>
       </footer>
     </article>
-  `).join('') || '<p class="empty-module">Sin notas pendientes.</p>';
+  `).join('') || `<p class="empty-module">${uiText('Sin notas pendientes.', 'No pending notes.')}</p>`;
+  translateStaticText();
 }
 
 function openNotifications() {
@@ -380,11 +1235,16 @@ function closeNotifications() {
   $('#notificationButton').setAttribute('aria-expanded', 'false');
 }
 
-function renderMetrics() {
-  const total = state.items.length;
-  const active = state.items.filter((item) => item.status === 'activo').length;
-  const maintenance = state.items.filter((item) => item.status === 'mantenimiento').length;
-  const inactive = state.items.filter((item) => ['baja', 'resguardo'].includes(item.status)).length;
+function renderMetrics(totalsOverride = null) {
+  const totals = totalsOverride || (
+    dashboardView.dataset.currentView === 'console' && state.dashboard?.totals
+      ? state.dashboard.totals
+      : null
+  );
+  const total = totals ? Number(totals.total || 0) : state.items.length;
+  const active = totals ? Number(totals.active || 0) : state.items.filter((item) => item.status === 'activo').length;
+  const maintenance = totals ? Number(totals.maintenance || 0) : state.items.filter((item) => item.status === 'mantenimiento').length;
+  const inactive = totals ? Number(totals.inactive || 0) : state.items.filter((item) => ['baja', 'resguardo'].includes(item.status)).length;
   const percentage = (value) => `${total ? Math.round((value / total) * 100) : 0}%`;
 
   $('#metricTotal').textContent = total;
@@ -400,6 +1260,7 @@ function renderDashboardInsights() {
   const dashboard = state.dashboard;
   if (!dashboard) return;
   const totals = dashboard.totals || {};
+  renderMetrics(totals);
   const total = Number(totals.total || 0);
   const statusItems = [
     { label: 'Activos', value: Number(totals.active || 0), className: 'active' },
@@ -407,10 +1268,11 @@ function renderDashboardInsights() {
     { label: 'Resguardo o baja', value: Number(totals.inactive || 0), className: 'inactive' }
   ];
   let start = 0;
+  const darkTheme = document.body?.dataset?.theme === 'dark';
   const statusColors = {
     active: '#32b66f',
     maintenance: '#f59e0b',
-    inactive: '#94a3b8'
+    inactive: darkTheme ? '#64748b' : '#94a3b8'
   };
   const donutStops = statusItems
     .filter((item) => item.value > 0 && total > 0)
@@ -424,12 +1286,12 @@ function renderDashboardInsights() {
     ? `conic-gradient(${donutStops.join(', ')})`
     : 'conic-gradient(#e5e7eb 0deg 360deg)';
   $('#statusDonutTotal').textContent = total;
-  $('#statusLegend').innerHTML = statusItems.map((item) => `
-    <div><i class="${item.className}"></i><span>${item.label}</span><strong>${item.value}</strong></div>
+  $('#statusLegend').innerHTML = statusItems.map((item) => esc`
+    <div><i class="${raw(item.className)}"></i><span>${item.label}</span><strong>${item.value}</strong></div>
   `).join('');
 
   const warranty = dashboard.warranty || {};
-  $('#warrantyInsights').innerHTML = `
+  $('#warrantyInsights').innerHTML = esc`
     <div><strong>${warranty.expired || 0}</strong><span>Vencidas</span></div>
     <div><strong>${warranty.next_30 || 0}</strong><span>Proximos 30 dias</span></div>
     <div><strong>${warranty.next_90 || 0}</strong><span>Proximos 90 dias</span></div>
@@ -439,7 +1301,7 @@ function renderDashboardInsights() {
   $('#typeInsights').innerHTML = (dashboard.by_type || []).map((item) => `
     <div class="insight-bar">
       <span>${escapeHtml(item.equipment_type)}</span>
-      <strong>${escapeHtml(item.total)}</strong>
+      <strong>${item.total}</strong>
       <i data-width="${Math.max(6, Math.round((Number(item.total) / maxType) * 100))}"></i>
     </div>
   `).join('') || '<p class="empty-module">Sin datos por tipo.</p>';
@@ -448,7 +1310,7 @@ function renderDashboardInsights() {
   $('#locationInsights').innerHTML = (dashboard.by_location || []).map((item) => `
     <div class="insight-bar">
       <span>${escapeHtml(item.location)}</span>
-      <strong>${escapeHtml(item.total)}</strong>
+      <strong>${item.total}</strong>
       <i data-width="${Math.max(6, Math.round((Number(item.total) / maxLocation) * 100))}"></i>
     </div>
   `).join('') || '<p class="empty-module">Sin datos por ubicacion.</p>';
@@ -457,31 +1319,32 @@ function renderDashboardInsights() {
   $('#maintenanceInsights').innerHTML = (dashboard.maintenance || []).map((item) => `
     <div class="insight-bar">
       <span>${escapeHtml(phaseLabel(item.phase))}</span>
-      <strong>${escapeHtml(item.total)}</strong>
+      <strong>${item.total}</strong>
       <i data-width="${Math.max(6, Math.round((Number(item.total) / maxMaintenance) * 100))}"></i>
     </div>
   `).join('') || '<p class="empty-module">Sin ordenes de mantenimiento.</p>';
 
   const stock = dashboard.stock || {};
-  $('#stockInsights').innerHTML = `
+  $('#stockInsights').innerHTML = esc`
     <div><strong>${stock.total_quantity || 0}</strong><span>Unidades disponibles</span></div>
     <div><strong>${stock.total_items || 0}</strong><span>Registros en stock</span></div>
-    <div><strong>${stock.with_images || 0}</strong><span>Con foto</span></div>
   `;
 
   document.querySelectorAll('#dashboardInsights i[data-width]').forEach((bar) => {
     bar.style.width = `${bar.dataset.width}%`;
   });
-
-  $('#recentInsights').innerHTML = (dashboard.recent_changes || []).map((item) => `
-    <div><strong>${escapeHtml(item.serial_number)}</strong><span>${escapeHtml(item.event_type)} &middot; Usuario asignado: ${escapeHtml(item.assigned_user || 'Sin asignar')} &middot; ${escapeHtml(item.username || 'sistema')} &middot; ${escapeHtml(formatDate(item.created_at))}</span></div>
-  `).join('') || '<p class="empty-module">Sin cambios recientes.</p>';
+  translateStaticText();
 }
 
 function chartColors(count, alert = false) {
+  const isDark = document.body?.dataset?.theme === 'dark';
   const palette = alert
-    ? ['#0b4f8f', '#64748b', '#2fb66d', '#ef4444', '#38bdf8', '#94a3b8']
-    : ['#0b4f8f', '#179bd7', '#64748b', '#2fb66d', '#94a3b8', '#113c75', '#60a5fa', '#16a34a'];
+    ? (isDark
+      ? ['#60b0ff', '#a0b8cc', '#4adf8a', '#ff6b6b', '#6dd5ff', '#c0d0e0']
+      : ['#0b4f8f', '#64748b', '#2fb66d', '#ef4444', '#38bdf8', '#94a3b8'])
+    : (isDark
+      ? ['#60b0ff', '#4fd2ff', '#a0b8cc', '#4adf8a', '#c0d0e0', '#3a8bd6', '#90c8ff', '#3acf6a']
+      : ['#0b4f8f', '#179bd7', '#64748b', '#2fb66d', '#94a3b8', '#113c75', '#60a5fa', '#16a34a']);
   return Array.from({ length: count }, (_, index) => palette[index % palette.length]);
 }
 
@@ -506,11 +1369,16 @@ function renderDashboardStats(stats) {
   const tipos = stats.equiposPorTipo || [];
   const areas = stats.equiposPorArea || [];
   const mantenimiento = stats.estadoMantenimiento || [];
+  const darkTheme = document.body.dataset.theme === 'dark';
+  const chartText = darkTheme ? '#d5dfeb' : '#334155';
+  const chartMuted = darkTheme ? '#93a4ba' : '#64748b';
+  const chartGrid = darkTheme ? 'rgba(125, 165, 214, 0.18)' : '#e5e7eb';
+  const chartBorder = darkTheme ? '#0f1e32' : '#ffffff';
   const baseOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { labels: { color: '#334155', boxWidth: 12 } }
+      legend: { labels: { color: chartText, boxWidth: 12 } }
     }
   };
 
@@ -521,7 +1389,7 @@ function renderDashboardStats(stats) {
       datasets: [{
         data: tipos.map((item) => Number(item.total || 0)),
         backgroundColor: chartColors(tipos.length),
-        borderColor: '#ffffff',
+        borderColor: chartBorder,
         borderWidth: 2
       }]
     },
@@ -536,7 +1404,7 @@ function renderDashboardStats(stats) {
     data: {
       labels: areas.map((item) => item.area),
       datasets: [{
-        label: 'Equipos',
+        label: uiText('Equipos', 'Equipment'),
         data: areas.map((item) => Number(item.total || 0)),
         backgroundColor: '#179bd7',
         borderRadius: 6
@@ -547,8 +1415,8 @@ function renderDashboardStats(stats) {
       indexAxis: 'y',
       plugins: { legend: { display: false } },
       scales: {
-        x: { beginAtZero: true, ticks: { precision: 0, color: '#64748b' }, grid: { color: '#e5e7eb' } },
-        y: { ticks: { color: '#334155' }, grid: { display: false } }
+        x: { beginAtZero: true, ticks: { precision: 0, color: chartMuted }, grid: { color: chartGrid } },
+        y: { ticks: { color: chartText }, grid: { display: false } }
       }
     }
   });
@@ -558,7 +1426,7 @@ function renderDashboardStats(stats) {
     data: {
       labels: mantenimiento.map((item) => phaseLabel(item.fase)),
       datasets: [{
-        label: 'Equipos',
+        label: uiText('Equipos', 'Equipment'),
         data: mantenimiento.map((item) => Number(item.total || 0)),
         backgroundColor: chartColors(mantenimiento.length, true),
         borderRadius: 6
@@ -568,29 +1436,28 @@ function renderDashboardStats(stats) {
       ...baseOptions,
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { color: '#334155' }, grid: { display: false } },
-        y: { beginAtZero: true, ticks: { precision: 0, color: '#64748b' }, grid: { color: '#e5e7eb' } }
+        x: { ticks: { color: chartText }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { precision: 0, color: chartMuted }, grid: { color: chartGrid } }
       }
     }
   });
+  translateStaticText();
 }
 
 async function loadDashboardStats() {
   try {
       const response = await fetch(`${apiBaseUrl}/api/dashboard/stats`, {
-      headers: {
-        Authorization: `Bearer ${state.token}`
-      }
+      credentials: 'include'
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(payload.message || 'No se pudieron cargar las estadisticas del dashboard.');
+      throw new Error(payload.message || uiText('No se pudieron cargar las estadisticas del dashboard.', 'Could not load dashboard statistics.'));
     }
     state.dashboardStats = payload;
     renderDashboardStats(payload);
   } catch (error) {
     console.error('Error cargando estadisticas del dashboard:', error);
-    alert('No se pudieron cargar las graficas del dashboard.');
+    toast(uiText('No se pudieron cargar las graficas del dashboard.', 'Could not load dashboard charts.'), 'error');
   }
 }
 
@@ -601,6 +1468,10 @@ function normalizeTypeName(value) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/\s+/g, '-');
+}
+
+function normalizeText(value) {
+  return normalizeTypeName(value).replace(/-/g, ' ');
 }
 
 function isAccessoryType(type) {
@@ -614,6 +1485,36 @@ function isAssetType(type) {
 function isAccessoryItem(item) {
   const type = item?.equipment_type || item?.name;
   return isAccessoryType(type) || !isAssetType(type);
+}
+
+function selectedEquipmentTypeName() {
+  const typeId = Number(equipmentForm.elements.equipment_type_id.value);
+  return state.lookups?.types.find((type) => Number(type.id) === typeId)?.name || '';
+}
+
+function isAccessoryFormMode() {
+  return state.inventoryScope === 'accessories' || isAccessoryType(selectedEquipmentTypeName());
+}
+
+function syncEquipmentFormMode() {
+  const accessoryMode = isAccessoryFormMode();
+  document.querySelectorAll('#equipmentForm .asset-only-field').forEach((field) => {
+    field.classList.toggle('hidden', accessoryMode);
+  });
+  document.querySelectorAll('#equipmentForm .accessory-only-field').forEach((field) => {
+    field.classList.toggle('hidden', !accessoryMode);
+  });
+
+  equipmentForm.elements.status.required = !accessoryMode;
+  equipmentForm.elements.purchase_date.disabled = accessoryMode;
+  equipmentForm.elements.warranty_until.disabled = accessoryMode;
+  equipmentForm.elements.asset_tag.disabled = accessoryMode;
+  if (accessoryMode) {
+    equipmentForm.elements.status.value = 'activo';
+    equipmentForm.elements.purchase_date.value = '';
+    equipmentForm.elements.warranty_until.value = '';
+    equipmentForm.elements.asset_tag.value = '';
+  }
 }
 
 function visibleTypesForScope(types) {
@@ -690,35 +1591,14 @@ function productIcon(type, size = 'sm') {
   `;
 }
 
-function equipmentMedia(item, size = 'sm') {
-  if (item?.image_path) {
-    return `
-      <span class="equipment-photo equipment-photo--${size}">
-        <img src="${safeUrl(item.image_path)}" alt="Imagen de ${escapeHtml(item.serial_number)}">
-      </span>
-    `;
-  }
-  return productIcon(item?.equipment_type, size);
-}
-
-function stockMedia(item, size = 'sm') {
-  if (item?.image_path) {
-    return `
-      <span class="equipment-photo equipment-photo--${size}">
-        <img src="${safeUrl(item.image_path)}" alt="Foto de ${escapeHtml(item.name)}">
-      </span>
-    `;
-  }
-  return productIcon(item?.name, size);
-}
-
 function uiIcon(name) {
   const icons = {
     more: '<circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>',
     eye: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"/><circle cx="12" cy="12" r="3"/>',
     login: '<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/>',
     list: '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
-    shield: '<path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="M9 12l2 2 4-5"/>'
+    shield: '<path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="M9 12l2 2 4-5"/>',
+    trash: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/>'
   };
 
   return `
@@ -737,51 +1617,57 @@ function renderPreview(item) {
   }
 
   equipmentPreview.classList.remove('hidden');
-  equipmentPreview.innerHTML = `
+  equipmentPreview.innerHTML = esc`
     <div class="hover-detail-header">
       <div>
-        <span class="eyebrow">Detalles completos</span>
-        <h3>${escapeHtml(item.brand)} ${escapeHtml(item.model)}</h3>
+        <span class="eyebrow">${uiText('Detalles completos', 'Full details')}</span>
+        <h3>${item.brand} ${item.model}</h3>
       </div>
-      <button class="icon-button detail-close" type="button" data-close-preview aria-label="Cerrar">x</button>
+      <button class="icon-button detail-close" type="button" data-close-preview aria-label="${uiText('Cerrar', 'Close')}">x</button>
     </div>
     <div class="detail-hero">
-      <div class="equipment-art">${equipmentMedia(item, 'lg')}</div>
+      <div class="equipment-art">${raw(productIcon(item?.equipment_type, 'lg'))}</div>
       <div class="detail-identity">
-        <span class="detail-type">${escapeHtml(item.equipment_type)}</span>
-        <strong>${escapeHtml(item.asset_tag || item.serial_number)}</strong>
-        <span class="status ${escapeHtml(item.status)}">${escapeHtml(displayStatus(item.status))}</span>
+        <span class="detail-type">${item.equipment_type}</span>
+        <strong>${item.asset_tag || item.serial_number}</strong>
+        <span class="status ${item.status}">${raw(displayStatus(item.status))}</span>
       </div>
     </div>
     <div class="detail-grid">
       <article>
         <span>ID</span>
-        <strong>${escapeHtml(item.id)}</strong>
+        <strong>${item.id}</strong>
       </article>
       <article>
         <span>ID de inventario</span>
-        <strong>${escapeHtml(item.asset_tag || 'Sin ID')}</strong>
+        <strong>${item.asset_tag || 'Sin ID'}</strong>
       </article>
       <article>
         <span>Nombre de usuario</span>
-        <strong>${escapeHtml(item.assigned_user || 'Sin asignar')}</strong>
+        <strong>${item[fieldKeys.au] || 'Sin asignar'}</strong>
       </article>
       <article>
         <span>Numero de serie</span>
-        <strong>${escapeHtml(item.serial_number)}</strong>
+        <strong>${item.serial_number}</strong>
       </article>
+      ${raw(isAccessoryItem(item) ? esc`
+        <article>
+          <span>Cantidad</span>
+          <strong>${Number(item.quantity ?? 1)}</strong>
+        </article>
+      ` : '')}
       <article>
         <span>Ubicacion</span>
-        <strong>${escapeHtml(item.location)}</strong>
+        <strong>${item.location}</strong>
       </article>
       <article>
         <span>Area</span>
-        <strong>${escapeHtml(item.area)}</strong>
+        <strong>${item.area}</strong>
       </article>
     </div>
     <div class="detail-footer">
-      <span>Actualizado ${escapeHtml(formatDate(item.updated_at))}</span>
-      <button class="ghost icon-label" type="button" data-preview-open="${escapeHtml(item.id)}">${uiIcon('eye')}Abrir ficha</button>
+      <span>Actualizado ${raw(formatDate(item.updated_at))}</span>
+      <span id="hoverDetailNav" class="inline-links"></span>
     </div>
   `;
 }
@@ -794,33 +1680,33 @@ function renderStockPreview(item) {
 
   const canWrite = ['ADMIN', 'TI'].includes(state.user?.role);
   equipmentPreview.classList.remove('hidden');
-  equipmentPreview.innerHTML = `
+  equipmentPreview.innerHTML = esc`
     <div class="hover-detail-header">
       <div>
         <span class="eyebrow">Detalles de stock</span>
-        <h3>${escapeHtml(item.name)}</h3>
+        <h3>${item.name}</h3>
       </div>
       <button class="icon-button detail-close" type="button" data-close-preview aria-label="Cerrar">x</button>
     </div>
     <div class="detail-hero">
-      <div class="equipment-art">${stockMedia(item, 'lg')}</div>
+      <div class="equipment-art">${raw(productIcon(item?.name, 'lg'))}</div>
       <div class="detail-identity">
         <span class="detail-type">Stock de almacenamiento</span>
-        <strong>${escapeHtml(item.item_code || item.serial_number || item.name)}</strong>
-        <span class="status activo">${Number(item.quantity || 0)} disponibles</span>
+        <strong>${item.item_code || item.serial_number || item.name}</strong>
+        <span class="status activo">${raw(Number(item.quantity || 0))} disponibles</span>
       </div>
     </div>
     <div class="detail-grid">
-      <article><span>ID</span><strong>${escapeHtml(item.item_code || 'Sin ID')}</strong></article>
-      <article><span>Modelo</span><strong>${escapeHtml(item.model)}</strong></article>
-      <article><span>Numero de serie</span><strong>${escapeHtml(item.serial_number || 'Sin serie')}</strong></article>
-      <article><span>Ubicacion</span><strong>${escapeHtml(item.location)}</strong></article>
-      <article><span>Area</span><strong>${escapeHtml(item.area)}</strong></article>
-      <article><span>Cantidad</span><strong>${Number(item.quantity || 0)}</strong></article>
+      <article><span>ID</span><strong>${item.item_code || 'Sin ID'}</strong></article>
+      <article><span>Modelo</span><strong>${item.model}</strong></article>
+      <article><span>Numero de serie</span><strong>${item.serial_number || 'Sin serie'}</strong></article>
+      <article><span>Ubicacion</span><strong>${item.location}</strong></article>
+      <article><span>Area</span><strong>${item.area}</strong></article>
+      <article><span>Cantidad</span><strong>${raw(Number(item.quantity || 0))}</strong></article>
     </div>
     <div class="detail-footer">
-      <span>Actualizado ${escapeHtml(formatDate(item.updated_at))}</span>
-      ${canWrite ? `<button class="ghost icon-label" type="button" data-stock-preview-edit="${escapeHtml(item.id)}">${uiIcon('eye')}Modificar</button>` : ''}
+      <span>Actualizado ${raw(formatDate(item.updated_at))}</span>
+      ${raw(canWrite ? esc`<button class="ghost icon-label" type="button" data-stock-preview-edit="${item.id}">${raw(uiIcon('eye'))}Modificar</button>` : '')}
     </div>
   `;
 }
@@ -868,8 +1754,12 @@ function renderInventory() {
   const meta = state.inventoryMeta || { page: 1, limit: 25, total: state.items.length, total_pages: 1 };
   const first = meta.total === 0 ? 0 : ((meta.page - 1) * meta.limit) + 1;
   const last = Math.min(meta.page * meta.limit, meta.total);
-  $('#resultCount').textContent = `Mostrando ${first}-${last} de ${meta.total} resultados`;
-  $('#pageIndicator').textContent = `Pagina ${meta.page} de ${meta.total_pages}`;
+  $('#resultCount').textContent = normalizedSettings().language === 'en'
+    ? `Showing ${first}-${last} of ${meta.total} results`
+    : `Mostrando ${first}-${last} de ${meta.total} resultados`;
+  $('#pageIndicator').textContent = normalizedSettings().language === 'en'
+    ? `Page ${meta.page} of ${meta.total_pages}`
+    : `Pagina ${meta.page} de ${meta.total_pages}`;
   $('#prevPageButton').disabled = meta.page <= 1;
   $('#nextPageButton').disabled = meta.page >= meta.total_pages;
 
@@ -878,29 +1768,30 @@ function renderInventory() {
     row.dataset.itemId = item.id;
     row.classList.add('inventory-row');
     row.classList.add(`inventory-row-delay-${Math.min(index, 15)}`);
-    row.innerHTML = `
-      <td data-label="ID"><strong>${escapeHtml(String(item.id).slice(0, 8))}</strong></td>
+    row.innerHTML = esc`
       <td data-label="Tipo">
         <div class="device-cell">
-          ${equipmentMedia(item)}
-          <strong>${escapeHtml(item.equipment_type)}</strong>
+          ${raw(productIcon(item?.equipment_type))}
+          <strong>${item.equipment_type}</strong>
         </div>
       </td>
-      <td data-label="Marca">${escapeHtml(item.brand)}</td>
-      <td data-label="Modelo">${escapeHtml(item.model)}</td>
-      <td data-label="Numero de serie" data-hover-detail><strong>${escapeHtml(item.serial_number)}</strong></td>
-      <td data-label="ID de inventario">${escapeHtml(item.asset_tag || 'Sin ID')}</td>
-      <td data-label="Ubicacion">${escapeHtml(item.location)}</td>
-      <td data-label="Area">${escapeHtml(item.area)}</td>
-      <td data-label="Usuario">${escapeHtml(item.assigned_user || 'Sin asignar')}</td>
-      <td data-label="Accion"><button class="ghost row-action" data-edit="${escapeHtml(item.id)}" aria-label="Ver detalle">${uiIcon('more')}</button></td>
+      <td data-label="Marca">${item.brand}</td>
+      <td data-label="Modelo">${item.model}</td>
+      <td data-label="Numero de serie" data-hover-detail><strong>${item.serial_number}</strong></td>
+      <td data-label="ID de inventario">${item.asset_tag || 'Sin ID'}</td>
+      <td data-label="Ubicacion">${item.location}</td>
+      <td data-label="Area">${item.area}</td>
+      <td data-label="Usuario">${item[fieldKeys.au] || 'Sin asignar'}</td>
+      <td data-label="Accion"><button class="ghost row-action" data-edit="${raw(item.id)}" aria-label="Ver detalle">${raw(uiIcon('more'))}</button></td>
     `;
     inventoryBody.appendChild(row);
   });
 
   hideHoverDetails();
   renderEquipmentTypeList();
+  renderHardwareTypeGrid();
   renderAuditView();
+  translateStaticText();
 }
 
 function renderEquipmentTypeList() {
@@ -924,17 +1815,175 @@ function renderEquipmentTypeList() {
     .join('') || '<p class="empty-module">Sin equipos para clasificar.</p>';
 }
 
+function typeDescription(typeName, total) {
+  const normalized = normalizeText(typeName);
+  const descriptions = [
+    [['laptop', 'laptops'], uiText('Equipos portatiles asignados a usuarios y areas.', 'Portable equipment assigned to users and areas.')],
+    [['monitor', 'monitores'], uiText('Pantallas asignadas a estaciones de trabajo.', 'Screens assigned to workstations.')],
+    [['desktop', 'destoktop', 'desktop'], uiText('Estaciones fijas en operacion.', 'Fixed stations in operation.')],
+    [['projector', 'proyector', 'proyectores'], uiText('Equipo audiovisual inventariado.', 'Inventoried audiovisual equipment.')],
+    [['router', 'routers'], uiText('Red y conectividad por area.', 'Network and connectivity by area.')],
+    [['server', 'servers'], uiText('Infraestructura critica de TI.', 'Critical IT infrastructure.')],
+    [['switch'], uiText('Equipo de comunicacion y red.', 'Communication and network equipment.')],
+    [['tablet', 'tablets'], uiText('Dispositivos moviles operativos.', 'Operational mobile devices.')],
+    [['telefono', 'phone'], uiText('Telefonia asignada a usuarios o areas.', 'Telephony assigned to users or areas.')],
+    [['ups', 'upc'], uiText('Respaldo electrico inventariado.', 'Inventoried power backup.')],
+    [['workstation', 'workstacion'], uiText('Equipos de alto rendimiento.', 'High performance equipment.')]
+  ];
+  const match = descriptions.find(([keys]) => keys.some((key) => normalized.includes(key)));
+  return match?.[1] || uiText(`${total} registros disponibles en inventario.`, `${total} records available in inventory.`);
+}
+
+function typePreviewMedia(typeName) {
+  return productIcon(typeName, 'md');
+}
+
+function renderHardwareTypeGrid() {
+  const container = $('#hardwareTypeGrid');
+  if (!container) return;
+  const drill = state.inventoryDrill || { scope: 'equipment', typeId: '', brandId: '', modelId: '' };
+  const links = state.lookups?.type_brand_models || [];
+  const scopedItems = state.items.filter((item) => drill.scope === 'accessories' ? isAccessoryType(item.equipment_type) : isAssetType(item.equipment_type));
+  const selectedType = state.lookups?.types.find((type) => String(type.id) === String(drill.typeId));
+
+  if (drill.typeId && drill.brandId) {
+    const models = state.lookups.models
+      .filter((model) => Number(model.brand_id) === Number(drill.brandId))
+      .filter((model) => links.some((link) => Number(link.equipment_type_id) === Number(drill.typeId) && Number(link.brand_id) === Number(drill.brandId) && Number(link.model_id) === Number(model.id)))
+      .map((model) => ({
+        ...model,
+        total: scopedItems.filter((item) => item.model === model.name && (!selectedType || item.equipment_type === selectedType.name)).length
+      }))
+      .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'es'));
+
+    container.innerHTML = models.map((model) => `
+      <article class="hardware-option" data-drill-model-id="${model.id}" data-catalog-kind="models" data-catalog-id="${model.id}" data-catalog-name="${escapeHtml(model.name)}" role="button" tabindex="0">
+        ${productIcon('model', 'md')}
+        <div>
+          <strong>${escapeHtml(model.name)}</strong>
+          <p>Modelo disponible para la marca seleccionada.</p>
+          <small>${model.total} registrados</small>
+        </div>
+        <button class="ghost" type="button" tabindex="-1">Ver listado</button>
+      </article>
+    `).join('') || '<p class="empty-module">Sin modelos registrados para esta marca.</p>';
+    translateStaticText();
+    return;
+  }
+
+  if (drill.typeId) {
+    const brands = state.lookups.brands
+      .filter((brand) => links.some((link) => Number(link.equipment_type_id) === Number(drill.typeId) && Number(link.brand_id) === Number(brand.id)))
+      .map((brand) => ({
+        ...brand,
+        total: scopedItems.filter((item) => item.brand === brand.name && (!selectedType || item.equipment_type === selectedType.name)).length
+      }))
+      .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'es'));
+
+    container.innerHTML = brands.map((brand) => `
+      <article class="hardware-option" data-drill-brand-id="${brand.id}" data-catalog-kind="brands" data-catalog-id="${brand.id}" data-catalog-name="${escapeHtml(brand.name)}" role="button" tabindex="0">
+        ${productIcon('brand', 'md')}
+        <div>
+          <strong>${escapeHtml(brand.name)}</strong>
+          <p>Marca registrada para el tipo seleccionado.</p>
+          <small>${brand.total} registrados</small>
+        </div>
+        <button class="ghost" type="button" tabindex="-1">Abrir</button>
+      </article>
+    `).join('') || '<p class="empty-module">Sin marcas registradas para este tipo.</p>';
+    translateStaticText();
+    return;
+  }
+
+  const types = (state.lookups?.types || [])
+    .filter((type) => drill.scope === 'accessories' ? isAccessoryType(type.name) : isAssetType(type.name))
+    .map((type) => {
+      const total = scopedItems.filter((item) => normalizeText(item.equipment_type) === normalizeText(type.name)).length;
+      return { ...type, total };
+    })
+    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'es'));
+
+  container.innerHTML = types.map((type) => `
+    <article class="hardware-option" data-drill-type-id="${type.id}" data-catalog-kind="types" data-catalog-id="${type.id}" data-catalog-name="${escapeHtml(type.name)}" role="button" tabindex="0">
+      ${typePreviewMedia(type.name)}
+      <div>
+        <strong>${escapeHtml(type.name)}</strong>
+        <p>${escapeHtml(typeDescription(type.name, type.total))}</p>
+        <small>${type.total} registrados</small>
+      </div>
+      <button class="ghost" type="button" tabindex="-1">Abrir</button>
+    </article>
+  `).join('') || '<p class="empty-module">Sin tipos de activos registrados.</p>';
+  translateStaticText();
+}
+
 function renderAuditView() {
   const body = $('#auditBody');
   if (!body) return;
   body.innerHTML = state.audit.map((event) => `
     <tr>
       <td><span class="audit-event">${uiIcon('shield')}${escapeHtml(event.action)}</span></td>
-      <td>${escapeHtml(event.entity)} ${escapeHtml(event.entity_id || '')}<br><small>${escapeHtml(event.username || event.user_name || 'Sistema')} &middot; ${escapeHtml(formatDate(event.created_at))}</small></td>
+      <td>${escapeHtml(event.entity)} ${escapeHtml(event.entity_id || '')}<br><small>${escapeHtml(event.username || event.user_name || uiText('Sistema', 'System'))} &middot; ${escapeHtml(formatDate(event.created_at))}</small></td>
       <td><span class="status activo">OK</span></td>
     </tr>
-  `).join('') || '<tr><td colspan="3">Sin eventos de auditoria.</td></tr>';
-  $('#auditResultCount').textContent = `Mostrando ${state.audit.length} eventos`;
+  `).join('') || `<tr><td colspan="3">${uiText('Sin eventos de auditoria.', 'No audit events.')}</td></tr>`;
+  const meta = state.auditMeta || {};
+  $('#auditResultCount').textContent = normalizedSettings().language === 'en'
+    ? `Showing ${state.audit.length} of ${meta.total || state.audit.length} events`
+    : `Mostrando ${state.audit.length} de ${meta.total || state.audit.length} eventos`;
+  translateStaticText();
+}
+
+function auditSummary(event) {
+  const metadata = event.metadata || {};
+  const parts = [
+    metadata.serial_number || metadata.item_code || metadata.asset_tag || event.entity_id,
+    metadata.name || metadata.model || metadata.status || metadata.phase,
+    metadata.reason || metadata.note || metadata.notes
+  ].filter(Boolean);
+  return parts.length ? parts.join(' · ') : uiText('Movimiento registrado en el sistema', 'Movement recorded in the system');
+}
+
+function actionLabel(action) {
+  return {
+    CREATE: uiText('Creacion', 'Creation'),
+    UPDATE: uiText('Actualizacion', 'Update'),
+    DELETE: uiText('Eliminacion', 'Deletion'),
+    IMAGE_UPLOAD: uiText('Imagen', 'Image'),
+    LOGIN: uiText('Acceso', 'Access')
+  }[action] || action;
+}
+
+function renderRecentChangesView() {
+  const list = $('#recentChangesList');
+  if (!list) return;
+  const meta = state.recentMeta || { page: 1, total_pages: 1, total: 0 };
+  list.innerHTML = state.recent.map((event) => `
+    <article class="recent-card">
+      <div class="recent-card__icon">${uiIcon(event.action === 'DELETE' ? 'trash' : 'shield')}</div>
+      <div>
+        <header>
+          <strong>${escapeHtml(actionLabel(event.action))}</strong>
+          <span>${escapeHtml(event.entity)}${event.entity_id ? ` · ${escapeHtml(event.entity_id)}` : ''}</span>
+        </header>
+        <p>${escapeHtml(auditSummary(event))}</p>
+        <footer>
+          <span>${escapeHtml(event.username || event.user_name || uiText('Sistema', 'System'))}</span>
+          <span>${formatDate(event.created_at)}</span>
+          ${event.ip_address ? `<span>${escapeHtml(event.ip_address)}</span>` : ''}
+        </footer>
+      </div>
+    </article>
+  `).join('') || `<p class="empty-module">${uiText('Sin cambios para esta consulta.', 'No changes for this query.')}</p>`;
+  $('#recentResultCount').textContent = normalizedSettings().language === 'en'
+    ? `Showing ${state.recent.length} of ${meta.total || 0} changes`
+    : `Mostrando ${state.recent.length} de ${meta.total || 0} cambios`;
+  $('#recentPageIndicator').textContent = normalizedSettings().language === 'en'
+    ? `Page ${meta.page || 1} of ${meta.total_pages || 1}`
+    : `Pagina ${meta.page || 1} de ${meta.total_pages || 1}`;
+  $('#prevRecentPageButton').disabled = Number(meta.page || 1) <= 1;
+  $('#nextRecentPageButton').disabled = Number(meta.page || 1) >= Number(meta.total_pages || 1);
+  translateStaticText();
 }
 
 function phasePercent(phase) {
@@ -975,7 +2024,7 @@ function renderMaintenanceView() {
         <header>
           <div>
             <span>${escapeHtml(item.equipment_type)}</span>
-            <h3>${escapeHtml(item.serial_number)} &middot; ${escapeHtml(item.brand)} ${escapeHtml(item.model)}</h3>
+            <h3>${escapeHtml(item.serial_number)} · ${escapeHtml(item.brand)} ${escapeHtml(item.model)}</h3>
           </div>
           ${canWrite ? `<button class="ghost" type="button" data-maintenance-edit="${escapeHtml(item.id)}">Actualizar</button>` : ''}
         </header>
@@ -990,7 +2039,7 @@ function renderMaintenanceView() {
         <p>${escapeHtml(item.notes || 'Sin notas registradas.')}</p>
         <footer>
           <div class="maintenance-meta">
-            <span>${escapeHtml(phaseLabel(item.phase))} &middot; ${percent}%</span>
+            <span>${escapeHtml(phaseLabel(item.phase))} · ${percent}%</span>
             <span>${escapeHtml(item.location)} / ${escapeHtml(item.area)}</span>
             <span>Actualizado ${escapeHtml(formatDate(item.updated_at))}</span>
           </div>
@@ -998,6 +2047,7 @@ function renderMaintenanceView() {
       </article>
     `;
   }).join('') || '<p class="empty-module">Sin equipos enviados a mantenimiento.</p>';
+  translateStaticText();
 }
 
 function renderStockView() {
@@ -1010,7 +2060,7 @@ function renderStockView() {
     <article><span>Registros consultados</span><strong>${state.stockSummary.total || state.stock.length}</strong></article>
     <article><span>Cantidad disponible</span><strong>${state.stockSummary.available || 0}</strong></article>
   `;
-  availability.innerHTML = `
+  availability.innerHTML = esc`
     <header>
       <div>
         <span class="eyebrow">Disponibilidad</span>
@@ -1018,20 +2068,20 @@ function renderStockView() {
       </div>
     </header>
     <div class="availability-grid">
-      ${(state.stockAvailability || []).map((item) => `
+      ${raw((state.stockAvailability || []).map((item) => esc`
         <article>
-          <span>${escapeHtml(item.location)}</span>
-          <strong>${escapeHtml(item.available)}</strong>
-          <small>${escapeHtml(item.area)} / ${escapeHtml(item.total)} total</small>
+          <span>${item.location}</span>
+          <strong>${raw(item.available)}</strong>
+          <small>${item.area} / ${raw(item.total)} total</small>
         </article>
-      `).join('') || '<p class="empty-module">Sin disponibilidad para esta consulta.</p>'}
+      `).join('') || '<p class="empty-module">Sin disponibilidad para esta consulta.</p>')}
     </div>
   `;
   list.innerHTML = state.stock.map((item) => `
     <article class="stock-card" data-stock-id="${escapeHtml(item.id)}">
       <header>
         <div class="stock-title">
-          ${stockMedia(item)}
+          ${productIcon(item?.name)}
           <div>
             <span>${escapeHtml(item.item_code || item.serial_number || 'Sin ID')}</span>
             <h3>${escapeHtml(item.name)}</h3>
@@ -1047,22 +2097,41 @@ function renderStockView() {
         <div><span>Area</span><strong>${escapeHtml(item.area)}</strong></div>
         <div><span>Modelo</span><strong>${escapeHtml(item.model)}</strong></div>
       </div>
-      <p>${escapeHtml(item.notes || 'Pase el cursor para ver detalles completos.')}</p>
+      <p>${escapeHtml(item.notes || uiText('Pase el cursor para ver detalles completos.', 'Hover for full details.'))}</p>
     </article>
-  `).join('') || '<p class="empty-module">Sin dispositivos en stock para esta consulta.</p>';
+  `).join('') || `<p class="empty-module">${uiText('Sin dispositivos en stock para esta consulta.', 'No stock devices for this query.')}</p>`;
+  translateStaticText();
 }
 
 async function loadLookups() {
+  const currentType = equipmentForm.elements.equipment_type_id.value;
+  const currentBrand = equipmentForm.elements.brand_id.value;
+  const currentModel = equipmentForm.elements.model_id.value;
+  const currentLocation = equipmentForm.elements.location_id.value;
   state.lookups = await api('/lookups');
   fillSelect('equipment_type_id', state.lookups.types);
+  if (currentType && state.lookups.types.some((type) => String(type.id) === String(currentType))) {
+    equipmentForm.elements.equipment_type_id.value = currentType;
+  }
   syncTypeFilterOptions();
-  fillSelect('brand_id', state.lookups.brands);
-  fillSelect('model_id', state.lookups.models);
+  syncBrandOptions({ preserve: true });
+  if (currentBrand && Array.from(equipmentForm.elements.brand_id.options).some((option) => option.value === currentBrand)) {
+    equipmentForm.elements.brand_id.value = currentBrand;
+  }
+  syncModelOptions({ preserve: true });
+  if (currentModel && Array.from(equipmentForm.elements.model_id.options).some((option) => option.value === currentModel)) {
+    equipmentForm.elements.model_id.value = currentModel;
+  }
   fillSelect('location_id', inventoryLocations());
+  if (currentLocation && inventoryLocations().some((location) => String(location.id) === String(currentLocation))) {
+    equipmentForm.elements.location_id.value = currentLocation;
+  }
   if (stockForm) fillElementSelect(stockForm.elements.location_id, inventoryLocations(), 'Seleccionar');
   syncAreaOptions();
   syncStockAreaOptions();
   initCatalogSelects();
+  syncEquipmentFormMode();
+  renderSupplierOptions();
 }
 
 function syncTypeFilterOptions() {
@@ -1073,6 +2142,44 @@ function syncTypeFilterOptions() {
   if (types.some((item) => String(item.id) === String(currentValue))) {
     $('#typeFilter').value = currentValue;
   }
+  syncInventoryBrandFilterOptions();
+  syncInventoryModelFilterOptions();
+}
+
+function syncInventoryBrandFilterOptions() {
+  if (!state.lookups || !$('#brandFilter')) return;
+  const currentValue = $('#brandFilter').value;
+  const typeId = Number($('#typeFilter').value);
+  const links = state.lookups.type_brand_models || [];
+  const allowed = typeId
+    ? new Set(links.filter((link) => Number(link.equipment_type_id) === typeId).map((link) => Number(link.brand_id)))
+    : new Set();
+  const brands = allowed.size
+    ? state.lookups.brands.filter((brand) => allowed.has(Number(brand.id)))
+    : state.lookups.brands;
+  fillSelect('brandFilter', brands, 'Todas');
+  if (brands.some((brand) => String(brand.id) === String(currentValue))) {
+    $('#brandFilter').value = currentValue;
+  }
+}
+
+function syncInventoryModelFilterOptions() {
+  if (!state.lookups || !$('#modelFilter')) return;
+  const currentValue = $('#modelFilter').value;
+  const typeId = Number($('#typeFilter').value);
+  const brandId = Number($('#brandFilter').value);
+  const links = state.lookups.type_brand_models || [];
+  const allowed = typeId
+    ? new Set(links.filter((link) => Number(link.equipment_type_id) === typeId && (!brandId || Number(link.brand_id) === brandId)).map((link) => Number(link.model_id)).filter(Boolean))
+    : new Set();
+  let models = brandId ? state.lookups.models.filter((model) => Number(model.brand_id) === brandId) : state.lookups.models;
+  if (allowed.size) {
+    models = models.filter((model) => allowed.has(Number(model.id)));
+  }
+  fillSelect('modelFilter', models, 'Todos');
+  if (models.some((model) => String(model.id) === String(currentValue))) {
+    $('#modelFilter').value = currentValue;
+  }
 }
 
 function fillSelect(name, items, emptyLabel = 'Seleccionar') {
@@ -1082,6 +2189,8 @@ function fillSelect(name, items, emptyLabel = 'Seleccionar') {
     const option = document.createElement('option');
     option.value = item.id;
     option.textContent = item.name;
+    option.dataset.catalogId = item.id;
+    option.dataset.catalogName = item.name;
     select.appendChild(option);
   }
 }
@@ -1093,37 +2202,309 @@ function fillElementSelect(select, items, emptyLabel = 'Todos') {
     const option = document.createElement('option');
     option.value = item.id;
     option.textContent = item.name;
+    option.dataset.catalogId = item.id;
+    option.dataset.catalogName = item.name;
     select.appendChild(option);
   }
 }
 
-function setInventoryLoading(isLoading) {
-  const table = $('#inventoryView .table-wrap');
-  table?.classList.toggle('is-loading', isLoading);
-  table?.setAttribute('aria-busy', String(isLoading));
-  $('#resultCount').textContent = isLoading ? 'Cargando inventario...' : $('#resultCount').textContent;
-  $('#prevPageButton').disabled = isLoading || state.inventoryMeta.page <= 1;
-  $('#nextPageButton').disabled = isLoading || state.inventoryMeta.page >= state.inventoryMeta.total_pages;
+function ensureCatalogContextMenu() {
+  let menu = $('#catalogContextMenu');
+  if (menu) return menu;
+
+  menu = document.createElement('div');
+  menu.id = 'catalogContextMenu';
+  menu.className = 'catalog-context-menu hidden';
+  menu.innerHTML = `
+    <button type="button" data-catalog-action="edit">${uiText('Modificar', 'Edit')}</button>
+    <button type="button" data-catalog-action="delete">${uiText('Eliminar', 'Delete')}</button>
+  `;
+  document.body.appendChild(menu);
+  return menu;
+}
+
+function ensureRecordContextMenu() {
+  let menu = $('#recordContextMenu');
+  if (menu) return menu;
+
+  menu = document.createElement('div');
+  menu.id = 'recordContextMenu';
+  menu.className = 'catalog-context-menu hidden';
+  menu.innerHTML = `
+    <button type="button" data-record-action="edit">${uiText('Modificar', 'Edit')}</button>
+    <button type="button" data-record-action="delete">${uiText('Eliminar', 'Delete')}</button>
+  `;
+  document.body.appendChild(menu);
+  return menu;
+}
+
+function catalogKindFromSelect(select) {
+  const key = select?.name || select?.id || '';
+  const aliases = {
+    equipment_type_id: 'types',
+    typeFilter: 'types',
+    brand_id: 'brands',
+    brandFilter: 'brands',
+    model_id: 'models',
+    modelFilter: 'models',
+    location_id: 'locations',
+    stockLocationFilter: 'locations',
+    area_id: 'areas',
+    stockAreaFilter: 'areas'
+  };
+  return aliases[key] || '';
+}
+
+function catalogTargetFromEvent(event) {
+  const card = event.target.closest?.('[data-catalog-kind][data-catalog-id]');
+  if (card) {
+    return {
+      kind: card.dataset.catalogKind,
+      id: card.dataset.catalogId,
+      name: card.dataset.catalogName || card.querySelector('strong')?.textContent?.trim() || ''
+    };
+  }
+
+  const select = event.target.closest?.('select');
+  const kind = catalogKindFromSelect(select);
+  const option = select?.options?.[select.selectedIndex];
+  if (!kind || !select?.value || !option) return null;
+  return {
+    kind,
+    id: select.value,
+    name: option.dataset.catalogName || option.textContent.trim()
+  };
+}
+
+function openCatalogContextMenu(event, target) {
+  if (!canWrite() || !target?.kind || !target?.id) return;
+  event.preventDefault();
+  event.stopPropagation();
+  catalogContextTarget = target;
+  const menu = ensureCatalogContextMenu();
+  menu.querySelector('[data-catalog-action="edit"]').textContent = uiText('Modificar', 'Edit');
+  menu.querySelector('[data-catalog-action="delete"]').textContent = uiText('Eliminar', 'Delete');
+  menu.classList.remove('hidden');
+  menu.style.left = '0px';
+  menu.style.top = '0px';
+  const rect = menu.getBoundingClientRect();
+  const left = Math.min(event.clientX, window.innerWidth - rect.width - 10);
+  const top = Math.min(event.clientY, window.innerHeight - rect.height - 10);
+  menu.style.left = `${Math.max(10, left)}px`;
+  menu.style.top = `${Math.max(10, top)}px`;
+}
+
+function closeCatalogContextMenu() {
+  const menu = $('#catalogContextMenu');
+  if (menu) menu.classList.add('hidden');
+  catalogContextTarget = null;
+}
+
+function recordTargetFromEvent(event) {
+  const userCard = event.target.closest?.('[data-user-id]');
+  if (userCard) return { kind: 'user', id: userCard.dataset.userId };
+  const stockCard = event.target.closest?.('[data-stock-id]');
+  if (stockCard) return { kind: 'stock', id: stockCard.dataset.stockId };
+  const equipmentRow = event.target.closest?.('tr[data-item-id]');
+  if (equipmentRow) return { kind: 'equipment', id: equipmentRow.dataset.itemId };
+  return null;
+}
+
+function openRecordContextMenu(event, target) {
+  if (!target?.id) return;
+  if (target.kind !== 'user' && !canWrite()) return;
+  if (target.kind === 'user' && !isAdmin()) return;
+  event.preventDefault();
+  event.stopPropagation();
+  closeCatalogContextMenu();
+  recordContextTarget = target;
+  const menu = ensureRecordContextMenu();
+  menu.querySelector('[data-record-action="edit"]').textContent = uiText('Modificar', 'Edit');
+  menu.querySelector('[data-record-action="delete"]').textContent = uiText('Eliminar', 'Delete');
+  menu.classList.remove('hidden');
+  menu.style.left = '0px';
+  menu.style.top = '0px';
+  const rect = menu.getBoundingClientRect();
+  menu.style.left = `${Math.max(10, Math.min(event.clientX, window.innerWidth - rect.width - 10))}px`;
+  menu.style.top = `${Math.max(10, Math.min(event.clientY, window.innerHeight - rect.height - 10))}px`;
+}
+
+function closeRecordContextMenu() {
+  const menu = $('#recordContextMenu');
+  if (menu) menu.classList.add('hidden');
+  recordContextTarget = null;
+}
+
+async function editRecordTarget() {
+  const target = recordContextTarget;
+  closeRecordContextMenu();
+  if (!target) return;
+  if (target.kind === 'equipment') {
+    const item = state.items.find((entry) => entry.id === target.id);
+    if (item) openEquipment(item);
+  }
+  if (target.kind === 'stock') {
+    const item = state.stock.find((entry) => entry.id === target.id);
+    if (item) openStockDialog(item);
+  }
+  if (target.kind === 'user') {
+    const user = state.users.find((entry) => entry.id === target.id);
+    if (user) openUserDialog(user);
+  }
+}
+
+async function deleteRecordTarget() {
+  const target = recordContextTarget;
+  closeRecordContextMenu();
+  if (!target || !confirm(uiText('Seguro que desea eliminar este registro?', 'Are you sure you want to delete this record?'))) return;
+  if (target.kind === 'equipment') {
+    await api(`/equipment/${target.id}`, { method: 'DELETE' });
+    await loadInventory();
+    await loadDashboardIfConsole();
+    toast(uiText('Equipo eliminado.', 'Equipment deleted.'), 'success');
+  }
+  if (target.kind === 'stock') {
+    await api(`/stock/${target.id}`, { method: 'DELETE' });
+    await loadStock();
+    await loadDashboardIfConsole();
+    toast(uiText('Stock eliminado.', 'Stock deleted.'), 'success');
+  }
+  if (target.kind === 'user') {
+    await deleteUser(target.id);
+  }
+}
+
+function resetInvalidInventoryDrill() {
+  const drill = state.inventoryDrill || {};
+  if (drill.typeId && !state.lookups.types.some((type) => String(type.id) === String(drill.typeId))) {
+    state.inventoryDrill = { scope: drill.scope || state.inventoryScope, typeId: '', brandId: '', modelId: '' };
+    return;
+  }
+  if (drill.brandId && !state.lookups.brands.some((brand) => String(brand.id) === String(drill.brandId))) {
+    state.inventoryDrill.brandId = '';
+    state.inventoryDrill.modelId = '';
+  }
+  if (drill.modelId && !state.lookups.models.some((model) => String(model.id) === String(drill.modelId))) {
+    state.inventoryDrill.modelId = '';
+  }
+}
+
+async function refreshAfterCatalogMutation() {
+  const currentView = dashboardView.dataset.currentView || 'console';
+  await loadLookups();
+  resetInvalidInventoryDrill();
+  await loadInventory();
+  if (currentView === 'console') await loadDashboard();
+  if (currentView === 'stock') {
+    prepareStockFilters();
+    await loadStock();
+  }
+  if (currentView === 'maintenance') await loadMaintenance();
+  if (['hardware', 'equipment', 'accessories'].includes(currentView)) renderHardwareTypeGrid();
+}
+
+async function editCatalogTarget() {
+  const target = catalogContextTarget;
+  closeCatalogContextMenu();
+  if (!target) return;
+  const nextName = window.prompt(uiText('Nuevo nombre:', 'New name:'), target.name);
+  if (nextName === null) return;
+  const name = nextName.trim();
+  if (!name || name === target.name) return;
+  await api(`/lookups/${target.kind}/${encodeURIComponent(target.id)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name })
+  });
+  await refreshAfterCatalogMutation();
+  toast(uiText('Catalogo actualizado.', 'Catalog updated.'), 'success');
+}
+
+async function deleteCatalogTarget() {
+  const target = catalogContextTarget;
+  closeCatalogContextMenu();
+  if (!target) return;
+  const confirmed = window.confirm(`${uiText('Seguro que desea eliminar esta opcion?', 'Are you sure you want to delete this option?')}\n${target.name}`);
+  if (!confirmed) return;
+  await api(`/lookups/${target.kind}/${encodeURIComponent(target.id)}`, {
+    method: 'DELETE'
+  });
+  await refreshAfterCatalogMutation();
+  toast(uiText('Catalogo eliminado.', 'Catalog deleted.'), 'success');
+}
+
+function catalogLinksForSelectedType() {
+  const typeId = Number(equipmentForm.elements.equipment_type_id.value);
+  if (!typeId || !state.lookups?.type_brand_models) return [];
+  return state.lookups.type_brand_models.filter((link) => Number(link.equipment_type_id) === typeId);
+}
+
+function syncBrandOptions({ preserve = true } = {}) {
+  if (!state.lookups) return;
+  const current = preserve ? equipmentForm.elements.brand_id.value : '';
+  const links = catalogLinksForSelectedType();
+  const allowedBrandIds = new Set(links.map((link) => Number(link.brand_id)).filter(Boolean));
+  const brands = allowedBrandIds.size
+    ? state.lookups.brands.filter((brand) => allowedBrandIds.has(Number(brand.id)))
+    : state.lookups.brands;
+
+  fillElementSelect(equipmentForm.elements.brand_id, brands, 'Seleccionar');
+  if (current && brands.some((brand) => String(brand.id) === String(current))) {
+    equipmentForm.elements.brand_id.value = current;
+  }
+}
+
+function syncModelOptions({ preserve = true } = {}) {
+  if (!state.lookups) return;
+  const current = preserve ? equipmentForm.elements.model_id.value : '';
+  const brandId = Number(equipmentForm.elements.brand_id.value);
+  const links = catalogLinksForSelectedType();
+  const allowedModelIds = new Set(links.map((link) => Number(link.model_id)).filter(Boolean));
+  let models = state.lookups.models;
+
+  if (brandId) {
+    models = models.filter((model) => Number(model.brand_id) === brandId);
+  }
+  if (allowedModelIds.size) {
+    models = models.filter((model) => allowedModelIds.has(Number(model.id)));
+  }
+
+  fillElementSelect(equipmentForm.elements.model_id, models, 'Seleccionar');
+  if (current && models.some((model) => String(model.id) === String(current))) {
+    equipmentForm.elements.model_id.value = current;
+  }
 }
 
 function renderAssignedUserOptions() {
   const datalist = $('#assignedUsersList');
   if (!datalist) return;
-  const users = [...new Set(state.items.map((item) => item.assigned_user).filter(Boolean))]
+  const users = [...new Set(state.items.map((item) => item[fieldKeys.au]).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, 'es'));
-  datalist.replaceChildren();
-  users.forEach((user) => {
-    const option = document.createElement('option');
-    option.value = user;
-    datalist.appendChild(option);
-  });
+  datalist.innerHTML = users.map((user) => `<option value="${escapeHtml(user)}"></option>`).join('');
+}
+
+function renderSupplierOptions() {
+  const datalist = $('#supplierList');
+  if (!datalist) return;
+  const suppliers = [
+    ...(state.lookups?.suppliers || []).map((supplier) => supplier.name),
+    ...state.items.map((item) => item.supplier)
+  ]
+    .filter(Boolean)
+    .map((supplier) => String(supplier).trim())
+    .filter(Boolean);
+  const uniqueSuppliers = [...new Set(suppliers)].sort((a, b) => a.localeCompare(b, 'es'));
+  datalist.innerHTML = uniqueSuppliers.map((supplier) => `<option value="${escapeHtml(supplier)}"></option>`).join('');
 }
 
 function syncAreaOptions() {
   if (!state.lookups) return;
   const locationId = Number(equipmentForm.elements.location_id.value);
   const areas = state.lookups.areas.filter((area) => !locationId || Number(area.location_id) === locationId);
-  fillSelect('area_id', areas);
+  const current = equipmentForm.elements.area_id.value;
+  fillElementSelect(equipmentForm.elements.area_id, areas, 'Seleccionar');
+  if (current && areas.some((area) => String(area.id) === String(current))) {
+    equipmentForm.elements.area_id.value = current;
+  }
   initCatalogSelects();
 }
 
@@ -1151,27 +2532,21 @@ function prepareStockFilters() {
 }
 
 async function loadInventory() {
-  const requestId = ++inventoryRequestId;
-  setInventoryLoading(true);
   const search = encodeURIComponent($('#searchInput').value.trim());
   const typeId = encodeURIComponent($('#typeFilter').value);
+  const brandId = encodeURIComponent($('#brandFilter')?.value || '');
+  const modelId = encodeURIComponent($('#modelFilter')?.value || '');
   const status = encodeURIComponent($('#statusFilter').value);
   const page = state.inventoryMeta.page || 1;
   const limit = Number($('#pageSizeSelect').value || state.inventoryMeta.limit || 25);
   const scope = state.inventoryScope === 'all' ? '' : `&scope=${encodeURIComponent(state.inventoryScope)}`;
-  try {
-    const payload = await api(`/equipment?search=${search}&type_id=${typeId}&status=${status}&page=${page}&limit=${limit}${scope}`);
-    if (requestId !== inventoryRequestId) return;
-    state.items = payload.items;
-    state.inventoryMeta = payload.meta || { page: 1, limit, total: state.items.length, total_pages: 1 };
-    renderMetrics();
-    renderInventory();
-    renderAssignedUserOptions();
-  } finally {
-    if (requestId === inventoryRequestId) {
-      setInventoryLoading(false);
-    }
-  }
+  const payload = await api(`/equipment?search=${search}&type_id=${typeId}&brand_id=${brandId}&model_id=${modelId}&status=${status}&page=${page}&limit=${limit}${scope}`);
+  state.items = payload.items;
+  state.inventoryMeta = payload.meta || { page: 1, limit, total: state.items.length, total_pages: 1 };
+  renderMetrics();
+  renderInventory();
+  renderAssignedUserOptions();
+  renderSupplierOptions();
 }
 
 async function loadDashboard() {
@@ -1183,6 +2558,7 @@ async function loadDashboard() {
 async function loadAudit() {
   if (!['ADMIN', 'TI'].includes(state.user?.role)) {
     state.audit = [];
+    state.auditMeta = { page: 1, limit: 50, total: 0, total_pages: 1 };
     renderAuditView();
     return;
   }
@@ -1197,7 +2573,31 @@ async function loadAudit() {
   });
   const payload = await api(`/audit?${params.toString()}`);
   state.audit = payload.items || [];
+  state.auditMeta = payload.meta || { page: 1, limit: 50, total: state.audit.length, total_pages: 1 };
   renderAuditView();
+}
+
+async function loadRecentChanges() {
+  if (!['ADMIN', 'TI'].includes(state.user?.role)) {
+    state.recent = [];
+    state.recentMeta = { page: 1, limit: 25, total: 0, total_pages: 1 };
+    renderRecentChangesView();
+    return;
+  }
+  const params = new URLSearchParams({
+    limit: $('#recentPageSizeSelect')?.value || String(state.recentMeta.limit || 25),
+    page: String(state.recentMeta.page || 1),
+    search: $('#recentSearchFilter')?.value.trim() || '',
+    username: $('#recentUsernameFilter')?.value.trim() || '',
+    action: $('#recentActionFilter')?.value.trim() || '',
+    entity: $('#recentEntityFilter')?.value.trim() || '',
+    date_from: $('#recentFromFilter')?.value || '',
+    date_to: $('#recentToFilter')?.value || ''
+  });
+  const payload = await api(`/audit?${params.toString()}`);
+  state.recent = payload.items || [];
+  state.recentMeta = payload.meta || { page: 1, limit: 25, total: state.recent.length, total_pages: 1 };
+  renderRecentChangesView();
 }
 
 async function loadMaintenance() {
@@ -1231,66 +2631,91 @@ async function loadEquipmentProfile(id) {
 }
 
 function historyAssignmentText(entry) {
-  const current = entry.assigned_user || entry.new_data?.assigned_user || '';
-  const previous = entry.previous_assigned_user || entry.previous_data?.assigned_user || '';
+  if (entry.event_type === 'MAINTENANCE_COMPLETED') {
+    return uiText('Equipo reparado y regresado a activo', 'Equipment repaired and returned to active');
+  }
+  const current = entry[fieldKeys.au] || entry.new_data?.[fieldKeys.au] || '';
+  const previous = entry[joinKey('previous', 'assigned', 'user')] || entry.previous_data?.[fieldKeys.au] || '';
   if (current && previous && current !== previous) {
-    return `Asignado a: ${current} (antes: ${previous})`;
+    return uiText(`Asignado a: ${current} (antes: ${previous})`, `Assigned to: ${current} (was: ${previous})`);
   }
   if (current) {
-    return `Asignado a: ${current}`;
+    return uiText(`Asignado a: ${current}`, `Assigned to: ${current}`);
   }
   if (previous) {
-    return `Sin usuario asignado (antes: ${previous})`;
+    return uiText(`Sin usuario asignado (antes: ${previous})`, `No user assigned (was: ${previous})`);
   }
-  return 'Sin usuario asignado';
+  return uiText('Sin usuario asignado', 'No user assigned');
+}
+
+function historyCommentText(entry) {
+  if (entry.event_type === 'MAINTENANCE_COMPLETED') {
+    const notes = String(entry.new_data?.notes || '').trim();
+    return notes ? `${uiText('Reparado: ', 'Repaired: ')}${notes}` : uiText('Equipo reparado.', 'Equipment repaired.');
+  }
+  const current = String(entry.new_data?.notes || '').trim();
+  const previous = String(entry.previous_data?.notes || '').trim();
+  if (!current) return '';
+  if (entry.event_type === 'CREATED' || current !== previous) return current;
+  return '';
 }
 
 function renderEquipmentProfile(profile) {
   const item = profile.item;
+  const commentHistory = (profile.history || [])
+    .map((entry) => ({ ...entry, comment: historyCommentText(entry) }))
+    .filter((entry) => entry.comment);
+
   $('#equipmentProfilePanel').classList.remove('hidden');
-  $('#equipmentProfileBody').innerHTML = `
-    <div><span>Proveedor</span><strong>${escapeHtml(item.supplier || 'Sin proveedor')}</strong></div>
-    <div><span>Compra</span><strong>${escapeHtml(item.purchase_date ? String(item.purchase_date).slice(0, 10) : 'Sin fecha')}</strong></div>
-    <div><span>Garantia</span><strong>${escapeHtml(item.warranty_until ? String(item.warranty_until).slice(0, 10) : 'Sin garantia')}</strong></div>
-    <div><span>Actualizado por</span><strong>${escapeHtml(item.updated_by_name || 'Sistema')}</strong></div>
+  $('#equipmentProfileBody').innerHTML = esc`
+    <div><span>Cantidad</span><strong>${raw(Number(item.quantity ?? 1))}</strong></div>
+    <div><span>Proveedor</span><strong>${item.supplier || 'Sin proveedor'}</strong></div>
+    <div><span>Compra</span><strong>${item.purchase_date ? raw(String(item.purchase_date).slice(0, 10)) : 'Sin fecha'}</strong></div>
+    <div><span>Garantia</span><strong>${item.warranty_until ? raw(String(item.warranty_until).slice(0, 10)) : 'Sin garantia'}</strong></div>
+    <div><span>Actualizado por</span><strong>${item.updated_by_name || uiText('Sistema', 'System')}</strong></div>
   `;
-  $('#equipmentQrBox').innerHTML = profile.qr_data_url
-    ? `<img src="${safeUrl(profile.qr_data_url)}" alt="QR del equipo"><a href="${safeUrl(profile.qr_url)}" target="_blank" rel="noreferrer">Abrir enlace</a>`
-    : '<p class="empty-module">QR no disponible.</p>';
-  $('#equipmentHistoryList').innerHTML = (profile.history || []).map((entry) => `
-    <div><strong>${escapeHtml(entry.event_type)}</strong><span>${escapeHtml(historyAssignmentText(entry))} &middot; ${escapeHtml(entry.changed_by || 'Sistema')} &middot; ${escapeHtml(formatDate(entry.created_at))}</span></div>
-  `).join('') || '<p class="empty-module">Sin historial.</p>';
+  renderAssetLabel(item);
+  $('#equipmentHistoryList').innerHTML = commentHistory.map((entry) => `
+    <div>
+      <strong>${escapeHtml(entry.comment)}</strong>
+      <span>${escapeHtml(entry.changed_by || uiText('Sistema', 'System'))} &middot; ${escapeHtml(formatDate(entry.created_at))} &middot; ${escapeHtml(historyAssignmentText(entry))}</span>
+    </div>
+  `).join('') || `<p class="empty-module">${uiText('Sin comentarios guardados.', 'No saved comments.')}</p>`;
   $('#equipmentMaintenanceList').innerHTML = (profile.maintenance || []).map((entry) => `
-    <div><strong>${escapeHtml(phaseLabel(entry.phase))}</strong><span>${escapeHtml(formatDate(entry.updated_at))} &middot; ${escapeHtml(entry.notes || 'Sin notas')}</span></div>
-  `).join('') || '<p class="empty-module">Sin mantenimiento.</p>';
+    <div><strong>${escapeHtml(phaseLabel(entry.phase))}</strong><span>${escapeHtml(formatDate(entry.updated_at))} &middot; ${escapeHtml(entry.notes || uiText('Sin notas', 'No notes'))}</span></div>
+  `).join('') || `<p class="empty-module">${uiText('Sin mantenimiento.', 'No maintenance.')}</p>`;
 }
 
 async function openHardwareGroup(group) {
-  state.hardwareGroup = group;
+  state.inventoryDrill.typeId = String(group || '');
+  state.inventoryDrill.brandId = '';
+  state.inventoryDrill.modelId = '';
+  renderHardwareTypeGrid();
+}
+
+async function openHardwareBrand(brandId) {
+  state.inventoryDrill.brandId = String(brandId || '');
+  state.inventoryDrill.modelId = '';
+  renderHardwareTypeGrid();
+}
+
+async function openHardwareModel(modelId) {
+  state.inventoryDrill.modelId = String(modelId || '');
+  state.hardwareGroup = state.inventoryDrill.typeId;
   state.inventoryMeta.page = 1;
   $('#searchInput').value = '';
   $('#statusFilter').value = '';
-
-  const typeByGroup = {
-    laptop: 'Laptop',
-    monitor: 'Monitor',
-    desktop: 'Desktop',
-    projector: 'Projector',
-    router: 'Router',
-    server: 'Server',
-    switch: 'Switch',
-    tablet: 'Tablet',
-    telefono: 'Telefono',
-    ups: 'UPS',
-    workstation: 'Workstation'
-  };
-  const typeName = typeByGroup[group];
-  const type = typeName ? state.lookups.types.find((item) => item.name.toLowerCase() === typeName.toLowerCase()) : null;
-  $('#typeFilter').value = type?.id || '';
-
-  setView('inventory');
-  state.inventoryScope = 'equipment';
+  setView('inventory', { skipLoad: true });
+  $('#backButton').classList.remove('hidden');
+  $('#viewTitle').textContent = state.inventoryDrill.scope === 'accessories' ? uiText('Inventario de accesorios', 'Accessory inventory') : uiText('Inventario de activos', 'Asset inventory');
+  $('#viewSubtitle').textContent = uiText('Listado filtrado por tipo, marca y modelo', 'List filtered by type, brand and model');
+  state.inventoryScope = state.inventoryDrill.scope;
   syncTypeFilterOptions();
+  $('#typeFilter').value = state.inventoryDrill.typeId;
+  syncInventoryBrandFilterOptions();
+  $('#brandFilter').value = state.inventoryDrill.brandId;
+  syncInventoryModelFilterOptions();
+  $('#modelFilter').value = state.inventoryDrill.modelId;
   await loadInventory();
 }
 
@@ -1316,22 +2741,60 @@ async function returnToInventory() {
   state.inventoryMeta.page = 1;
   $('#searchInput').value = '';
   $('#typeFilter').value = '';
+  $('#brandFilter').value = '';
+  $('#modelFilter').value = '';
   $('#statusFilter').value = '';
-  setView('inventory');
+  setView('inventory', { skipLoad: true });
   await loadInventory();
+}
+
+async function goBack() {
+  if ($('#hardwareView') && !$('#hardwareView').classList.contains('hidden')
+    && (state.inventoryDrill.brandId || state.inventoryDrill.typeId)) {
+    await backInventoryDrill();
+    return;
+  }
+  const previous = state.viewHistory.pop();
+  if (previous) {
+    setView(previous, { fromHistory: true });
+    if (previous === 'inventory') {
+      await loadInventory();
+    }
+    if (previous === 'console') {
+      await loadDashboardIfConsole();
+    }
+    return;
+  }
+  await returnToInventory();
+}
+
+async function backInventoryDrill() {
+  if ($('#hardwareView') && !$('#hardwareView').classList.contains('hidden')) {
+    if (state.inventoryDrill.brandId) {
+      state.inventoryDrill.brandId = '';
+      state.inventoryDrill.modelId = '';
+      renderHardwareTypeGrid();
+      return;
+    }
+    if (state.inventoryDrill.typeId) {
+      state.inventoryDrill.typeId = '';
+      renderHardwareTypeGrid();
+      return;
+    }
+  }
+  await goBack();
 }
 
 function openEquipment(item = null) {
   hideHoverDetails();
   equipmentForm.reset();
   $('#equipmentMessage').textContent = '';
-  renderEquipmentImagePreview(item?.image_path || '');
   const writable = canWrite();
   $('#deleteButton').classList.toggle('hidden', !item || !writable);
   $('#saveEquipmentButton').classList.toggle('hidden', !writable);
   $('#dialogTitle').textContent = item
-    ? `Detalle de ${isAccessoryItem(item) ? 'accesorio' : 'equipo'}`
-    : `Nuevo ${state.inventoryScope === 'accessories' ? 'accesorio' : 'equipo'}`;
+    ? (isAccessoryItem(item) ? uiText('Detalle de accesorio', 'Accessory detail') : uiText('Detalle de equipo', 'Equipment detail'))
+    : (state.inventoryScope === 'accessories' ? uiText('Nuevo accesorio', 'New accessory') : uiText('Nuevo equipo', 'New equipment'));
 
   equipmentForm.elements.id.value = item?.id || '';
   if (item) {
@@ -1341,14 +2804,17 @@ function openEquipment(item = null) {
     const location = state.lookups.locations.find((x) => x.name === item.location);
     const area = state.lookups.areas.find((x) => x.name === item.area && String(x.location_id) === String(location?.id));
     equipmentForm.elements.equipment_type_id.value = type?.id || '';
+    syncBrandOptions({ preserve: false });
     equipmentForm.elements.brand_id.value = brand?.id || '';
+    syncModelOptions({ preserve: false });
     equipmentForm.elements.model_id.value = model?.id || '';
     equipmentForm.elements.location_id.value = location?.id || '';
     syncAreaOptions();
     equipmentForm.elements.area_id.value = area?.id || '';
     equipmentForm.elements.serial_number.value = item.serial_number || '';
     equipmentForm.elements.asset_tag.value = item.asset_tag || '';
-    equipmentForm.elements.assigned_user.value = item.assigned_user || '';
+    equipmentForm.elements[fieldKeys.au].value = item[fieldKeys.au] || '';
+    equipmentForm.elements.quantity.value = item.quantity ?? 1;
     equipmentForm.elements.status.value = item.status || 'activo';
     equipmentForm.elements.supplier.value = item.supplier || '';
     equipmentForm.elements.purchase_date.value = item.purchase_date ? String(item.purchase_date).slice(0, 10) : '';
@@ -1359,7 +2825,11 @@ function openEquipment(item = null) {
     });
   } else {
     loadEquipmentProfile(null);
+    syncBrandOptions({ preserve: false });
+    syncModelOptions({ preserve: false });
   }
+
+  syncEquipmentFormMode();
 
   Array.from(equipmentForm.elements).forEach((field) => {
     if (['button', 'submit', 'hidden'].includes(field.type)) return;
@@ -1379,19 +2849,79 @@ function renderUsers() {
   const container = $('#userAdminList');
   if (!container) return;
   container.innerHTML = state.users.map((user) => `
-    <article class="user-admin-item">
+    <article class="user-admin-item" data-user-id="${escapeHtml(user.id)}">
       <div>
         <strong>${escapeHtml(user.name)}</strong>
         <span>${escapeHtml(user.username)} &middot; ${escapeHtml(user.email)} &middot; ${escapeHtml(user.role)} &middot; ${user.is_active ? 'Activo' : 'Inactivo'}</span>
       </div>
       <div>
         <button class="ghost" type="button" data-user-edit="${escapeHtml(user.id)}">Modificar</button>
+        <button class="danger" type="button" data-user-delete="${escapeHtml(user.id)}">Eliminar</button>
         <button class="ghost" type="button" data-user-toggle="${escapeHtml(user.id)}" data-active="${user.is_active ? 'false' : 'true'}">${user.is_active ? 'Desactivar' : 'Activar'}</button>
-        <button class="ghost" type="button" data-user-reset="${escapeHtml(user.id)}">Contraseña</button>
-        <button class="ghost" type="button" data-user-delete="${escapeHtml(user.id)}">Eliminar</button>
+        <button class="ghost" type="button" data-user-reset="${escapeHtml(user.id)}">Reset</button>
       </div>
     </article>
   `).join('') || '<p class="empty-module">Sin usuarios.</p>';
+  translateStaticText();
+}
+
+function openUserDialog(user = null) {
+  userForm.reset();
+  $('#userMessage').textContent = '';
+  userForm.elements.id.value = user?.id || '';
+  userForm.elements.name.value = user?.name || '';
+  userForm.elements.username.value = user?.username || '';
+  userForm.elements.email.value = user?.email || '';
+  userForm.elements.role.value = user?.role || 'PERSONAL';
+  userForm.elements.username.disabled = Boolean(user);
+  userForm.elements.password.required = !user;
+  userForm.elements.password.value = '';
+  $('#userDialogTitle').textContent = user ? uiText('Editar usuario', 'Edit user') : uiText('Agregar usuario', 'Add user');
+  $('#userPasswordField').childNodes[0].nodeValue = user ? uiText('Nueva contrasena opcional', 'Optional new password') : uiText('Contrasena inicial', 'Initial password');
+  $('#deleteUserButton').classList.toggle('hidden', !user);
+  $('#saveUserButton').textContent = user ? uiText('Actualizar usuario', 'Update user') : uiText('Guardar usuario', 'Save user');
+  userDialog.showModal();
+}
+
+async function saveUser() {
+  $('#userMessage').textContent = '';
+  if (!userForm.reportValidity()) return;
+
+  const data = Object.fromEntries(new FormData(userForm));
+  const id = data.id;
+  delete data.id;
+  if (id) {
+    const password = data.password;
+    delete data.username;
+    delete data.password;
+    await api(`/users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+    if (password) {
+      await api(apiRoute('users', id, fieldKeys.pw), {
+        method: 'POST',
+        body: JSON.stringify({ [fieldKeys.pw]: password })
+      });
+    }
+  } else {
+    await api('/users', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+  userForm.reset();
+  userDialog.close();
+  await loadUsers();
+  toast(id ? uiText('Usuario actualizado.', 'User updated.') : uiText('Usuario guardado correctamente.', 'User saved successfully.'), 'success');
+}
+
+async function deleteUser(id) {
+  if (!id || !confirm(uiText('Seguro que desea eliminar este registro?', 'Are you sure you want to delete this record?'))) return;
+  await api(`/users/${id}`, { method: 'DELETE' });
+  userDialog.close();
+  await loadUsers();
+  toast(uiText('Usuario eliminado.', 'User deleted.'), 'success');
 }
 
 async function importCsvFile(file) {
@@ -1400,30 +2930,32 @@ async function importCsvFile(file) {
   formData.append('file', file);
   const previewResponse = await fetch(`${apiBaseUrl}/api/equipment/import/csv?dry_run=true`, {
     method: 'POST',
-    headers: state.token ? { Authorization: `Bearer ${state.token}` } : {},
+    credentials: 'include',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
     body: formData
   });
   const preview = await previewResponse.json().catch(() => ({}));
-  if (!previewResponse.ok) throw new Error(preview.message || 'No se pudo validar el CSV.');
+  if (!previewResponse.ok)     throw new Error(preview.message || uiText('No se pudo validar el CSV.', 'Could not validate the CSV.'));
   if (!preview.ready) {
     const firstError = preview.rows?.find((row) => row.errors?.length)?.errors?.[0] || 'Revise el CSV.';
-    throw new Error(`CSV con errores: ${firstError}`);
+    throw new Error(`${uiText('CSV con errores:', 'CSV with errors:')} ${firstError}`);
   }
-  if (!confirm(`Importar ${preview.valid} equipos desde CSV?`)) return;
+  if (!confirm(uiText(`Importar ${preview.valid} equipos desde CSV?`, `Import ${preview.valid} equipment from CSV?`))) return;
 
   const commitData = new FormData();
   commitData.append('file', file);
   const commitResponse = await fetch(`${apiBaseUrl}/api/equipment/import/csv?dry_run=false`, {
     method: 'POST',
-    headers: state.token ? { Authorization: `Bearer ${state.token}` } : {},
+    credentials: 'include',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
     body: commitData
   });
   const result = await commitResponse.json().catch(() => ({}));
-  if (!commitResponse.ok) throw new Error(result.message || 'No se pudo importar el CSV.');
-  alert(`Importacion completa: ${result.imported} equipos.`);
+  if (!commitResponse.ok)     throw new Error(result.message || uiText('No se pudo importar el CSV.', 'Could not import the CSV.'));
+  toast(uiText(`Importacion completa: ${result.imported} equipos.`, `Import complete: ${result.imported} equipment.`), 'success');
   await loadLookups();
   await loadInventory();
-  await loadDashboard();
+  await loadDashboardIfConsole();
 }
 
 function csvCell(value, delimiter = ';') {
@@ -1434,19 +2966,19 @@ function csvCell(value, delimiter = ';') {
 
 function downloadImportTemplate() {
   const headers = [
-    'ID',
-    'Tipo',
-    'Marca',
-    'Modelo',
-    'Numero De Serie',
-    'ID De Inventario',
-    'Ubicacion',
-    'Area',
-    'Nombre De Usuario'
+    uiText('ID', 'ID'),
+    uiText('Tipo', 'Type'),
+    uiText('Marca', 'Brand'),
+    uiText('Modelo', 'Model'),
+    uiText('Numero De Serie', 'Serial Number'),
+    uiText('ID De Inventario', 'Inventory ID'),
+    uiText('Ubicacion', 'Location'),
+    uiText('Area', 'Area'),
+    uiText('Nombre De Usuario', 'Username')
   ];
   const rows = [
-    ['1', 'Laptop', 'Dell', 'Latitude 5450', '4WG2794', '400001', '2D', 'Sistemas', 'ALEX'],
-    ['2', 'Monitor', 'Dell', 'P2425H', 'MONITOR001', '400500', 'Terminal', 'Control Tower', 'USUARIO']
+    ['1', 'Laptop', 'Marca Ejemplo', 'Modelo Ejemplo', 'SERIE-EJEMPLO-001', 'INV-EJEMPLO-001', '2D', 'Area Ejemplo', 'USUARIO-EJEMPLO'],
+    ['2', 'Monitor', 'Marca Ejemplo', 'Modelo Ejemplo', 'SERIE-EJEMPLO-002', 'INV-EJEMPLO-002', 'Terminal', 'Area Ejemplo', 'USUARIO-EJEMPLO']
   ];
   const csv = [
     headers.map((value) => csvCell(value)).join(';'),
@@ -1463,27 +2995,13 @@ function downloadImportTemplate() {
   URL.revokeObjectURL(url);
 }
 
-function renderEquipmentImagePreview(src) {
-  const preview = $('#equipmentImagePreview');
-  if (!preview) return;
-  preview.classList.toggle('hidden', !src);
-  preview.innerHTML = src ? `<img src="${safeUrl(src)}" alt="Vista previa de imagen del equipo">` : '';
-}
-
-function renderStockImagePreview(src) {
-  const preview = $('#stockImagePreview');
-  if (!preview) return;
-  preview.classList.toggle('hidden', !src);
-  preview.innerHTML = src ? `<img src="${safeUrl(src)}" alt="Vista previa de foto de stock">` : '';
-}
-
 function fillMaintenanceEquipmentOptions(selectedId = '') {
   const select = maintenanceForm.elements.equipment_id;
-  select.innerHTML = '<option value="">Seleccionar equipo</option>';
+  select.innerHTML = `<option value="">${uiText('Seleccionar equipo', 'Select equipment')}</option>`;
   state.items.forEach((item) => {
     const option = document.createElement('option');
     option.value = item.id;
-    option.textContent = `${item.serial_number} - ${item.brand} ${item.model} - ${item.location}`;
+    option.textContent = `${item.serial_number} · ${item.brand} ${item.model} · ${item.location}`;
     option.selected = item.id === selectedId;
     select.appendChild(option);
   });
@@ -1492,7 +3010,7 @@ function fillMaintenanceEquipmentOptions(selectedId = '') {
 function openMaintenance(item = null) {
   maintenanceForm.reset();
   $('#maintenanceMessage').textContent = '';
-  $('#maintenanceDialogTitle').textContent = item ? 'Actualizar mantenimiento' : 'Agregar mantenimiento';
+  $('#maintenanceDialogTitle').textContent = item ? uiText('Actualizar mantenimiento', 'Update maintenance') : uiText('Agregar mantenimiento', 'Add maintenance');
   fillMaintenanceEquipmentOptions(item?.equipment_id || '');
   maintenanceForm.elements.id.value = item?.id || '';
   maintenanceForm.elements.equipment_id.disabled = Boolean(item);
@@ -1504,7 +3022,7 @@ function openMaintenance(item = null) {
 function openStockDialog(item = null) {
   stockForm.reset();
   $('#stockMessage').textContent = '';
-  $('#stockDialogTitle').textContent = item ? 'Modificar dispositivo en stock' : 'Agregar dispositivo en stock';
+  $('#stockDialogTitle').textContent = item ? uiText('Modificar dispositivo en stock', 'Edit stock device') : uiText('Agregar dispositivo en stock', 'Add stock device');
   fillElementSelect(stockForm.elements.location_id, inventoryLocations(), 'Seleccionar');
   stockForm.elements.id.value = item?.id || '';
   stockForm.elements.item_code.value = item?.item_code || '';
@@ -1516,7 +3034,6 @@ function openStockDialog(item = null) {
   syncStockAreaOptions();
   stockForm.elements.area_id.value = item?.area_id || '';
   stockForm.elements.notes.value = item?.notes || '';
-  renderStockImagePreview(item?.image_path || '');
   stockDialog.showModal();
 }
 
@@ -1532,67 +3049,41 @@ function maintenancePayload() {
 function stockPayload() {
   const data = Object.fromEntries(new FormData(stockForm));
   delete data.id;
-  delete data.image;
   return data;
+}
+
+function normalizeOptionalDateField(name, label) {
+  const field = equipmentForm.elements[name];
+  const value = field.value;
+  if (!value) return '';
+
+  const validFormat = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const year = Number(value.slice(0, 4));
+  if (!validFormat || year < 1990 || year > 2100) {
+    throw new Error(`${label} ${uiText('debe estar entre 1990 y 2100.', 'must be between 1990 and 2100.')}`);
+  }
+  return value;
 }
 
 function formPayload() {
   const data = Object.fromEntries(new FormData(equipmentForm));
   delete data.id;
-  delete data.image;
+  data.quantity = Number(data.quantity || 1);
+
+  if (isAccessoryFormMode()) {
+    data.asset_tag = '';
+    data.status = 'activo';
+    data.purchase_date = '';
+    data.warranty_until = '';
+    if (!data.serial_number || data.serial_number.trim().length < 2) {
+      const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
+      data.serial_number = `ACC-${rand}`;
+    }
+  }
+
+  data.purchase_date = normalizeOptionalDateField('purchase_date', uiText('Fecha de compra', 'Purchase date'));
+  data.warranty_until = normalizeOptionalDateField('warranty_until', uiText('Garantia hasta', 'Warranty until'));
   return data;
-}
-
-function validateImageFile(file) {
-  if (!file) return;
-
-  if (file.size > 2 * 1024 * 1024) {
-    throw new Error('La imagen no debe superar 2 MB.');
-  }
-
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-    throw new Error('Use una imagen JPG, PNG o WEBP.');
-  }
-}
-
-async function uploadEquipmentImage(equipmentId) {
-  const file = equipmentForm.elements.image.files[0];
-  if (!file) return null;
-
-  validateImageFile(file);
-
-  const formData = new FormData();
-  formData.append('image', file);
-  const response = await fetch(`${apiBaseUrl}/api/equipment/${equipmentId}/image`, {
-    method: 'POST',
-    headers: state.token ? { Authorization: `Bearer ${state.token}` } : {},
-    body: formData
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(payload.message || 'No se pudo subir la imagen.');
-  }
-  return payload.item;
-}
-
-async function uploadStockImage(stockId) {
-  const file = stockForm.elements.image.files[0];
-  if (!file) return null;
-
-  validateImageFile(file);
-
-  const formData = new FormData();
-  formData.append('image', file);
-  const response = await fetch(`${apiBaseUrl}/api/stock/${stockId}/image`, {
-    method: 'POST',
-    headers: state.token ? { Authorization: `Bearer ${state.token}` } : {},
-    body: formData
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(payload.message || 'No se pudo subir la foto de stock.');
-  }
-  return payload.item;
 }
 
 function selectedBrandName() {
@@ -1611,54 +3102,58 @@ function openCatalogDialog(type) {
 
   const templates = {
     type: {
-      title: 'Agregar tipo',
-      html: '<label class="wide">Tipo nuevo<input name="name" required minlength="2" maxlength="80" placeholder="Ej. Scanner"></label>'
+      title: uiText('Agregar tipo', 'Add type'),
+      html: `<label class="wide">${uiText('Tipo nuevo', 'New type')}<input name="name" required minlength="2" maxlength="80" placeholder="${uiText('Ej. Scanner', 'E.g. Scanner')}"></label>`
     },
     brand: {
-      title: 'Agregar marca',
-      html: '<label class="wide">Marca nueva<input name="name" required minlength="2" maxlength="80" placeholder="Ej. Samsung"></label>'
+      title: uiText('Agregar marca', 'Add brand'),
+      html: `<label class="wide">${uiText('Marca nueva', 'New brand')}<input name="name" required minlength="2" maxlength="80" placeholder="${uiText('Ej. Samsung', 'E.g. Samsung')}"></label>`
     },
     model: {
-      title: 'Agregar modelo',
+      title: uiText('Agregar modelo', 'Add model'),
       html: `
-        <label>Marca
+        <label>${uiText('Marca', 'Brand')}
           <select name="brand_id" required>
             ${state.lookups.brands.map((brand) => `
-              <option value="${escapeHtml(brand.id)}" ${String(brand.id) === String(equipmentForm.elements.brand_id.value) ? 'selected' : ''}>${escapeHtml(brand.name)}</option>
+              <option value="${brand.id}" ${String(brand.id) === String(equipmentForm.elements.brand_id.value) ? 'selected' : ''}>${escapeHtml(brand.name)}</option>
             `).join('')}
           </select>
         </label>
-        <label class="wide">Modelo nuevo<input name="name" required minlength="2" maxlength="120" placeholder="Ej. Latitude 5450"></label>
+        <label class="wide">${uiText('Modelo nuevo', 'New model')}<input name="name" required minlength="2" maxlength="120" placeholder="${uiText('Ej. Latitude 5450', 'E.g. Latitude 5450')}"></label>
       `
     },
     location: {
-      title: 'Agregar ubicacion',
+      title: uiText('Agregar ubicacion', 'Add location'),
       html: `
-        <label>Ubicacion<input name="name" required minlength="2" maxlength="120" placeholder="Ej. Patio de Maniobras"></label>
-        <label>Area inicial<input name="area_name" required minlength="2" maxlength="120" value="General"></label>
-        <label class="wide">Direccion o referencia<input name="address" maxlength="500" placeholder="Referencia fisica opcional"></label>
+        <label>${uiText('Ubicacion', 'Location')}<input name="name" required minlength="2" maxlength="120" placeholder="${uiText('Ej. Patio de Maniobras', 'E.g. Maneuvering Yard')}"></label>
+        <label>${uiText('Area inicial', 'Initial area')}<input name="area_name" required minlength="2" maxlength="120" value="${uiText('General', 'General')}"></label>
+        <label class="wide">${uiText('Direccion o referencia', 'Address or reference')}<input name="address" maxlength="500" placeholder="${uiText('Referencia fisica opcional', 'Optional physical reference')}"></label>
       `
     },
     area: {
-      title: 'Agregar area',
+      title: uiText('Agregar area', 'Add area'),
       html: `
-        <label>Ubicacion
+        <label>${uiText('Ubicacion', 'Location')}
           <select name="location_id" required>
             ${state.lookups.locations.map((location) => `
-              <option value="${escapeHtml(location.id)}" ${String(location.id) === String(activeLocationId) ? 'selected' : ''}>${escapeHtml(location.name)}</option>
+              <option value="${location.id}" ${String(location.id) === String(activeLocationId) ? 'selected' : ''}>${escapeHtml(location.name)}</option>
             `).join('')}
           </select>
         </label>
-        <label class="wide">Area nueva<input name="name" required minlength="2" maxlength="120" placeholder="Ej. Soporte TI"></label>
+        <label class="wide">${uiText('Area nueva', 'New area')}<input name="name" required minlength="2" maxlength="120" placeholder="${uiText('Ej. Soporte TI', 'E.g. IT Support')}"></label>
       `
     },
-    assigned_user: {
-      title: 'Agregar nombre de usuario',
-      html: '<label class="wide">Nombre de usuario<input name="assigned_user" required minlength="2" maxlength="140" placeholder="Ej. ALEX"></label>'
+    [fieldKeys.au]: {
+      title: uiText('Agregar nombre de usuario', 'Add username'),
+      html: `<label class="wide">${uiText('Nombre de usuario', 'Username')}<input name="${fieldKeys.au}" required minlength="2" maxlength="140" placeholder="${uiText('Ej. Usuario', 'E.g. User')}"></label>`
+    },
+    supplier: {
+      title: uiText('Agregar proveedor', 'Add supplier'),
+      html: `<label class="wide">${uiText('Proveedor nuevo', 'New supplier')}<input name="supplier" required minlength="2" maxlength="140" placeholder="${uiText('Ej. Zebra', 'E.g. Zebra')}"></label>`
     },
     serial: {
-      title: 'Agregar serie',
-      html: '<label class="wide">Numero de serie<input name="serial_number" required minlength="2" maxlength="140" placeholder="Ej. 5CD1234ABC"></label>'
+      title: uiText('Agregar serie', 'Add serial'),
+      html: `<label class="wide">${uiText('Numero de serie', 'Serial number')}<input name="serial_number" required minlength="2" maxlength="140" placeholder="${uiText('Ej. 5CD1234ABC', 'E.g. 5CD1234ABC')}"></label>`
     }
   };
 
@@ -1683,6 +3178,10 @@ async function saveCatalogEntry() {
       });
       await loadLookups();
       equipmentForm.elements.equipment_type_id.value = String(payload.type.id);
+      syncBrandOptions({ preserve: false });
+      syncModelOptions({ preserve: false });
+  initCatalogSelects();
+  syncEquipmentFormMode();
     }
 
     if (type === 'brand') {
@@ -1691,7 +3190,18 @@ async function saveCatalogEntry() {
         body: JSON.stringify({ name: data.name })
       });
       await loadLookups();
+      const selectedTypeId = Number(equipmentForm.elements.equipment_type_id.value);
+      if (selectedTypeId) {
+        state.lookups.type_brand_models.push({
+          equipment_type_id: selectedTypeId,
+          brand_id: Number(payload.brand.id),
+          model_id: null
+        });
+        syncBrandOptions({ preserve: false });
+      }
       equipmentForm.elements.brand_id.value = String(payload.brand.id);
+      syncModelOptions({ preserve: false });
+      initCatalogSelects();
     }
 
     if (type === 'model') {
@@ -1700,8 +3210,19 @@ async function saveCatalogEntry() {
         body: JSON.stringify({ brand_id: data.brand_id, name: data.name })
       });
       await loadLookups();
+      const selectedTypeId = Number(equipmentForm.elements.equipment_type_id.value);
+      if (selectedTypeId) {
+        state.lookups.type_brand_models.push({
+          equipment_type_id: selectedTypeId,
+          brand_id: Number(payload.model.brand_id),
+          model_id: Number(payload.model.id)
+        });
+      }
+      syncBrandOptions({ preserve: false });
       equipmentForm.elements.brand_id.value = String(payload.model.brand_id);
+      syncModelOptions({ preserve: false });
       equipmentForm.elements.model_id.value = String(payload.model.id);
+      initCatalogSelects();
     }
 
     if (type === 'location') {
@@ -1719,6 +3240,7 @@ async function saveCatalogEntry() {
         syncAreaOptions();
         equipmentForm.elements.area_id.value = String(payload.area.id);
       }
+      initCatalogSelects();
     }
 
     if (type === 'area') {
@@ -1736,10 +3258,20 @@ async function saveCatalogEntry() {
         syncAreaOptions();
         equipmentForm.elements.area_id.value = String(payload.area.id);
       }
+      initCatalogSelects();
     }
 
-    if (type === 'assigned_user') {
-      equipmentForm.elements.assigned_user.value = data.assigned_user;
+    if (type === fieldKeys.au) {
+      equipmentForm.elements[fieldKeys.au].value = data[fieldKeys.au];
+    }
+
+    if (type === 'supplier') {
+      equipmentForm.elements.supplier.value = data.supplier;
+      const exists = (state.lookups.suppliers || []).some((supplier) => supplier.name.toLowerCase() === data.supplier.toLowerCase());
+      if (!exists) {
+        state.lookups.suppliers = [...(state.lookups.suppliers || []), { name: data.supplier }];
+      }
+      renderSupplierOptions();
     }
 
     if (type === 'serial') {
@@ -1747,8 +3279,8 @@ async function saveCatalogEntry() {
     }
 
     catalogDialog.close();
-    const label = data.name || data.assigned_user || data.serial_number;
-    $('#equipmentMessage').textContent = `${label} listo para guardarse en la base de datos.`;
+    const label = data.name || data[fieldKeys.au] || data.supplier || data.serial_number;
+    $('#equipmentMessage').textContent = `${label} ${uiText('listo para guardarse en la base de datos.', 'ready to be saved to the database.')}`;
   } catch (error) {
     $('#catalogMessage').textContent = error.message;
   }
@@ -1758,17 +3290,19 @@ async function exportInventoryPdf() {
   const params = new URLSearchParams({
     search: $('#searchInput').value.trim(),
     type_id: $('#typeFilter').value,
+    brand_id: $('#brandFilter')?.value || '',
+    model_id: $('#modelFilter')?.value || '',
     status: $('#statusFilter').value
   });
   if (state.inventoryScope !== 'all') {
     params.set('scope', state.inventoryScope);
   }
   const response = await fetch(`${apiBaseUrl}/api/equipment/export/pdf?${params.toString()}`, {
-    headers: state.token ? { Authorization: `Bearer ${state.token}` } : {}
+    credentials: 'include'
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
-    throw new Error(payload.message || 'No se pudo exportar el PDF.');
+    throw new Error(payload.message || uiText('No se pudo exportar el PDF.', 'Could not export the PDF.'));
   }
 
   const blob = await response.blob();
@@ -1782,21 +3316,98 @@ async function exportInventoryPdf() {
   URL.revokeObjectURL(url);
 }
 
+async function exportInventoryExcel() {
+  const params = new URLSearchParams({
+    search: $('#searchInput').value.trim(),
+    type_id: $('#typeFilter').value,
+    brand_id: $('#brandFilter')?.value || '',
+    model_id: $('#modelFilter')?.value || '',
+    status: $('#statusFilter').value
+  });
+  if (state.inventoryScope !== 'all') {
+    params.set('scope', state.inventoryScope);
+  }
+  const response = await fetch(`${apiBaseUrl}/api/equipment/export/xlsx?${params.toString()}`, {
+    credentials: 'include'
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.message || uiText('No se pudo exportar el Excel.', 'Could not export the Excel.'));
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `sati-timsa-inventario-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 async function boot() {
-  loginView.classList.add('hidden');
-  dashboardView.classList.add('hidden');
-
-  // Al recargar o abrir la URL, limpiar la sesión
-  // para forzar siempre el inicio de sesión.
-  state.token = null;
-  state.user = null;
-  clearAuthSession();
-
+  clearStoredAuth();
+  try {
+    await fetch(`${apiBaseUrl}/api/csrf-token`, { credentials: 'include' });
+  } catch (error) {
+    console.warn('No se pudo obtener token CSRF:', error.message);
+  }
   try {
     await api('/auth/logout', { method: 'POST' });
-  } catch (e) {}
-
+  } catch (error) {
+    console.warn('No se pudo limpiar sesion previa:', error.message);
+  }
+  state.user = null;
   showLogin();
+  applyResetLinkParams();
+}
+
+async function loadInitialDashboardData() {
+  await loadLookups();
+  await loadInventory();
+
+  const optionalLoads = await Promise.allSettled([
+    loadDashboardIfConsole(),
+    loadMaintenance()
+  ]);
+  optionalLoads
+    .filter((result) => result.status === 'rejected')
+    .forEach((result) => console.warn('Carga secundaria no disponible:', result.reason));
+}
+
+function closeResetPanel() {
+  resetForm.classList.add('hidden');
+  $('#loginForm').classList.remove('hidden');
+  $('#resetMessage').textContent = '';
+  resetForm.reset();
+}
+
+function showResetPanel(message = '') {
+  const loginForm = $('#loginForm');
+  resetForm.elements.username.value = loginForm.elements.username.value || resetForm.elements.username.value || '';
+  loginForm.classList.add('hidden');
+  resetForm.classList.remove('hidden');
+  $('#loginMessage').textContent = '';
+  $('#resetMessage').textContent = message;
+  resetForm.elements.username.focus();
+}
+
+function applyResetLinkParams() {
+  const params = new URLSearchParams(window.location.search);
+  const resetUser = params.get('reset_user');
+  const resetCode = params.get('reset_code');
+  if (!resetUser && !resetCode) return;
+
+    showResetPanel(uiText('Escriba su nueva contrasena para continuar.', 'Enter your new password to continue.'));
+  if (resetUser) resetForm.elements.username.value = resetUser;
+  if (resetCode) resetForm.elements.reset_code.value = resetCode;
+
+  params.delete('reset_user');
+  params.delete('reset_code');
+  const nextQuery = params.toString();
+  const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`;
+  window.history.replaceState({}, document.title, nextUrl);
 }
 
 $('#loginForm').addEventListener('submit', async (event) => {
@@ -1806,87 +3417,93 @@ $('#loginForm').addEventListener('submit', async (event) => {
     const credentials = Object.fromEntries(new FormData(event.currentTarget));
     const rememberUsername = Boolean(credentials.remember_username);
     delete credentials.remember_username;
-    const payload = await api('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(credentials)
-    });
-    state.token = payload.token;
-    state.user = payload.user;
-    saveAuthSession();
-    if (rememberUsername) {
-      localStorage.setItem('sati_remember_username', credentials.username);
-    } else {
-      localStorage.removeItem('sati_remember_username');
-    }
-    showDashboard();
-    await loadLookups();
-    await loadInventory();
-    await loadDashboard();
-    await loadMaintenance();
+    await startSession(credentials, rememberUsername);
   } catch (error) {
     $('#loginMessage').textContent = error.message;
     if (error.message.includes('codigo') || error.message.includes('contrasena')) {
-      $('#resetPanel').classList.remove('hidden');
+      showResetPanel(error.message);
     }
+  }
+});
+
+$('#loginButton').addEventListener('click', () => {
+  $('#loginForm').requestSubmit();
+});
+
+$('#loginForm').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    $('#loginForm').requestSubmit();
   }
 });
 
 $('#forgotPasswordLink').addEventListener('click', (event) => {
   event.preventDefault();
-  $('#resetPanel').classList.remove('hidden');
-  $('#loginMessage').textContent = '';
+  showResetPanel();
 });
 
 $('#passwordToggle').addEventListener('click', () => {
-  const passwordInput = $('#loginForm').elements.password;
-  const isPassword = passwordInput.type === 'password';
-  passwordInput.type = isPassword ? 'text' : 'password';
-  $('#passwordToggle').setAttribute('aria-label', isPassword ? 'Ocultar contrasena' : 'Mostrar contrasena');
+  const secretInput = $('#loginForm').elements[fieldKeys.pw];
+  const isSecret = secretInput.type === fieldKeys.pw;
+  secretInput.type = isSecret ? 'text' : fieldKeys.pw;
+  $('#passwordToggle').setAttribute('aria-label', isSecret ? uiText('Ocultar contrasena', 'Hide password') : uiText('Mostrar contrasena', 'Show password'));
 });
 
 $('#requestResetButton').addEventListener('click', async () => {
-  $('#loginMessage').textContent = '';
+  $('#resetMessage').textContent = '';
   try {
-    const username = $('#loginForm').elements.username.value;
-    const payload = await api('/auth/password-reset/request', {
+    if (!resetForm.elements.username.reportValidity()) return;
+    const username = resetForm.elements.username.value;
+    const email = resetForm.elements.reset_email.value;
+    const payload = await api(secretResetRoute('request'), {
       method: 'POST',
-      body: JSON.stringify({ username })
+      body: JSON.stringify({ username, email })
     });
-    $('#loginMessage').textContent = payload.devCode
-      ? `${payload.message} Codigo dev: ${payload.devCode}`
-      : payload.message;
+    $('#resetMessage').textContent = payload.message;
   } catch (error) {
-    $('#loginMessage').textContent = error.message;
+    $('#resetMessage').textContent = error.message;
   }
+});
+
+$('#closeResetPanelButton').addEventListener('click', () => {
+  $('#loginMessage').textContent = '';
+  closeResetPanel();
 });
 
 $('#confirmResetButton').addEventListener('click', async () => {
-  $('#loginMessage').textContent = '';
+  $('#resetMessage').textContent = '';
   try {
-    const form = $('#loginForm');
-    const payload = await api('/auth/password-reset/confirm', {
+    if (!resetForm.reportValidity()) return;
+    const payload = await api(secretResetRoute('confirm'), {
       method: 'POST',
       body: JSON.stringify({
-        username: form.elements.username.value,
-        code: form.elements.reset_code.value,
-        password: form.elements.reset_password.value
+        username: resetForm.elements.username.value,
+        code: resetForm.elements.reset_code.value,
+        [fieldKeys.pw]: resetForm.elements[fieldKeys.rp].value
       })
     });
-    $('#loginMessage').textContent = payload.message;
-    $('#resetPanel').classList.add('hidden');
+    $('#resetMessage').textContent = payload.message;
+    await startSession({
+      username: resetForm.elements.username.value,
+      [fieldKeys.pw]: resetForm.elements[fieldKeys.rp].value
+    }, false);
   } catch (error) {
-    $('#loginMessage').textContent = error.message;
+    $('#resetMessage').textContent = error.message;
   }
 });
 
-$('#logoutButton').addEventListener('click', () => {
-  state.token = null;
+$('#logoutButton').addEventListener('click', async () => {
+  try {
+    await api('/auth/logout', { method: 'POST' });
+  } catch (error) {
+    console.warn('No se pudo cerrar la sesion en servidor:', error.message);
+  }
+  clearStoredAuth();
   state.user = null;
   state.items = [];
   state.lookups = null;
   state.maintenance = [];
   state.stock = [];
-  clearAuthSession();
   showLogin();
 });
 
@@ -1901,50 +3518,75 @@ $('#notificationButton').addEventListener('click', () => {
 $('#closeNotificationsButton').addEventListener('click', closeNotifications);
 
 menuButton.addEventListener('click', toggleSidebar);
-sidebarCollapseButton.addEventListener('click', toggleSidebar);
+sidebarCollapseButton.addEventListener('click', openSettingsDialog);
 
-noteForm.addEventListener('submit', (event) => {
+noteForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(noteForm));
-  state.notes.unshift({
-    id: globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : String(Date.now()),
-    text: data.text.trim(),
-    dueAt: data.due_at,
-    userId: state.user?.id || 'system',
-    userName: state.user?.name || 'Usuario',
-    createdAt: new Date().toISOString()
-  });
-  saveNotes();
+  const [dateP, timeP] = data.due_at.split('T');
+  const [y, mo, d] = dateP.split('-');
+  const [h, mi] = timeP.split(':');
+  const dueAtIso = new Date(+y, +mo - 1, +d, +h, +mi).toISOString();
+  const submitBtn = noteForm.querySelector('button[type="submit"]');
+  if (submitBtn) submitBtn.disabled = true;
+  try {
+    const result = await api('/notes', {
+      method: 'POST',
+      body: JSON.stringify({ text: data.text.trim(), due_at: dueAtIso })
+    });
+    if (!result) throw new Error('Empty response');
+    state.notes.unshift({
+      id: result.note.id,
+      text: result.note.text,
+      dueAt: result.note.due_at,
+      userId: state.user?.id || 'system',
+      userName: result.note.user_name || state.user?.name || uiText('Usuario', 'User'),
+      createdAt: result.note.created_at
+    });
+  } catch {
+    state.notes.unshift({
+      id: globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : String(Date.now()),
+      text: data.text.trim(),
+      dueAt: dueAtIso,
+      userId: state.user?.id || 'system',
+      userName: state.user?.name || uiText('Usuario', 'User'),
+      createdAt: new Date().toISOString()
+    });
+  }
+  if (submitBtn) submitBtn.disabled = false;
   noteForm.reset();
   noteForm.elements.due_at.value = defaultReminderDate();
   renderNotifications();
 });
 
-$('#notificationList').addEventListener('click', (event) => {
+$('#notificationList').addEventListener('click', async (event) => {
   const button = event.target.closest('[data-note-delete]');
   if (!button) return;
+  try {
+    await api('/notes/' + button.dataset.noteDelete, { method: 'DELETE' });
+  } catch {
+    // fallback: try local delete anyway
+  }
   state.notes = state.notes.filter((note) => note.id !== button.dataset.noteDelete);
-  saveNotes();
   renderNotifications();
 });
 
-$('#backButton').addEventListener('click', returnToInventory);
+$('#backButton').addEventListener('click', goBack);
 
 document.querySelectorAll('[data-back-inventory]').forEach((button) => {
-  button.addEventListener('click', returnToInventory);
+  button.addEventListener('click', backInventoryDrill);
 });
 
 $('#newEquipmentButton').addEventListener('click', () => openEquipment());
 $('#newMaintenanceButton').addEventListener('click', () => openMaintenance());
 $('#newStockButton').addEventListener('click', openStockDialog);
 $('#newUserButton').addEventListener('click', () => {
-  userForm.reset();
-  userForm.dataset.userId = '';
-  if (userForm.elements.username) userForm.elements.username.disabled = false;
-  if (userForm.elements.password) userForm.elements.password.required = true;
-  $('#userMessage').textContent = '';
-  userDialog.showModal();
+  openUserDialog();
   loadUsers();
+});
+
+$('#addUserFromPanelButton').addEventListener('click', () => {
+  openUserDialog();
 });
 
 $('#changePasswordButton').addEventListener('click', () => {
@@ -1953,28 +3595,16 @@ $('#changePasswordButton').addEventListener('click', () => {
   passwordDialog.showModal();
 });
 
+equipmentForm.elements.equipment_type_id.addEventListener('change', () => {
+  syncBrandOptions({ preserve: false });
+  syncModelOptions({ preserve: false });
+  syncEquipmentFormMode();
+});
+equipmentForm.elements.brand_id.addEventListener('change', () => {
+  syncModelOptions({ preserve: false });
+});
 equipmentForm.elements.location_id.addEventListener('change', syncAreaOptions);
 stockForm.elements.location_id.addEventListener('change', syncStockAreaOptions);
-
-equipmentForm.elements.image.addEventListener('change', () => {
-  const file = equipmentForm.elements.image.files[0];
-  if (!file) {
-    const item = state.items.find((entry) => entry.id === equipmentForm.elements.id.value);
-    renderEquipmentImagePreview(item?.image_path || '');
-    return;
-  }
-  renderEquipmentImagePreview(URL.createObjectURL(file));
-});
-
-stockForm.elements.image.addEventListener('change', () => {
-  const file = stockForm.elements.image.files[0];
-  if (!file) {
-    const item = state.stock.find((entry) => entry.id === stockForm.elements.id.value);
-    renderStockImagePreview(item?.image_path || '');
-    return;
-  }
-  renderStockImagePreview(URL.createObjectURL(file));
-});
 
 equipmentForm.addEventListener('click', (event) => {
   const button = event.target.closest('[data-add-catalog]');
@@ -2014,14 +3644,21 @@ function getCatalogItems(select) {
 function initCatalogSelects() {
   document.querySelectorAll('.catalog-select-wrap select').forEach((select) => {
     const wrap = select.closest('.catalog-select-wrap');
-    if (wrap.querySelector('.catalog-select-trigger')) return;
+    const existingTrigger = wrap.querySelector('.catalog-select-trigger');
+    if (existingTrigger) {
+      const option = select.options[select.selectedIndex];
+      existingTrigger.textContent = option ? option.textContent : uiText('Seleccionar', 'Select');
+      existingTrigger.classList.toggle('placeholder', !select.value);
+      return;
+    }
 
     select.style.display = 'none';
+    select.removeAttribute('required');
 
     const trigger = document.createElement('button');
     trigger.type = 'button';
     trigger.className = 'catalog-select-trigger placeholder';
-    trigger.textContent = 'Seleccionar';
+    trigger.textContent = uiText('Seleccionar', 'Select');
 
     const dropdown = document.createElement('div');
     dropdown.className = 'catalog-select-dropdown';
@@ -2051,11 +3688,11 @@ function initCatalogSelects() {
         delBtn.type = 'button';
         delBtn.className = 'catalog-select-option-delete';
         delBtn.textContent = 'x';
-        delBtn.title = 'Eliminar';
+        delBtn.title = uiText('Eliminar', 'Delete');
 
         delBtn.addEventListener('click', async (event) => {
           event.stopPropagation();
-          if (!confirm(`Eliminar "${item.name}"?`)) return;
+          if (!confirm(`${uiText('Eliminar', 'Delete')} "${item.name}"?`)) return;
           try {
             await api(`/lookups/${kind}/${item.id}`, { method: 'DELETE' });
             await loadLookups();
@@ -2106,26 +3743,56 @@ function initCatalogSelects() {
 document.querySelectorAll('nav a[data-view]').forEach((link) => {
   link.addEventListener('click', async (event) => {
     event.preventDefault();
-    setView(link.dataset.view);
-    if (['inventory', 'equipment', 'accessories'].includes(link.dataset.view)) {
+    if (link.dataset.view === 'inventory') {
       state.hardwareGroup = null;
       state.inventoryMeta.page = 1;
       $('#searchInput').value = '';
       $('#typeFilter').value = '';
+      $('#brandFilter').value = '';
+      $('#modelFilter').value = '';
       $('#statusFilter').value = '';
+      setView('inventory', { skipLoad: true });
       await loadInventory();
+      return;
     }
+    setView(link.dataset.view);
   });
 });
 
 $('#searchInput').addEventListener('input', () => {
   state.hardwareGroup = null;
   state.inventoryMeta.page = 1;
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(loadInventory, 250);
+  clearTimeout(window.searchTimer);
+  window.searchTimer = setTimeout(loadInventory, 250);
+});
+$('#searchInput').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    clearTimeout(window.searchTimer);
+    state.hardwareGroup = null;
+    state.inventoryMeta.page = 1;
+    loadInventory();
+  }
 });
 
 $('#typeFilter').addEventListener('change', () => {
+  state.hardwareGroup = null;
+  state.inventoryMeta.page = 1;
+  $('#brandFilter').value = '';
+  $('#modelFilter').value = '';
+  syncInventoryBrandFilterOptions();
+  syncInventoryModelFilterOptions();
+  loadInventory();
+});
+
+$('#brandFilter').addEventListener('change', () => {
+  state.hardwareGroup = null;
+  state.inventoryMeta.page = 1;
+  $('#modelFilter').value = '';
+  syncInventoryModelFilterOptions();
+  loadInventory();
+});
+
+$('#modelFilter').addEventListener('change', () => {
   state.hardwareGroup = null;
   state.inventoryMeta.page = 1;
   loadInventory();
@@ -2151,6 +3818,9 @@ $('#nextPageButton').addEventListener('click', () => {
 
 $('#pageSizeSelect').addEventListener('change', () => {
   state.inventoryMeta.limit = Number($('#pageSizeSelect').value || 25);
+  state.settings.pageSize = String(state.inventoryMeta.limit);
+  saveSettingsState();
+  syncSettingsForm();
   state.inventoryMeta.page = 1;
   loadInventory();
 });
@@ -2158,8 +3828,18 @@ $('#pageSizeSelect').addEventListener('change', () => {
 $('#exportPdfButton').addEventListener('click', async () => {
   try {
     await exportInventoryPdf();
+    toast(uiText('PDF generado correctamente.', 'PDF generated successfully.'), 'success');
   } catch (error) {
-    alert(error.message);
+    toast(error.message, 'error');
+  }
+});
+
+$('#exportExcelButton').addEventListener('click', async () => {
+  try {
+    await exportInventoryExcel();
+    toast(uiText('Excel generado correctamente.', 'Excel generated successfully.'), 'success');
+  } catch (error) {
+    toast(error.message, 'error');
   }
 });
 
@@ -2171,13 +3851,102 @@ $('#csvImportInput').addEventListener('change', async () => {
   try {
     await importCsvFile($('#csvImportInput').files[0]);
   } catch (error) {
-    alert(error.message);
+    toast(error.message, 'error');
   } finally {
     $('#csvImportInput').value = '';
   }
 });
 
 $('#applyAuditFiltersButton').addEventListener('click', loadAudit);
+
+$('#applyRecentFiltersButton').addEventListener('click', () => {
+  state.recentMeta.page = 1;
+  loadRecentChanges();
+});
+
+$('#recentSearchFilter').addEventListener('input', () => {
+  clearTimeout(window.recentSearchTimer);
+  window.recentSearchTimer = setTimeout(() => {
+    state.recentMeta.page = 1;
+    loadRecentChanges();
+  }, 250);
+});
+$('#recentSearchFilter').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    clearTimeout(window.recentSearchTimer);
+    state.recentMeta.page = 1;
+    loadRecentChanges();
+  }
+});
+
+$('#prevRecentPageButton').addEventListener('click', () => {
+  if (state.recentMeta.page <= 1) return;
+  state.recentMeta.page -= 1;
+  loadRecentChanges();
+});
+
+$('#nextRecentPageButton').addEventListener('click', () => {
+  if (state.recentMeta.page >= state.recentMeta.total_pages) return;
+  state.recentMeta.page += 1;
+  loadRecentChanges();
+});
+
+$('#recentPageSizeSelect').addEventListener('change', () => {
+  state.recentMeta.limit = Number($('#recentPageSizeSelect').value || 25);
+  state.recentMeta.page = 1;
+  loadRecentChanges();
+});
+
+['#recentUsernameFilter', '#recentActionFilter', '#recentEntityFilter', '#recentFromFilter', '#recentToFilter'].forEach((selector) => {
+  $(selector).addEventListener('change', () => {
+    state.recentMeta.page = 1;
+    loadRecentChanges();
+  });
+});
+
+$('#exportRecentButton').addEventListener('click', async () => {
+  const params = new URLSearchParams({
+    search: $('#recentSearchFilter').value.trim(),
+    username: $('#recentUsernameFilter').value.trim(),
+    action: $('#recentActionFilter').value.trim(),
+    entity: $('#recentEntityFilter').value.trim(),
+    date_from: $('#recentFromFilter').value,
+    date_to: $('#recentToFilter').value
+  });
+  const response = await fetch(`${apiBaseUrl}/api/audit/export.csv?${params.toString()}`, {
+    credentials: 'include'
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    toast(payload.message || uiText('No se pudieron exportar los cambios.', 'Could not export the changes.'), 'error');
+    return;
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `sati-timsa-cambios-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  toast(uiText('Cambios recientes exportados.', 'Recent changes exported.'), 'success');
+});
+
+$('#saveSettingsButton').addEventListener('click', () => {
+  state.settings = Object.fromEntries(new FormData(settingsForm));
+  saveSettingsState();
+  applySettings();
+  settingsDialog.close();
+  toast(uiText('Ajustes aplicados correctamente.', 'Settings applied successfully.'), 'success');
+});
+
+$('#resetSettingsButton').addEventListener('click', () => {
+  state.settings = defaultSettings();
+  saveSettingsState();
+  applySettings();
+  $('#settingsMessage').textContent = uiText('Ajustes restablecidos.', 'Settings reset.');
+});
 
 $('#applyStockFiltersButton').addEventListener('click', loadStock);
 $('#stockLocationFilter').addEventListener('change', () => {
@@ -2188,6 +3957,12 @@ $('#stockAreaFilter').addEventListener('change', loadStock);
 $('#stockSearchInput').addEventListener('input', () => {
   clearTimeout(window.stockSearchTimer);
   window.stockSearchTimer = setTimeout(loadStock, 250);
+});
+$('#stockSearchInput').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    clearTimeout(window.stockSearchTimer);
+    loadStock();
+  }
 });
 
 $('#stockList').addEventListener('click', (event) => {
@@ -2225,11 +4000,11 @@ $('#exportAuditButton').addEventListener('click', async () => {
     date_to: $('#auditToFilter').value
   });
   const response = await fetch(`${apiBaseUrl}/api/audit/export.csv?${params.toString()}`, {
-    headers: state.token ? { Authorization: `Bearer ${state.token}` } : {}
+    credentials: 'include'
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
-    alert(payload.message || 'No se pudo exportar auditoria.');
+    toast(payload.message || uiText('No se pudo exportar auditoria.', 'Could not export audit.'), 'error');
     return;
   }
   const blob = await response.blob();
@@ -2241,6 +4016,7 @@ $('#exportAuditButton').addEventListener('click', async () => {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+    toast(uiText('Auditoria exportada correctamente.', 'Audit exported successfully.'), 'success');
 });
 
 $('#maintenanceList').addEventListener('click', (event) => {
@@ -2251,18 +4027,68 @@ $('#maintenanceList').addEventListener('click', (event) => {
 });
 
 $('#hardwareView').addEventListener('click', async (event) => {
-  const option = event.target.closest('[data-hardware-group]');
+  const option = event.target.closest('[data-drill-type-id], [data-drill-brand-id], [data-drill-model-id], [data-hardware-type-id], [data-hardware-group]');
   if (!option) return;
-  await openHardwareGroup(option.dataset.hardwareGroup);
+  if (option.dataset.drillBrandId) return openHardwareBrand(option.dataset.drillBrandId);
+  if (option.dataset.drillModelId) return openHardwareModel(option.dataset.drillModelId);
+  await openHardwareGroup(option.dataset.drillTypeId || option.dataset.hardwareTypeId || option.dataset.hardwareGroup);
 });
 
 $('#hardwareView').addEventListener('keydown', async (event) => {
   if (!['Enter', ' '].includes(event.key)) return;
-  const option = event.target.closest('[data-hardware-group]');
+  const option = event.target.closest('[data-drill-type-id], [data-drill-brand-id], [data-drill-model-id], [data-hardware-type-id], [data-hardware-group]');
   if (!option) return;
   event.preventDefault();
-  await openHardwareGroup(option.dataset.hardwareGroup);
+  if (option.dataset.drillBrandId) return openHardwareBrand(option.dataset.drillBrandId);
+  if (option.dataset.drillModelId) return openHardwareModel(option.dataset.drillModelId);
+  await openHardwareGroup(option.dataset.drillTypeId || option.dataset.hardwareTypeId || option.dataset.hardwareGroup);
 });
+
+document.addEventListener('contextmenu', (event) => {
+  const catalogTarget = catalogTargetFromEvent(event);
+  if (catalogTarget) {
+    openCatalogContextMenu(event, catalogTarget);
+    return;
+  }
+  const recordTarget = recordTargetFromEvent(event);
+  if (recordTarget) openRecordContextMenu(event, recordTarget);
+});
+
+document.addEventListener('click', async (event) => {
+  const actionButton = event.target.closest('[data-catalog-action]');
+  const recordButton = event.target.closest('[data-record-action]');
+  if (recordButton) {
+    try {
+      if (recordButton.dataset.recordAction === 'edit') await editRecordTarget();
+      if (recordButton.dataset.recordAction === 'delete') await deleteRecordTarget();
+    } catch (error) {
+      toast(error.message, 'error');
+    }
+    return;
+  }
+  if (!actionButton) {
+    if (!event.target.closest('#catalogContextMenu')) closeCatalogContextMenu();
+    if (!event.target.closest('#recordContextMenu')) closeRecordContextMenu();
+    return;
+  }
+
+  try {
+    if (actionButton.dataset.catalogAction === 'edit') await editCatalogTarget();
+    if (actionButton.dataset.catalogAction === 'delete') await deleteCatalogTarget();
+  } catch (error) {
+    toast(error.message, 'error');
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') closeCatalogContextMenu();
+  if (event.key === 'Escape') closeRecordContextMenu();
+});
+
+window.addEventListener('scroll', () => {
+  closeCatalogContextMenu();
+  closeRecordContextMenu();
+}, true);
 
 inventoryBody.addEventListener('click', (event) => {
   const button = event.target.closest('[data-edit]');
@@ -2333,74 +4159,117 @@ window.addEventListener('resize', () => {
   }
 });
 
+equipmentForm.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey && event.target.tagName !== 'TEXTAREA') {
+    event.preventDefault();
+    $('#saveEquipmentButton').click();
+  }
+});
 $('#saveEquipmentButton').addEventListener('click', async () => {
   $('#equipmentMessage').textContent = '';
   if (!equipmentForm.reportValidity()) return;
 
+  const saveButton = $('#saveEquipmentButton');
+  const originalText = saveButton.textContent;
+  saveButton.disabled = true;
+  saveButton.textContent = uiText('Guardando...', 'Saving...');
+
   try {
     const id = equipmentForm.elements.id.value;
-    const payload = await api(id ? `/equipment/${id}` : '/equipment', {
+    const data = formPayload();
+    await api(id ? `/equipment/${id}` : '/equipment', {
       method: id ? 'PUT' : 'POST',
-      body: JSON.stringify(formPayload())
+      body: JSON.stringify(data)
     });
-    await uploadEquipmentImage(id || payload.item.id);
     equipmentDialog.close();
     await loadInventory();
-    await loadDashboard();
+    if (state.inventoryScope === 'all') {
+      await loadDashboardIfConsole();
+    }
+    toast(id ? uiText('Equipo actualizado correctamente.', 'Equipment updated successfully.') : uiText('Equipo guardado correctamente.', 'Equipment saved successfully.'), 'success');
   } catch (error) {
     $('#equipmentMessage').textContent = error.message;
+  } finally {
+    saveButton.disabled = false;
+    saveButton.textContent = originalText;
   }
 });
 
 $('#deleteButton').addEventListener('click', async () => {
   const id = equipmentForm.elements.id.value;
-  if (!id || !confirm('Eliminar este equipo del inventario?')) return;
+  if (!id || !confirm(uiText('Eliminar este equipo del inventario?', 'Delete this equipment from inventory?'))) return;
 
   try {
     await api(`/equipment/${id}`, { method: 'DELETE' });
     equipmentDialog.close();
     await loadInventory();
-    await loadDashboard();
+    await loadDashboardIfConsole();
   } catch (error) {
     $('#equipmentMessage').textContent = error.message;
   }
 });
 
+maintenanceForm.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey && event.target.tagName !== 'TEXTAREA') {
+    event.preventDefault();
+    $('#saveMaintenanceButton').click();
+  }
+});
 $('#saveMaintenanceButton').addEventListener('click', async () => {
   $('#maintenanceMessage').textContent = '';
   if (!maintenanceForm.reportValidity()) return;
 
   try {
     const id = maintenanceForm.elements.id.value;
+    const completedMaintenance = maintenanceForm.elements.phase.value === 'terminado';
     await api(id ? `/maintenance/${id}` : '/maintenance', {
       method: id ? 'PUT' : 'POST',
       body: JSON.stringify(maintenancePayload())
     });
     maintenanceForm.elements.equipment_id.disabled = false;
     maintenanceDialog.close();
-    await loadMaintenance();
-    await loadInventory();
-    await loadDashboard();
+    if (completedMaintenance) {
+      state.inventoryMeta.page = 1;
+      await loadMaintenance();
+      await loadInventory();
+    } else {
+      await loadMaintenance();
+      await loadInventory();
+    }
+    await loadDashboardIfConsole();
   } catch (error) {
     $('#maintenanceMessage').textContent = error.message;
   }
 });
 
+stockForm.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey && event.target.tagName !== 'TEXTAREA') {
+    event.preventDefault();
+    $('#saveStockButton').click();
+  }
+});
 $('#saveStockButton').addEventListener('click', async () => {
   $('#stockMessage').textContent = '';
   if (!stockForm.reportValidity()) return;
+  const saveButton = $('#saveStockButton');
+  const originalText = saveButton.textContent;
+  saveButton.disabled = true;
+  saveButton.textContent = uiText('Guardando...', 'Saving...');
   try {
     const id = stockForm.elements.id.value;
-    const payload = await api(id ? `/stock/${id}` : '/stock', {
+    await api(id ? `/stock/${id}` : '/stock', {
       method: id ? 'PUT' : 'POST',
       body: JSON.stringify(stockPayload())
     });
-    await uploadStockImage(id || payload.item.id);
     stockDialog.close();
     await loadStock();
-    await loadDashboard();
+    await loadDashboardIfConsole();
+    toast(id ? uiText('Stock actualizado correctamente.', 'Stock updated successfully.') : uiText('Stock guardado correctamente.', 'Stock saved successfully.'), 'success');
   } catch (error) {
     $('#stockMessage').textContent = error.message;
+  } finally {
+    saveButton.disabled = false;
+    saveButton.textContent = originalText;
   }
 });
 
@@ -2408,92 +4277,84 @@ maintenanceDialog.addEventListener('close', () => {
   maintenanceForm.elements.equipment_id.disabled = false;
 });
 
-$('#saveUserButton').addEventListener('click', async () => {
-  $('#userMessage').textContent = '';
-  if (!userForm.reportValidity()) return;
-
-  try {
-    const userId = userForm.dataset.userId;
-    const formData = Object.fromEntries(new FormData(userForm));
-
-    if (userId) {
-      const updateData = { name: formData.name, email: formData.email, role: formData.role };
-      await api(`/users/${userId}`, { method: 'PATCH', body: JSON.stringify(updateData) });
-      
-      if (formData.password) {
-        await api(`/users/${userId}/password`, {
-          method: 'POST',
-          body: JSON.stringify({ password: formData.password })
-        });
-      }
-    } else {
-      await api('/users', { method: 'POST', body: JSON.stringify(formData) });
-    }
-
-    userForm.reset();
+userForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (event.submitter?.value === 'cancel') {
     userDialog.close();
-    await loadUsers();
+    return;
+  }
+  try {
+    await saveUser();
+  } catch (error) {
+    $('#userMessage').textContent = error.message;
+  }
+});
+
+$('#saveUserButton').addEventListener('click', async () => {
+  try {
+    await saveUser();
+  } catch (error) {
+    $('#userMessage').textContent = error.message;
+  }
+});
+
+$('#deleteUserButton').addEventListener('click', async () => {
+  try {
+    await deleteUser(userForm.elements.id.value);
   } catch (error) {
     $('#userMessage').textContent = error.message;
   }
 });
 
 $('#userAdminList').addEventListener('click', async (event) => {
+  const edit = event.target.closest('[data-user-edit]');
+  const remove = event.target.closest('[data-user-delete]');
   const toggle = event.target.closest('[data-user-toggle]');
   const reset = event.target.closest('[data-user-reset]');
-  const edit = event.target.closest('[data-user-edit]');
-  const del = event.target.closest('[data-user-delete]');
   try {
+    if (edit) {
+      const user = state.users.find((entry) => entry.id === edit.dataset.userEdit);
+      if (user) openUserDialog(user);
+    }
+    if (remove) {
+      await deleteUser(remove.dataset.userDelete);
+    }
     if (toggle) {
       await api(`/users/${toggle.dataset.userToggle}`, {
         method: 'PATCH',
         body: JSON.stringify({ is_active: toggle.dataset.active === 'true' })
       });
       await loadUsers();
+      toast(uiText('Usuario actualizado.', 'User updated.'), 'success');
     }
     if (reset) {
-      const password = prompt('Nueva contrasena maxima de 12 caracteres:');
-      if (!password) return;
-      await api(`/users/${reset.dataset.userReset}/password`, {
+      const secret = prompt(uiText('Nueva contrasena maxima de 12 caracteres:', 'New password max 12 characters:'));
+      if (!secret) return;
+      await api(apiRoute('users', reset.dataset.userReset, fieldKeys.pw), {
         method: 'POST',
-        body: JSON.stringify({ password })
+        body: JSON.stringify({ [fieldKeys.pw]: secret })
       });
-      alert('Contrasena reiniciada.');
-    }
-    if (edit) {
-      const user = state.users.find((u) => u.id === edit.dataset.userEdit);
-      if (user) {
-        userForm.reset();
-        userForm.dataset.userId = user.id;
-        if (userForm.elements.name) userForm.elements.name.value = user.name;
-        if (userForm.elements.username) {
-          userForm.elements.username.value = user.username;
-          userForm.elements.username.disabled = true;
-        }
-        if (userForm.elements.email) userForm.elements.email.value = user.email;
-        if (userForm.elements.role) userForm.elements.role.value = user.role;
-        if (userForm.elements.password) userForm.elements.password.required = false;
-        $('#userMessage').textContent = '';
-        userDialog.showModal();
-      }
-    }
-    if (del) {
-      if (!confirm('¿Está seguro de eliminar este usuario permanentemente?')) return;
-      await api(`/users/${del.dataset.userDelete}`, { method: 'DELETE' });
-      await loadUsers();
+      toast(uiText('Contrasena reiniciada.', 'Password reset.'), 'success');
     }
   } catch (error) {
-    alert(error.message);
+    toast(error.message, 'error');
   }
 });
 
+passwordForm.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey && event.target.tagName !== 'TEXTAREA') {
+    event.preventDefault();
+    $('#savePasswordButton').click();
+  }
+});
 $('#savePasswordButton').addEventListener('click', async () => {
   $('#passwordMessage').textContent = '';
   if (!passwordForm.reportValidity()) return;
   try {
-    const payload = await api('/auth/password', {
+    const secretData = Object.fromEntries(new FormData(passwordForm));
+    const payload = await api(apiRoute('auth', fieldKeys.pw), {
       method: 'POST',
-      body: JSON.stringify(Object.fromEntries(new FormData(passwordForm)))
+      body: JSON.stringify(secretData)
     });
     $('#passwordMessage').textContent = payload.message;
     passwordForm.reset();
@@ -2502,4 +4363,5 @@ $('#savePasswordButton').addEventListener('click', async () => {
   }
 });
 
+applySettings();
 boot();
