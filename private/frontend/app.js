@@ -837,7 +837,10 @@ function setView(view, options = {}) {
   $('#viewTitle').textContent = selected[0];
   $('#viewSubtitle').textContent = selected[1];
   $('#backButton').classList.toggle('hidden', view === 'console');
+  const showNewAsset = ['inventory', 'hardware', 'equipment', 'accessories'].includes(view);
+  $('#newEquipmentButton').style.display = showNewAsset && canWrite() ? 'inline-flex' : 'none';
   $('#newEquipmentButton').innerHTML = `<span class="button-icon">+</span>${view === 'accessories' ? uiText('Nuevo accesorio', 'New accessory') : uiText('Nuevo activo', 'New asset')}`;
+  $('#newUserButton').classList.toggle('hidden', view !== 'users' || !isAdmin());
   const totalMetricLabel = $('#metricsView article:first-child small');
   if (totalMetricLabel) {
     totalMetricLabel.textContent = view === 'accessories' ? uiText('Accesorios registrados', 'Registered accessories') : uiText('Activos registrados', 'Registered assets');
