@@ -521,60 +521,26 @@ router.get('/export/xlsx', authenticate, async (req, res, next) => {
     workbook.creator = 'SATI-TIMSA';
     workbook.created = new Date();
     const worksheet = workbook.addWorksheet(req.query.scope === 'accessories' ? 'Accesorios' : 'Activos', {
-      views: [{ state: 'frozen', ySplit: 2 }]
+      views: [{ state: 'frozen', ySplit: 1 }]
     });
 
     worksheet.columns = [
-      { key: 'id', width: 14 },
-      { key: 'equipment_type', width: 18 },
-      { key: 'brand', width: 18 },
-      { key: 'model', width: 24 },
-      { key: 'serial_number', width: 24 },
-      { key: 'asset_tag', width: 20 },
-      { key: 'location', width: 18 },
-      { key: 'area', width: 24 },
-      { key: 'assigned_user', width: 24 },
-      { key: 'quantity', width: 12 },
-      { key: 'status', width: 16 },
-      { key: 'supplier', width: 22 },
-      { key: 'purchase_date', width: 18 },
-      { key: 'warranty_until', width: 18 },
-      { key: 'updated_at', width: 24 }
+      { header: 'ID', key: 'id', width: 14 },
+      { header: 'Tipo', key: 'equipment_type', width: 18 },
+      { header: 'Marca', key: 'brand', width: 18 },
+      { header: 'Modelo', key: 'model', width: 24 },
+      { header: 'Numero de serie', key: 'serial_number', width: 24 },
+      { header: 'ID de inventario', key: 'asset_tag', width: 20 },
+      { header: 'Ubicacion', key: 'location', width: 18 },
+      { header: 'Area', key: 'area', width: 24 },
+      { header: 'Usuario', key: 'assigned_user', width: 24 },
+      { header: 'Cantidad', key: 'quantity', width: 12 },
+      { header: 'Estado', key: 'status', width: 16 },
+      { header: 'Proveedor', key: 'supplier', width: 22 },
+      { header: 'Fecha de compra', key: 'purchase_date', width: 18 },
+      { header: 'Garantia hasta', key: 'warranty_until', width: 18 },
+      { header: 'Ultima actualizacion', key: 'updated_at', width: 24 }
     ];
-
-    const reportTitle = req.query.scope === 'accessories'
-      ? 'SATI-TIMSA - Inventario de accesorios'
-      : 'SATI-TIMSA - Inventario de activos';
-
-    worksheet.mergeCells('A1:O1');
-    const titleCell = worksheet.getCell('A1');
-    titleCell.value = reportTitle;
-    titleCell.font = { bold: true, size: 14, color: { argb: 'FF0B2D57' } };
-    titleCell.alignment = { horizontal: 'right', vertical: 'middle' };
-    worksheet.getRow(1).height = 120;
-
-    const xlsxLogoPath = path.resolve(process.cwd(), 'frontend', 'assets', 'img', 'hutchison_ports_timsa_logo.jpg');
-    try {
-      const logoId = workbook.addImage({
-        filename: xlsxLogoPath,
-        extension: 'jpg',
-      });
-      worksheet.addImage(logoId, {
-        tl: { col: 0, row: 0 },
-        ext: { width: 120, height: 120 }
-      });
-    } catch (e) {
-      console.error('Error al cargar el logo para XLSX:', e.message);
-    }
-
-    const headers = ['ID', 'Tipo', 'Marca', 'Modelo', 'Numero de serie', 'ID de inventario', 'Ubicacion', 'Area', 'Usuario', 'Cantidad', 'Estado', 'Proveedor', 'Fecha de compra', 'Garantia hasta', 'Ultima actualizacion'];
-    const headerRow = worksheet.getRow(2);
-    headerRow.values = headers;
-    headerRow.eachCell((cell) => {
-      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B2D57' } };
-      cell.alignment = { vertical: 'middle' };
-    });
 
     rows.forEach((item) => {
       worksheet.addRow({
@@ -596,9 +562,14 @@ router.get('/export/xlsx', authenticate, async (req, res, next) => {
       });
     });
 
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B2D57' } };
+      cell.alignment = { vertical: 'middle' };
+    });
     worksheet.autoFilter = {
-      from: 'A2',
-      to: `O${Math.max(rows.length + 2, 2)}`
+      from: 'A1',
+      to: `O${Math.max(rows.length + 1, 1)}`
     };
 
     const fileName = `sati-timsa-inventario-${new Date().toISOString().slice(0, 10)}.xlsx`;
