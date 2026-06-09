@@ -551,7 +551,7 @@ router.get('/export/xlsx', authenticate, async (req, res, next) => {
     titleCell.value = reportTitle;
     titleCell.font = { bold: true, size: 14, color: { argb: 'FF0B2D57' } };
     titleCell.alignment = { horizontal: 'right', vertical: 'middle' };
-    worksheet.getRow(1).height = 80;
+    worksheet.getRow(1).height = 120;
 
     const xlsxLogoPath = path.resolve(process.cwd(), 'frontend', 'assets', 'img', 'hutchison_ports_timsa_logo.jpg');
     try {
@@ -561,7 +561,7 @@ router.get('/export/xlsx', authenticate, async (req, res, next) => {
       });
       worksheet.addImage(logoId, {
         tl: { col: 0, row: 0 },
-        ext: { width: 700, height: 80 }
+        ext: { width: 120, height: 120 }
       });
     } catch (e) {
       console.error('Error al cargar el logo para XLSX:', e.message);
