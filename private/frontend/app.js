@@ -3201,6 +3201,7 @@ async function saveCatalogEntry() {
       }
       equipmentForm.elements.brand_id.value = String(payload.brand.id);
       syncModelOptions({ preserve: false });
+      initCatalogSelects();
     }
 
     if (type === 'model') {
@@ -3221,6 +3222,7 @@ async function saveCatalogEntry() {
       equipmentForm.elements.brand_id.value = String(payload.model.brand_id);
       syncModelOptions({ preserve: false });
       equipmentForm.elements.model_id.value = String(payload.model.id);
+      initCatalogSelects();
     }
 
     if (type === 'location') {
@@ -3238,6 +3240,7 @@ async function saveCatalogEntry() {
         syncAreaOptions();
         equipmentForm.elements.area_id.value = String(payload.area.id);
       }
+      initCatalogSelects();
     }
 
     if (type === 'area') {
@@ -3255,6 +3258,7 @@ async function saveCatalogEntry() {
         syncAreaOptions();
         equipmentForm.elements.area_id.value = String(payload.area.id);
       }
+      initCatalogSelects();
     }
 
     if (type === fieldKeys.au) {
@@ -3640,9 +3644,16 @@ function getCatalogItems(select) {
 function initCatalogSelects() {
   document.querySelectorAll('.catalog-select-wrap select').forEach((select) => {
     const wrap = select.closest('.catalog-select-wrap');
-    if (wrap.querySelector('.catalog-select-trigger')) return;
+    const existingTrigger = wrap.querySelector('.catalog-select-trigger');
+    if (existingTrigger) {
+      const option = select.options[select.selectedIndex];
+      existingTrigger.textContent = option ? option.textContent : uiText('Seleccionar', 'Select');
+      existingTrigger.classList.toggle('placeholder', !select.value);
+      return;
+    }
 
     select.style.display = 'none';
+    select.removeAttribute('required');
 
     const trigger = document.createElement('button');
     trigger.type = 'button';
