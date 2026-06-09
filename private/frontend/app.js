@@ -587,14 +587,12 @@ function updateAuthUi() {
   $('#userPill').textContent = state.user?.name || '';
   $('#logoutButton').style.display = 'inline-grid';
   $('#changePasswordButton').style.display = 'inline-grid';
-  $('#newEquipmentButton').style.display = writable ? 'inline-flex' : 'none';
   $('#newMaintenanceButton').style.display = writable ? 'inline-flex' : 'none';
   $('#newStockButton').style.display = writable ? 'inline-flex' : 'none';
   $('#downloadTemplateButton').style.display = writable ? 'inline-flex' : 'none';
   $('#importCsvButton').style.display = writable ? 'inline-flex' : 'none';
   $('#exportPdfButton').style.display = writable ? 'inline-flex' : 'none';
   $('#exportExcelButton').style.display = writable ? 'inline-flex' : 'none';
-  $('#newUserButton').classList.toggle('hidden', !isAdmin());
   document.querySelectorAll('[data-admin-only]').forEach((element) => {
     element.classList.toggle('hidden', !isAdmin());
   });
