@@ -438,10 +438,10 @@ router.get('/export/pdf', authenticate, async (req, res, next) => {
 
     const logoPath = path.resolve(process.cwd(), 'frontend', 'assets', 'img', 'hutchison_ports_timsa_logo.jpg');
     try {
-      doc.image(logoPath, 36, 15, { width: 85 });
+      doc.image(logoPath, doc.page.width - 36 - 120, 15, { width: 120 });
     } catch (e) {}
 
-    doc.fontSize(18).text(reportTitle, 36, 48);
+    doc.fontSize(18).text(reportTitle, { align: 'left' });
     doc.moveDown(0.3);
     doc.fontSize(9).fillColor('#4b5563').text(`Generado: ${new Date().toLocaleString('es-MX')} | Registros: ${rows.length}`);
     doc.moveDown();
@@ -465,7 +465,7 @@ router.get('/export/pdf', authenticate, async (req, res, next) => {
       doc.font('Helvetica').fillColor('#111827');
     }
 
-    let y = 105;
+    let y = 104;
     drawHeader(y);
     y += 22;
 
@@ -560,10 +560,12 @@ router.get('/export/xlsx', authenticate, async (req, res, next) => {
         extension: 'jpg',
       });
       worksheet.addImage(logoId, {
-        tl: { col: 0.1, row: 0.1 },
-        ext: { width: 60, height: 28 }
+        tl: { col: 0, row: 0 },
+        ext: { width: 130, height: 40 }
       });
-    } catch (e) {}
+    } catch (e) {
+      console.error('Error al cargar el logo para XLSX:', e.message);
+    }
 
     const headers = ['ID', 'Tipo', 'Marca', 'Modelo', 'Numero de serie', 'ID de inventario', 'Ubicacion', 'Area', 'Usuario', 'Cantidad', 'Estado', 'Proveedor', 'Fecha de compra', 'Garantia hasta', 'Ultima actualizacion'];
     const headerRow = worksheet.getRow(2);
