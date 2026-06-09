@@ -19,19 +19,19 @@ router.get('/stats', authenticate, async (req, res, next) => {
            (SELECT COUNT(*)::int FROM stock_items WHERE quantity < 5) AS "alertasStock"`
       ),
       db.query(
-        `SELECT et.name AS tipo,
+        `SELECT COALESCE(et.name, 'Sin tipo') AS tipo,
                 COUNT(*)::int AS total
          FROM equipment e
-         JOIN equipment_types et ON et.id = e.equipment_type_id
+         LEFT JOIN equipment_types et ON et.id = e.equipment_type_id
          WHERE e.deleted_at IS NULL
          GROUP BY et.name
          ORDER BY total DESC, et.name ASC`
       ),
       db.query(
-        `SELECT a.name AS area,
+        `SELECT COALESCE(a.name, 'Sin area') AS area,
                 COUNT(*)::int AS total
          FROM equipment e
-         JOIN areas a ON a.id = e.area_id
+         LEFT JOIN areas a ON a.id = e.area_id
          WHERE e.deleted_at IS NULL
          GROUP BY a.name
          ORDER BY total DESC, a.name ASC`
@@ -91,18 +91,18 @@ router.get('/', authenticate, async (req, res, next) => {
          ORDER BY total DESC`
       ),
       db.query(
-        `SELECT l.name AS location, COUNT(*)::int AS total
+        `SELECT COALESCE(l.name, 'Sin ubicacion') AS location, COUNT(*)::int AS total
          FROM equipment e
-         JOIN locations l ON l.id = e.location_id
+         LEFT JOIN locations l ON l.id = e.location_id
          WHERE e.deleted_at IS NULL
          GROUP BY l.name
          ORDER BY total DESC, l.name
          LIMIT 8`
       ),
       db.query(
-        `SELECT et.name AS equipment_type, COUNT(*)::int AS total
+        `SELECT COALESCE(et.name, 'Sin tipo') AS equipment_type, COUNT(*)::int AS total
          FROM equipment e
-         JOIN equipment_types et ON et.id = e.equipment_type_id
+         LEFT JOIN equipment_types et ON et.id = e.equipment_type_id
          WHERE e.deleted_at IS NULL
          GROUP BY et.name
          ORDER BY total DESC, et.name
@@ -143,27 +143,27 @@ router.get('/', authenticate, async (req, res, next) => {
       ),
       db.query(
         `SELECT 'Garantia vencida' AS type,
-                e.serial_number AS title,
-                CONCAT(et.name, ' ', b.name, ' ', em.name, ' | ', COALESCE(e.assigned_user, 'Sin usuario')) AS detail,
-                e.warranty_until AS due_date,
-                1 AS priority
-         FROM equipment e
-         JOIN equipment_types et ON et.id = e.equipment_type_id
-         JOIN brands b ON b.id = e.brand_id
-         JOIN equipment_models em ON em.id = e.model_id
-         WHERE e.deleted_at IS NULL AND e.warranty_until < CURRENT_DATE
-         UNION ALL
-         SELECT 'Garantia por vencer',
-                e.serial_number,
-                CONCAT(et.name, ' ', b.name, ' ', em.name, ' | ', COALESCE(e.assigned_user, 'Sin usuario')),
-                e.warranty_until,
-                2
-         FROM equipment e
-         JOIN equipment_types et ON et.id = e.equipment_type_id
-         JOIN brands b ON b.id = e.brand_id
-         JOIN equipment_models em ON em.id = e.model_id
-         WHERE e.deleted_at IS NULL
-           AND e.warranty_until BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
+                 e.serial_number AS title,
+                 CONCAT(COALESCE(et.name, '?'), ' ', COALESCE(b.name, '?'), ' ', COALESCE(em.name, '?'), ' | ', COALESCE(e.assigned_user, 'Sin usuario')) AS detail,
+                 e.warranty_until AS due_date,
+                 1 AS priority
+          FROM equipment e
+          LEFT JOIN equipment_types et ON et.id = e.equipment_type_id
+          LEFT JOIN brands b ON b.id = e.brand_id
+          LEFT JOIN equipment_models em ON em.id = e.model_id
+          WHERE e.deleted_at IS NULL AND e.warranty_until < CURRENT_DATE
+          UNION ALL
+          SELECT 'Garantia por vencer',
+                 e.serial_number,
+                 CONCAT(COALESCE(et.name, '?'), ' ', COALESCE(b.name, '?'), ' ', COALESCE(em.name, '?'), ' | ', COALESCE(e.assigned_user, 'Sin usuario')),
+                 e.warranty_until,
+                 2
+          FROM equipment e
+          LEFT JOIN equipment_types et ON et.id = e.equipment_type_id
+          LEFT JOIN brands b ON b.id = e.brand_id
+          LEFT JOIN equipment_models em ON em.id = e.model_id
+          WHERE e.deleted_at IS NULL
+            AND e.warranty_until BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '30 days'
          UNION ALL
          SELECT 'Stock bajo',
                 COALESCE(si.item_code, si.serial_number, si.name),

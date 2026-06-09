@@ -168,11 +168,11 @@ function selectEquipmentSql(where = '') {
            l.name AS location, a.name AS area,
            cu.name AS created_by_name, uu.name AS updated_by_name
     FROM equipment e
-    JOIN equipment_types et ON et.id = e.equipment_type_id
-    JOIN brands b ON b.id = e.brand_id
-    JOIN equipment_models em ON em.id = e.model_id
-    JOIN locations l ON l.id = e.location_id
-    JOIN areas a ON a.id = e.area_id
+    LEFT JOIN equipment_types et ON et.id = e.equipment_type_id
+    LEFT JOIN brands b ON b.id = e.brand_id
+    LEFT JOIN equipment_models em ON em.id = e.model_id
+    LEFT JOIN locations l ON l.id = e.location_id
+    LEFT JOIN areas a ON a.id = e.area_id
     LEFT JOIN users cu ON cu.id = e.created_by
     LEFT JOIN users uu ON uu.id = e.updated_by
     ${where}
@@ -386,11 +386,11 @@ router.get('/', authenticate, async (req, res, next) => {
       db.query(
         `SELECT COUNT(*)::int AS total
          FROM equipment e
-         JOIN equipment_types et ON et.id = e.equipment_type_id
-         JOIN brands b ON b.id = e.brand_id
-         JOIN equipment_models em ON em.id = e.model_id
-         JOIN locations l ON l.id = e.location_id
-         JOIN areas a ON a.id = e.area_id
+         LEFT JOIN equipment_types et ON et.id = e.equipment_type_id
+         LEFT JOIN brands b ON b.id = e.brand_id
+         LEFT JOIN equipment_models em ON em.id = e.model_id
+         LEFT JOIN locations l ON l.id = e.location_id
+         LEFT JOIN areas a ON a.id = e.area_id
          ${filters.where}`,
         filters.params
       )
