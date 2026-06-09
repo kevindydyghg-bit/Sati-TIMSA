@@ -82,7 +82,7 @@ router.post('/login', async (req, res, next) => {
     const validPassword = user ? await bcrypt.compare(credentials.password, user.password_hash) : false;
 
     if (!user || !validPassword || !user.is_active) {
-      if (user) {
+      if (user && user.is_active) {
         const attempts = Math.min(Number(user.failed_login_attempts || 0) + 1, 99);
         await db.query('UPDATE users SET failed_login_attempts = $1 WHERE id = $2', [attempts, user.id]);
         return res.status(401).json({
@@ -229,11 +229,15 @@ router.post('/password-reset/confirm', passwordResetConfirmLimiter, async (req, 
   }
 });
 
-router.get('/me', authenticate, (req, res) => {
-  res.json({ user: req.user });
+router.get('/me', authenticate, (req, res, next) => {
+  try {
+    res.json({ user: req.user });
+  } catch (error) {
+    next(error);
+  }
 });
 
-router.post('/logout', async (req, res) => {
+router.post('/logout', async (req, res, next) => {
   const header = req.headers.authorization || '';
   const cookieHeader = req.headers.cookie || '';
   const satiCookie = cookieHeader.split(';').map((c) => c.trim()).find((c) => c.startsWith('sati_session='));
@@ -279,7 +283,7 @@ router.post('/password', authenticate, async (req, res, next) => {
 
     const header = req.headers.authorization || '';
     if (header.startsWith('Bearer ')) {
-      blacklistToken(header.slice(7));
+      await blacklistToken(header.slice(7));
     }
 
     res.json({ message: 'Contrasena actualizada correctamente.' });

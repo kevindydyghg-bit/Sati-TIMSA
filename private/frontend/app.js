@@ -1268,10 +1268,11 @@ function renderDashboardInsights() {
     { label: 'Resguardo o baja', value: Number(totals.inactive || 0), className: 'inactive' }
   ];
   let start = 0;
+  const darkTheme = document.body?.dataset?.theme === 'dark';
   const statusColors = {
     active: '#32b66f',
     maintenance: '#f59e0b',
-    inactive: '#94a3b8'
+    inactive: darkTheme ? '#64748b' : '#94a3b8'
   };
   const donutStops = statusItems
     .filter((item) => item.value > 0 && total > 0)
@@ -1336,9 +1337,14 @@ function renderDashboardInsights() {
 }
 
 function chartColors(count, alert = false) {
+  const isDark = document.body?.dataset?.theme === 'dark';
   const palette = alert
-    ? ['#0b4f8f', '#64748b', '#2fb66d', '#ef4444', '#38bdf8', '#94a3b8']
-    : ['#0b4f8f', '#179bd7', '#64748b', '#2fb66d', '#94a3b8', '#113c75', '#60a5fa', '#16a34a'];
+    ? (isDark
+      ? ['#60b0ff', '#a0b8cc', '#4adf8a', '#ff6b6b', '#6dd5ff', '#c0d0e0']
+      : ['#0b4f8f', '#64748b', '#2fb66d', '#ef4444', '#38bdf8', '#94a3b8'])
+    : (isDark
+      ? ['#60b0ff', '#4fd2ff', '#a0b8cc', '#4adf8a', '#c0d0e0', '#3a8bd6', '#90c8ff', '#3acf6a']
+      : ['#0b4f8f', '#179bd7', '#64748b', '#2fb66d', '#94a3b8', '#113c75', '#60a5fa', '#16a34a']);
   return Array.from({ length: count }, (_, index) => palette[index % palette.length]);
 }
 
@@ -1917,10 +1923,10 @@ function renderAuditView() {
   body.innerHTML = state.audit.map((event) => `
     <tr>
       <td><span class="audit-event">${uiIcon('shield')}${escapeHtml(event.action)}</span></td>
-      <td>${escapeHtml(event.entity)} ${escapeHtml(event.entity_id || '')}<br><small>${escapeHtml(event.username || event.user_name || 'Sistema')} &middot; ${escapeHtml(formatDate(event.created_at))}</small></td>
+      <td>${escapeHtml(event.entity)} ${escapeHtml(event.entity_id || '')}<br><small>${escapeHtml(event.username || event.user_name || uiText('Sistema', 'System'))} &middot; ${escapeHtml(formatDate(event.created_at))}</small></td>
       <td><span class="status activo">OK</span></td>
     </tr>
-  `).join('') || '<tr><td colspan="3">Sin eventos de auditoria.</td></tr>';
+  `).join('') || `<tr><td colspan="3">${uiText('Sin eventos de auditoria.', 'No audit events.')}</td></tr>`;
   const meta = state.auditMeta || {};
   $('#auditResultCount').textContent = normalizedSettings().language === 'en'
     ? `Showing ${state.audit.length} of ${meta.total || state.audit.length} events`
@@ -1962,13 +1968,13 @@ function renderRecentChangesView() {
         </header>
         <p>${escapeHtml(auditSummary(event))}</p>
         <footer>
-          <span>${escapeHtml(event.username || event.user_name || 'Sistema')}</span>
+          <span>${escapeHtml(event.username || event.user_name || uiText('Sistema', 'System'))}</span>
           <span>${formatDate(event.created_at)}</span>
           ${event.ip_address ? `<span>${escapeHtml(event.ip_address)}</span>` : ''}
         </footer>
       </div>
     </article>
-  `).join('') || '<p class="empty-module">Sin cambios para esta consulta.</p>';
+  `).join('') || `<p class="empty-module">${uiText('Sin cambios para esta consulta.', 'No changes for this query.')}</p>`;
   $('#recentResultCount').textContent = normalizedSettings().language === 'en'
     ? `Showing ${state.recent.length} of ${meta.total || 0} changes`
     : `Mostrando ${state.recent.length} de ${meta.total || 0} cambios`;
@@ -2666,7 +2672,7 @@ function renderEquipmentProfile(profile) {
     <div><span>Proveedor</span><strong>${item.supplier || 'Sin proveedor'}</strong></div>
     <div><span>Compra</span><strong>${item.purchase_date ? raw(String(item.purchase_date).slice(0, 10)) : 'Sin fecha'}</strong></div>
     <div><span>Garantia</span><strong>${item.warranty_until ? raw(String(item.warranty_until).slice(0, 10)) : 'Sin garantia'}</strong></div>
-    <div><span>Actualizado por</span><strong>${item.updated_by_name || 'Sistema'}</strong></div>
+    <div><span>Actualizado por</span><strong>${item.updated_by_name || uiText('Sistema', 'System')}</strong></div>
   `;
   renderAssetLabel(item);
   $('#equipmentHistoryList').innerHTML = commentHistory.map((entry) => `
@@ -3641,7 +3647,7 @@ function initCatalogSelects() {
     const trigger = document.createElement('button');
     trigger.type = 'button';
     trigger.className = 'catalog-select-trigger placeholder';
-    trigger.textContent = 'Seleccionar';
+    trigger.textContent = uiText('Seleccionar', 'Select');
 
     const dropdown = document.createElement('div');
     dropdown.className = 'catalog-select-dropdown';
@@ -3671,11 +3677,11 @@ function initCatalogSelects() {
         delBtn.type = 'button';
         delBtn.className = 'catalog-select-option-delete';
         delBtn.textContent = 'x';
-        delBtn.title = 'Eliminar';
+        delBtn.title = uiText('Eliminar', 'Delete');
 
         delBtn.addEventListener('click', async (event) => {
           event.stopPropagation();
-          if (!confirm(`Eliminar "${item.name}"?`)) return;
+          if (!confirm(`${uiText('Eliminar', 'Delete')} "${item.name}"?`)) return;
           try {
             await api(`/lookups/${kind}/${item.id}`, { method: 'DELETE' });
             await loadLookups();

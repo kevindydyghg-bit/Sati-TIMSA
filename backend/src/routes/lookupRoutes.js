@@ -312,8 +312,10 @@ router.delete('/:kind/:id', authenticate, requireWriteAccess, async (req, res, n
                 `UPDATE ${table} SET ${column} = NULL WHERE ${column} = $1`,
                 [id]
               );
-            } catch (_) {
-              /* column may still be NOT NULL if migration hasn't run, or table/column may not exist */
+            } catch (err) {
+              if (!err.message?.includes('does not exist') && !err.message?.includes('column')) {
+                console.error('FK clearing error:', err.message);
+              }
             }
           }
         }

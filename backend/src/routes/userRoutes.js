@@ -64,21 +64,18 @@ router.post('/', authenticate, requireRole('ADMIN'), async (req, res, next) => {
          SELECT r.id, $1, $2, $3, $4
          FROM roles r
          WHERE r.name = $5
-         ON CONFLICT (username)
-         DO UPDATE SET
-           role_id = EXCLUDED.role_id,
-           name = EXCLUDED.name,
-           email = EXCLUDED.email,
-           password_hash = EXCLUDED.password_hash,
-           failed_login_attempts = 0,
-           password_reset_code_hash = NULL,
-           password_reset_expires_at = NULL,
-           is_active = TRUE
+         ON CONFLICT (username) DO NOTHING
          RETURNING id, name, username, email, is_active`,
         [data.name, username, email, passwordHash, data.role]
       );
 
-      await writeAudit(client, req, 'UPSERT', 'users', rows[0].id, {
+      if (!rows[0]) {
+        const error = new Error('Usuario duplicado.');
+        error.status = 409;
+        throw error;
+      }
+
+      await writeAudit(client, req, 'CREATE', 'users', rows[0].id, {
         username: rows[0].username,
         role: data.role
       });

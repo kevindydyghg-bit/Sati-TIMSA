@@ -39,7 +39,7 @@ router.get('/stats', authenticate, async (req, res, next) => {
       db.query(
         `SELECT phase AS fase, COUNT(*)::int AS total
          FROM maintenance_orders
-         WHERE phase IN ('revisado', 'en_proceso', 'en proceso')
+         WHERE phase IN ('revisado', 'en_proceso')
          AND equipment_id IN (SELECT id FROM equipment WHERE deleted_at IS NULL)
          GROUP BY phase
          ORDER BY total DESC, phase ASC`
@@ -131,7 +131,7 @@ router.get('/', authenticate, async (req, res, next) => {
       db.query(
         `SELECT phase AS fase, COUNT(*)::int AS total
          FROM maintenance_orders
-         WHERE phase IN ('revisado', 'en_proceso', 'en proceso')
+         WHERE phase IN ('revisado', 'en_proceso')
          AND equipment_id IN (SELECT id FROM equipment WHERE deleted_at IS NULL)
          GROUP BY phase
          ORDER BY phase`

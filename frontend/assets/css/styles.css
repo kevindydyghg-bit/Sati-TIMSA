@@ -56,6 +56,13 @@ body[data-theme="dark"] {
   --ring: 0 0 0 4px rgba(56, 189, 248, 0.18);
 }
 
+body[data-theme="dark"] .btn-primary {
+  background: linear-gradient(135deg, var(--navy-900), #1a4d7a);
+}
+body[data-theme="dark"] .metric-icon.inactive {
+  background: linear-gradient(135deg, #475569, #334155);
+}
+
 body[data-motion="reduced"] *,
 body[data-motion="reduced"] *::before,
 body[data-motion="reduced"] *::after {
