@@ -25,8 +25,6 @@ const state = {
   stock: [],
   stockSummary: { total: 0, available: 0 },
   stockAvailability: [],
-  audit: [],
-  auditMeta: { page: 1, limit: 50, total: 0, total_pages: 1 },
 
   users: [],
   equipmentProfile: null,
@@ -326,7 +324,6 @@ const translationPairs = [
   ['Filtrar', 'Filter'],
   ['Exportar Excel', 'Export Excel'],
   ['Sin cambios para esta consulta.', 'No changes for this query.'],
-  ['Sin eventos de auditoria.', 'No audit events.'],
   ['Contrasena actual', 'Current password'],
   ['Nueva contrasena', 'New password'],
   ['Desactivar', 'Deactivate'],
@@ -397,7 +394,6 @@ const translationPairs = [
   ['Mostrando eventos', 'Showing events'],
   ['eventos', 'events'],
   ['Sin cambios para esta consulta.', 'No changes for this query.'],
-  ['Sin eventos de auditoria.', 'No audit events.'],
   ['Buscar inventario', 'Search inventory'],
   ['Buscar por ID, serie, usuario, ubicacion o modelo', 'Search by ID, serial, user, location or model'],
   ['Abrir ajustes', 'Open settings'],
@@ -443,8 +439,6 @@ const translationPairs = [
   ['No se pudo exportar el PDF.', 'Could not export the PDF.'],
   ['No se pudo exportar el Excel.', 'Could not export the Excel.'],
   ['No se pudieron exportar los cambios.', 'Could not export the changes.'],
-  ['No se pudo exportar auditoria.', 'Could not export audit.'],
-  ['Auditoria exportada correctamente.', 'Audit exported successfully.'],
   ['Equipo actualizado correctamente.', 'Equipment updated successfully.'],
   ['Equipo guardado correctamente.', 'Equipment saved successfully.'],
   ['Stock actualizado correctamente.', 'Stock updated successfully.'],
@@ -695,7 +689,6 @@ function reRenderCurrentView() {
   if (view === 'inventory') { renderMetrics(); renderInventory(); }
   if (view === 'maintenance') renderMaintenanceView();
   if (view === 'stock') renderStockView();
-  if (view === 'audit') renderAuditView();
 
   if (view === 'users' && isAdmin()) renderUsers();
   setTimeout(translateStaticText, 50);
@@ -747,7 +740,6 @@ function viewCopy(view) {
     accessories: ['Inventario de accesorios', 'Perifericos y accesorios asignados o en resguardo'],
     maintenance: ['Equipos en mantenimiento', 'Seguimiento por fases de revision, proceso y termino'],
     stock: ['Stock de almacenamiento', 'Disponibilidad por ubicacion y area'],
-    audit: ['Auditoria', 'Eventos recientes y controles del sistema'],
     recent: ['Cambios recientes', 'Actividad completa con filtros, busqueda y paginacion'],
     users: ['Usuarios', 'Alta, roles y seguridad de acceso'],
     cloud: ['Servicios cloud', 'Vercel, Supabase PostgreSQL y Supabase Storage']
@@ -760,7 +752,6 @@ function viewCopy(view) {
     accessories: ['Accessory inventory', 'Assigned or stored peripherals and accessories'],
     maintenance: ['Maintenance equipment', 'Review, process and completion tracking'],
     stock: ['Storage stock', 'Availability by location and area'],
-    audit: ['Audit', 'Recent events and system controls'],
     recent: ['Recent changes', 'Full activity with filters, search and pagination'],
     users: ['Users', 'Access creation, roles and security'],
     cloud: ['Cloud services', 'Vercel, Supabase PostgreSQL and Supabase Storage']
@@ -847,7 +838,6 @@ function updateLanguageLabels() {
     accessories: english ? 'Accessory inventory' : 'Inventario de accesorios',
     maintenance: english ? 'Maintenance' : 'Equipos en mantenimiento',
     stock: english ? 'Storage stock' : 'Stock de almacenamiento',
-    audit: english ? 'Audit' : 'Auditoria',
     recent: english ? 'Recent changes' : 'Cambios recientes',
     users: english ? 'Users' : 'Usuarios',
     cloud: english ? 'Cloud services' : 'Servicios cloud'
@@ -920,7 +910,6 @@ function setView(view, options = {}) {
   activatePanel('equipmentView', false);
   activatePanel('maintenanceView', view === 'maintenance');
   activatePanel('stockView', view === 'stock');
-  activatePanel('auditView', view === 'audit');
 
   activatePanel('usersView', view === 'users');
   activatePanel('cloudView', view === 'cloud');
@@ -946,10 +935,6 @@ function setView(view, options = {}) {
   if (view === 'stock') {
     prepareStockFilters();
     loadStock();
-  }
-  if (view === 'audit') {
-    renderAuditView();
-    loadAudit();
   }
 
   if (view === 'users') {
@@ -1985,33 +1970,6 @@ function renderHardwareTypeGrid() {
   translateStaticText();
 }
 
-function renderAuditView() {
-  const body = $('#auditBody');
-  if (!body) return;
-  body.innerHTML = state.audit.map((event) => `
-    <tr>
-      <td><span class="audit-event">${uiIcon('shield')}${escapeHtml(event.action)}</span></td>
-      <td>${escapeHtml(event.entity)} ${escapeHtml(event.entity_id || '')}<br><small>${escapeHtml(event.username || event.user_name || uiText('Sistema', 'System'))} &middot; ${escapeHtml(formatDate(event.created_at))}</small></td>
-      <td><span class="status activo">OK</span></td>
-    </tr>
-  `).join('') || `<tr><td colspan="3">${uiText('Sin eventos de auditoria.', 'No audit events.')}</td></tr>`;
-  const meta = state.auditMeta || {};
-  $('#auditResultCount').textContent = normalizedSettings().language === 'en'
-    ? `Showing ${state.audit.length} of ${meta.total || state.audit.length} events`
-    : `Mostrando ${state.audit.length} de ${meta.total || state.audit.length} eventos`;
-  translateStaticText();
-}
-
-function auditSummary(event) {
-  const metadata = event.metadata || {};
-  const parts = [
-    metadata.serial_number || metadata.item_code || metadata.asset_tag || event.entity_id,
-    metadata.name || metadata.model || metadata.status || metadata.phase,
-    metadata.reason || metadata.note || metadata.notes
-  ].filter(Boolean);
-  return parts.length ? parts.join(' · ') : uiText('Movimiento registrado en el sistema', 'Movement recorded in the system');
-}
-
 function actionLabel(action) {
   return {
     CREATE: uiText('Creacion', 'Creation'),
@@ -2591,28 +2549,6 @@ async function loadDashboard() {
   state.dashboard = await api('/dashboard');
   renderDashboardInsights();
   await loadDashboardStats();
-}
-
-async function loadAudit() {
-  if (!['ADMIN', 'TI'].includes(state.user?.role)) {
-    state.audit = [];
-    state.auditMeta = { page: 1, limit: 50, total: 0, total_pages: 1 };
-    renderAuditView();
-    return;
-  }
-  const params = new URLSearchParams({
-    limit: '50',
-    page: '1',
-    username: $('#auditUsernameFilter')?.value.trim() || '',
-    action: $('#auditActionFilter')?.value.trim() || '',
-    entity: $('#auditEntityFilter')?.value.trim() || '',
-    date_from: $('#auditFromFilter')?.value || '',
-    date_to: $('#auditToFilter')?.value || ''
-  });
-  const payload = await api(`/audit?${params.toString()}`);
-  state.audit = payload.items || [];
-  state.auditMeta = payload.meta || { page: 1, limit: 50, total: state.audit.length, total_pages: 1 };
-  renderAuditView();
 }
 
 async function loadMaintenance() {
@@ -4017,8 +3953,6 @@ $('#csvImportInput').addEventListener('change', async () => {
   }
 });
 
-$('#applyAuditFiltersButton').addEventListener('click', loadAudit);
-
 $('#saveSettingsButton').addEventListener('click', () => {
   state.settings = Object.fromEntries(new FormData(settingsForm));
   saveSettingsState();
@@ -4076,34 +4010,6 @@ $('#stockList').addEventListener('mouseleave', (event) => {
   if (equipmentPreview.contains(event.relatedTarget)) return;
   hideHoverDetails(450);
 }, true);
-
-$('#exportAuditButton').addEventListener('click', async () => {
-  const params = new URLSearchParams({
-    username: $('#auditUsernameFilter').value.trim(),
-    action: $('#auditActionFilter').value.trim(),
-    entity: $('#auditEntityFilter').value.trim(),
-    date_from: $('#auditFromFilter').value,
-    date_to: $('#auditToFilter').value
-  });
-  const response = await fetch(`${apiBaseUrl}/api/audit/export.xlsx?${params.toString()}`, {
-    credentials: 'include'
-  });
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
-    toast(payload.message || uiText('No se pudo exportar auditoria.', 'Could not export audit.'), 'error');
-    return;
-  }
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `sati-timsa-auditoria-${new Date().toISOString().slice(0, 10)}.xlsx`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-    toast(uiText('Auditoria exportada correctamente.', 'Audit exported successfully.'), 'success');
-});
 
 $('#maintenanceList').addEventListener('click', (event) => {
   const button = event.target.closest('[data-maintenance-edit]');

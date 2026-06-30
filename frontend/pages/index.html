@@ -94,7 +94,6 @@
             <a href="#accessories" data-view="accessories"><span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="7" height="10" rx="2"></rect><rect x="13" y="5" width="7" height="10" rx="2"></rect><path d="M8 15v2a4 4 0 0 0 8 0v-2"></path><path d="M12 19v2"></path></svg></span> Inventario de accesorios</a>
             <a href="#maintenance" data-view="maintenance"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M14.5 6.5l3-3 3 3-3 3"></path><path d="M3 21l8.5-8.5"></path><path d="M12 5a7 7 0 0 0 7 7"></path></svg></span> Equipos en mantenimiento</a>
             <a href="#stock" data-view="stock"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4-8 4z"></path><path d="M4 7v10l8 4 8-4V7"></path><path d="M12 11v10"></path></svg></span> Stock de almacenamiento</a>
-            <a href="#audit" data-view="audit"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"></path><path d="M9 12l2 2 4-5"></path></svg></span> Auditoria</a>
             <a href="#users" data-view="users" data-admin-only><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span> Usuarios</a>
             <a href="#cloud" data-view="cloud"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 0-8 6 6 0 0 0-11.5 2A3.5 3.5 0 0 0 7 18z"></path></svg></span> Servicios cloud</a>
           </nav>
@@ -398,34 +397,6 @@
             <div class="stock-summary" id="stockSummary"></div>
             <div class="stock-availability" id="stockAvailability"></div>
             <div class="stock-list" id="stockList"></div>
-          </section>
-
-          <section class="module-panel view-panel hidden" id="auditView">
-            <div class="section-toolbar">
-              <button class="ghost section-back" type="button" data-back-inventory>Regresar</button>
-            </div>
-            <div class="audit-filters">
-              <label>Usuario<input id="auditUsernameFilter" placeholder="admin"></label>
-              <label>Accion<input id="auditActionFilter" placeholder="CREATE"></label>
-              <label>Entidad<input id="auditEntityFilter" placeholder="equipment"></label>
-              <label>Desde<input id="auditFromFilter" type="date"></label>
-              <label>Hasta<input id="auditToFilter" type="date"></label>
-              <button class="ghost" id="applyAuditFiltersButton" type="button">Filtrar</button>
-              <button id="exportAuditButton" type="button">Exportar Excel</button>
-            </div>
-            <table class="simple-table">
-              <thead>
-                <tr>
-                  <th>Evento</th>
-                  <th>Detalle</th>
-                  <th>Estado</th>
-                </tr>
-              </thead>
-              <tbody id="auditBody"></tbody>
-            </table>
-            <div class="table-footer">
-              <span id="auditResultCount">Mostrando 0 eventos</span>
-            </div>
           </section>
 
           <section class="module-panel view-panel hidden" id="usersView">
