@@ -41,6 +41,9 @@
     "qrcode": "^1.5.4",
     "zod": "^3.24.1"
   },
+  "overrides": {
+    "uuid": "^11.1.1"
+  },
   "devDependencies": {
     "javascript-obfuscator": "^5.4.3",
     "terser": "^5.48.0"
