@@ -1843,7 +1843,6 @@ function renderInventory() {
   hideHoverDetails();
   renderEquipmentTypeList();
   renderHardwareTypeGrid();
-  renderAuditView();
   translateStaticText();
 }
 
