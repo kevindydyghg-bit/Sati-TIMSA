@@ -35,9 +35,21 @@ function ensureCsrfCookie(req, res) {
   return cookies[CSRF_COOKIE];
 }
 
+const csrfSkipPaths = new Set([
+  '/auth/login',
+  '/auth/password-reset/request',
+  '/auth/password-reset/confirm',
+  '/health',
+  '/csrf-token'
+]);
+
 function csrfProtection(req, res, next) {
   if (!mutatingMethods.has(req.method)) {
     ensureCsrfCookie(req, res);
+    return next();
+  }
+
+  if (csrfSkipPaths.has(req.path)) {
     return next();
   }
 
