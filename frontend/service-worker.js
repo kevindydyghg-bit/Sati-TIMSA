@@ -1,31 +1,14 @@
-const CACHE = 'sati-v1';
-const STATIC_RESOURCES = [
-  '/frontend/pages/index.html',
-  '/frontend/assets/css/styles.css',
-  '/frontend/assets/js/config.js',
-  '/frontend/assets/js/app.min.js',
-  '/frontend/assets/img/sati-favicon.svg',
-  '/frontend/assets/img/hutchison_ports_timsa_logo.jpg',
-  '/frontend/assets/img/puerto-login.jpg',
-  '/frontend/manifest.json'
-];
+const CACHE = 'sati-v2';
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE).then((cache) => {
-      return cache.addAll(STATIC_RESOURCES);
-    })
-  );
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))
-      );
-    })
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+    )
   );
   self.clients.claim();
 });
@@ -36,8 +19,10 @@ self.addEventListener('fetch', (event) => {
 
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirst(request));
+  } else if (request.mode === 'navigate') {
+    event.respondWith(networkFirst(request));
   } else {
-    event.respondWith(cacheFirst(request));
+    event.respondWith(staleWhileRevalidate(request));
   }
 });
 
@@ -49,25 +34,16 @@ async function networkFirst(request) {
     return response;
   } catch {
     const cached = await caches.match(request);
-    return cached || new Response(JSON.stringify({ message: 'Sin conexion' }), {
-      status: 503,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return cached || new Response('Offline', { status: 503 });
   }
 }
 
-async function cacheFirst(request) {
-  const cached = await caches.match(request);
-  if (cached) return cached;
-  try {
-    const response = await fetch(request);
-    const cache = await caches.open(CACHE);
+async function staleWhileRevalidate(request) {
+  const cache = await caches.open(CACHE);
+  const cached = await cache.match(request);
+  const fetchPromise = fetch(request).then((response) => {
     cache.put(request, response.clone());
     return response;
-  } catch {
-    if (request.mode === 'navigate') {
-      return caches.match('/frontend/pages/index.html');
-    }
-    return new Response('Offline', { status: 503 });
-  }
+  }).catch(() => cached);
+  return cached || fetchPromise;
 }

@@ -889,7 +889,16 @@
     <script src="../assets/js/app.min.js?v=18"></script>
     <script>
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('../service-worker.js').catch(() => {});
+        navigator.serviceWorker.register('../service-worker.js?v=2').then((reg) => {
+          reg.addEventListener('updatefound', () => {
+            const sw = reg.installing;
+            sw.addEventListener('statechange', () => {
+              if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+                window.location.reload();
+              }
+            });
+          });
+        }).catch(() => {});
       }
     </script>
   </body>
