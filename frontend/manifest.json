@@ -1,0 +1,19 @@
+{
+  "name": "SATI-TIMSA | Endpoint Center",
+  "short_name": "SATI-TIMSA",
+  "description": "Sistema de Administracion de Tecnologias de la Informacion",
+  "start_url": "/frontend/pages/index.html",
+  "display": "standalone",
+  "background_color": "#f8fbff",
+  "theme_color": "#071f42",
+  "orientation": "any",
+  "categories": ["business", "utilities"],
+  "icons": [
+    {
+      "src": "../assets/img/sati-favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
