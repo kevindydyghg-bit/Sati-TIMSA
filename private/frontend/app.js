@@ -1890,6 +1890,37 @@ function typePreviewMedia(typeName) {
   return productIcon(typeName, 'md');
 }
 
+function extractBrandSpecs(items) {
+  const counts = {};
+  items.forEach((item) => {
+    if (item.brand) counts[item.brand] = (counts[item.brand] || 0) + 1;
+  });
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([name, count]) => ({ name, count }));
+}
+
+function extractStatusSpecs(items) {
+  const counts = {};
+  items.forEach((item) => {
+    const st = item.status || 'activo';
+    counts[st] = (counts[st] || 0) + 1;
+  });
+  return Object.entries(counts).map(([status, count]) => ({ status, count }));
+}
+
+function specBadgesHtml(brands, statuses) {
+  const brandHtml = brands.map((b) =>
+    `<span class="spec-badge">${escapeHtml(b.name)} (${b.count})</span>`
+  ).join('');
+  const statusHtml = statuses.map((s) =>
+    `<span class="spec-badge spec-badge--${s.status}">${escapeHtml(displayStatus(s.status))} ${s.count}</span>`
+  ).join('');
+  if (!brandHtml && !statuses.length) return '';
+  return `<div class="spec-badges">${brandHtml}${statusHtml}</div>`;
+}
+
 function renderHardwareTypeGrid() {
   const container = $('#hardwareTypeGrid');
   if (!container) return;
@@ -1908,17 +1939,24 @@ function renderHardwareTypeGrid() {
       }))
       .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'es'));
 
-    container.innerHTML = models.map((model) => `
+    container.innerHTML = models
+      .filter((model) => model.total > 0)
+      .map((model) => {
+        const modelItems = scopedItems.filter((item) => item.model === model.name && (!selectedType || item.equipment_type === selectedType.name));
+        const brands = extractBrandSpecs(modelItems);
+        const statuses = extractStatusSpecs(modelItems);
+        return `
       <article class="hardware-option" data-drill-model-id="${model.id}" data-catalog-kind="models" data-catalog-id="${model.id}" data-catalog-name="${escapeHtml(model.name)}" role="button" tabindex="0">
         ${productIcon('model', 'md')}
         <div>
           <strong>${escapeHtml(model.name)}</strong>
           <p>Modelo disponible para la marca seleccionada.</p>
+          ${specBadgesHtml(brands, statuses)}
           <small>${model.total} registrados</small>
         </div>
         <button class="ghost" type="button" tabindex="-1">Ver listado</button>
-      </article>
-    `).join('') || '<p class="empty-module">Sin modelos registrados para esta marca.</p>';
+      </article>`;})
+      .join('') || '<p class="empty-module">Sin modelos registrados para esta marca.</p>';
     translateStaticText();
     return;
   }
@@ -1932,17 +1970,25 @@ function renderHardwareTypeGrid() {
       }))
       .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'es'));
 
-    container.innerHTML = brands.map((brand) => `
+    container.innerHTML = brands
+      .filter((brand) => brand.total > 0)
+      .map((brand) => {
+        const brandItems = scopedItems.filter((item) => item.brand === brand.name && (!selectedType || item.equipment_type === selectedType.name));
+        const modelSet = new Set(brandItems.map((i) => i.model).filter(Boolean));
+        const modelSpecs = Array.from(modelSet).slice(0, 5).map((m) => ({ name: m }));
+        const statuses = extractStatusSpecs(brandItems);
+        return `
       <article class="hardware-option" data-drill-brand-id="${brand.id}" data-catalog-kind="brands" data-catalog-id="${brand.id}" data-catalog-name="${escapeHtml(brand.name)}" role="button" tabindex="0">
         ${productIcon('brand', 'md')}
         <div>
           <strong>${escapeHtml(brand.name)}</strong>
           <p>Marca registrada para el tipo seleccionado.</p>
+          ${specBadgesHtml(modelSpecs, statuses)}
           <small>${brand.total} registrados</small>
         </div>
         <button class="ghost" type="button" tabindex="-1">Abrir</button>
-      </article>
-    `).join('') || '<p class="empty-module">Sin marcas registradas para este tipo.</p>';
+      </article>`;})
+      .join('') || '<p class="empty-module">Sin marcas registradas para este tipo.</p>';
     translateStaticText();
     return;
   }
@@ -1955,17 +2001,24 @@ function renderHardwareTypeGrid() {
     })
     .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'es'));
 
-  container.innerHTML = types.map((type) => `
+  container.innerHTML = types
+    .filter((type) => type.total > 0)
+    .map((type) => {
+      const typeItems = scopedItems.filter((item) => normalizeText(item.equipment_type) === normalizeText(type.name));
+      const brandSpecs = extractBrandSpecs(typeItems);
+      const statusSpecs = extractStatusSpecs(typeItems);
+      return `
     <article class="hardware-option" data-drill-type-id="${type.id}" data-catalog-kind="types" data-catalog-id="${type.id}" data-catalog-name="${escapeHtml(type.name)}" role="button" tabindex="0">
       ${typePreviewMedia(type.name)}
       <div>
         <strong>${escapeHtml(type.name)}</strong>
         <p>${escapeHtml(typeDescription(type.name, type.total))}</p>
+        ${specBadgesHtml(brandSpecs, statusSpecs)}
         <small>${type.total} registrados</small>
       </div>
       <button class="ghost" type="button" tabindex="-1">Abrir</button>
-    </article>
-  `).join('') || '<p class="empty-module">Sin tipos de activos registrados.</p>';
+    </article>`;})
+    .join('') || '<p class="empty-module">Sin tipos de activos registrados.</p>';
   translateStaticText();
 }
 
