@@ -389,7 +389,7 @@ const translationPairs = [
   ['Pase el cursor para ver detalles completos.', 'Hover for full details.'],
   ['Detalles completos', 'Full details'],
   ['Importar equipos desde CSV?', 'Import equipment from CSV?'],
-  ['Importacion completa: equipos.', 'Import complete: equipment.'],
+  ['Importación completa: equipos.', 'Import complete: equipment.'],
   ['Eliminar este equipo del inventario?', 'Delete this equipment from inventory?'],
   ['Seleccionar equipo', 'Select equipment'],
   ['Cargando inventario...', 'Loading inventory...'],
@@ -577,7 +577,7 @@ const translationPairs = [
   ['Enviar sugerencia', 'Send suggestion'],
   ['Comparta ideas para mejorar el sistema', 'Share ideas to improve the system'],
   ['Su sugerencia', 'Your suggestion'],
-  ['Sugerencia enviada. Gracias!', 'Suggestion sent. Thank you!'],
+  ['Sugerencia enviada. ¡Gracias!', 'Suggestion sent. Thank you!'],
   ['Ayuda', 'Help'],
   ['Ayuda para usar el sistema', 'Help using the system'],
   ['Guia rapida de uso del sistema SATI-TIMSA', 'Quick guide for using SATI-TIMSA'],
@@ -814,7 +814,7 @@ function viewCopy(view) {
     inventory: ['Inventario', 'Listado general de activos y accesorios registrados'],
     hardware: ['Inventario de activos', 'Laptops, monitores, desktops, red, servidores y movilidad'],
     equipment: ['Inventario de activos', 'Clasificación por tipo de activo'],
-    accessories: ['Inventario de accesorios', 'Perifericos y accesorios asignados o en resguardo'],
+    accessories: ['Inventario de accesorios', 'Periféricos y accesorios asignados o en resguardo'],
     maintenance: ['Equipos en mantenimiento', 'Seguimiento por fases de revisión, proceso y término'],
     stock: ['Stock de almacenamiento', 'Disponibilidad por ubicación y área'],
     recent: ['Cambios recientes', 'Actividad completa con filtros, búsqueda y paginación'],
@@ -1181,7 +1181,7 @@ function assetLabelHtml(item) {
         <svg id="printBarcode" data-value="${serial}"></svg>
       </div>
       <div class="label-serial">${serial}</div>
-      <div class="label-footer">Propiedad de TIMSA</div>
+      <div class="label-footer">${uiText('Propiedad de TIMSA', 'Property of TIMSA')}</div>
     </section>
   `;
 }
@@ -1440,9 +1440,9 @@ function renderDashboardInsights() {
   renderMetrics(totals);
   const total = Number(totals.total || 0);
   const statusItems = [
-    { label: 'Operativos', value: Number(totals.active || 0), className: 'active' },
-    { label: 'En mantenimiento', value: Number(totals.maintenance || 0), className: 'maintenance' },
-    { label: 'Fuera de operación', value: Number(totals.inactive || 0), className: 'inactive' }
+    { label: uiText('Operativos', 'Operational'), value: Number(totals.active || 0), className: 'active' },
+    { label: uiText('En mantenimiento', 'Under maintenance'), value: Number(totals.maintenance || 0), className: 'maintenance' },
+    { label: uiText('Fuera de operación', 'Out of operation'), value: Number(totals.inactive || 0), className: 'inactive' }
   ];
   let start = 0;
   const darkTheme = document.body?.dataset?.theme === 'dark';
@@ -1469,42 +1469,47 @@ function renderDashboardInsights() {
 
   const warranty = dashboard.warranty || {};
   $('#warrantyInsights').innerHTML = esc`
-    <div><strong>${warranty.expired || 0}</strong><span>Garantía vencida</span></div>
-    <div><strong>${warranty.next_30 || 0}</strong><span>Vence en 30 días</span></div>
-    <div><strong>${warranty.next_90 || 0}</strong><span>Vence en 90 días</span></div>
+    <div><strong>${warranty.expired || 0}</strong><span>${uiText('Garantía vencida', 'Warranty expired')}</span></div>
+    <div><strong>${warranty.next_30 || 0}</strong><span>${uiText('Vence en 30 días', 'Expires in 30 days')}</span></div>
+    <div><strong>${warranty.next_90 || 0}</strong><span>${uiText('Vence en 90 días', 'Expires in 90 days')}</span></div>
   `;
 
-  const maxType = Math.max(1, ...(dashboard.by_type || []).map((item) => Number(item.total)));
+  const safeMax = (items, key) => {
+    const vals = (items || []).map((item) => Number(item[key])).filter((n) => Number.isFinite(n));
+    return vals.length ? Math.max(1, ...vals) : 1;
+  };
+
+  const maxType = safeMax(dashboard.by_type, 'total');
   $('#typeInsights').innerHTML = (dashboard.by_type || []).map((item) => `
     <div class="insight-bar">
       <span>${escapeHtml(item.equipment_type)}</span>
       <strong>${item.total}</strong>
       <i data-width="${Math.max(6, Math.round((Number(item.total) / maxType) * 100))}"></i>
     </div>
-  `).join('') || '<p class="empty-module">Sin información disponible.</p>';
+  `).join('') || `<p class="empty-module">${uiText('Sin información disponible.', 'No information available.')}</p>`;
 
-  const maxLocation = Math.max(1, ...(dashboard.by_location || []).map((item) => Number(item.total)));
+  const maxLocation = safeMax(dashboard.by_location, 'total');
   $('#locationInsights').innerHTML = (dashboard.by_location || []).map((item) => `
     <div class="insight-bar">
       <span>${escapeHtml(item.location)}</span>
       <strong>${item.total}</strong>
       <i data-width="${Math.max(6, Math.round((Number(item.total) / maxLocation) * 100))}"></i>
     </div>
-  `).join('') || '<p class="empty-module">Sin información disponible.</p>';
+  `).join('') || `<p class="empty-module">${uiText('Sin información disponible.', 'No information available.')}</p>`;
 
-  const maxMaintenance = Math.max(1, ...(dashboard.maintenance || []).map((item) => Number(item.total)));
+  const maxMaintenance = safeMax(dashboard.maintenance, 'total');
   $('#maintenanceInsights').innerHTML = (dashboard.maintenance || []).map((item) => `
     <div class="insight-bar">
       <span>${escapeHtml(phaseLabel(item.phase))}</span>
       <strong>${item.total}</strong>
       <i data-width="${Math.max(6, Math.round((Number(item.total) / maxMaintenance) * 100))}"></i>
     </div>
-  `).join('') || '     <p class="empty-module">Sin órdenes activas.</p>';
+  `).join('') || `<p class="empty-module">${uiText('Sin órdenes activas.', 'No active orders.')}</p>`;
 
   const stock = dashboard.stock || {};
   $('#stockInsights').innerHTML = esc`
-    <div><strong>${stock.total_quantity || 0}</strong><span>Disponibles</span></div>
-    <div><strong>${stock.total_items || 0}</strong><span>En almacen</span></div>
+    <div><strong>${stock.total_quantity || 0}</strong><span>${uiText('Disponibles', 'Available')}</span></div>
+    <div><strong>${stock.total_items || 0}</strong><span>${uiText('En almacen', 'In storage')}</span></div>
   `;
 
   document.querySelectorAll('#dashboardInsights i[data-width]').forEach((bar) => {
@@ -1829,21 +1834,21 @@ function renderPreview(item) {
       </article>
       ${raw(isAccessoryItem(item) ? esc`
         <article>
-          <span>Cantidad</span>
+          <span>${uiText('Cantidad', 'Quantity')}</span>
           <strong>${Number(item.quantity ?? 1)}</strong>
         </article>
       ` : '')}
       <article>
-        <span>Ubicacion</span>
+        <span>${uiText('Ubicación', 'Location')}</span>
         <strong>${item.location}</strong>
       </article>
       <article>
-        <span>Area</span>
+        <span>${uiText('Área', 'Area')}</span>
         <strong>${item.area}</strong>
       </article>
     </div>
     <div class="detail-footer">
-      <span>Actualizado ${raw(formatDate(item.updated_at))}</span>
+      <span>${uiText('Actualizado', 'Updated')} ${raw(formatDate(item.updated_at))}</span>
       <span id="hoverDetailNav" class="inline-links"></span>
     </div>
   `;
@@ -1860,30 +1865,30 @@ function renderStockPreview(item) {
   equipmentPreview.innerHTML = esc`
     <div class="hover-detail-header">
       <div>
-        <span class="eyebrow">Detalles de stock</span>
+        <span class="eyebrow">${uiText('Detalles de stock', 'Stock details')}</span>
         <h3>${item.name}</h3>
       </div>
-      <button class="icon-button detail-close" type="button" data-close-preview aria-label="Cerrar">x</button>
+      <button class="icon-button detail-close" type="button" data-close-preview aria-label="${uiText('Cerrar', 'Close')}">x</button>
     </div>
     <div class="detail-hero">
       <div class="equipment-art">${raw(productIcon(item?.name, 'lg'))}</div>
       <div class="detail-identity">
-        <span class="detail-type">Stock de almacenamiento</span>
+        <span class="detail-type">${uiText('Stock de almacenamiento', 'Storage stock')}</span>
         <strong>${item.item_code || item.serial_number || item.name}</strong>
-        <span class="status activo">${raw(Number(item.quantity || 0))} disponibles</span>
+        <span class="status activo">${raw(Number(item.quantity || 0))} ${uiText('disponibles', 'available')}</span>
       </div>
     </div>
     <div class="detail-grid">
-      <article><span>ID</span><strong>${item.item_code || 'Sin ID'}</strong></article>
-      <article><span>Modelo</span><strong>${item.model}</strong></article>
-      <article><span>Numero de serie</span><strong>${item.serial_number || 'Sin serie'}</strong></article>
-      <article><span>Ubicacion</span><strong>${item.location}</strong></article>
-      <article><span>Area</span><strong>${item.area}</strong></article>
-      <article><span>Cantidad</span><strong>${raw(Number(item.quantity || 0))}</strong></article>
+      <article><span>ID</span><strong>${item.item_code || uiText('Sin ID', 'No ID')}</strong></article>
+      <article><span>${uiText('Modelo', 'Model')}</span><strong>${item.model}</strong></article>
+      <article><span>${uiText('Número de serie', 'Serial number')}</span><strong>${item.serial_number || uiText('Sin serie', 'No serial')}</strong></article>
+      <article><span>${uiText('Ubicación', 'Location')}</span><strong>${item.location}</strong></article>
+      <article><span>${uiText('Área', 'Area')}</span><strong>${item.area}</strong></article>
+      <article><span>${uiText('Cantidad', 'Quantity')}</span><strong>${raw(Number(item.quantity || 0))}</strong></article>
     </div>
     <div class="detail-footer">
-      <span>Actualizado ${raw(formatDate(item.updated_at))}</span>
-      ${raw(canWrite ? esc`<button class="ghost icon-label" type="button" data-stock-preview-edit="${item.id}">${raw(uiIcon('eye'))}Modificar</button>` : '')}
+      <span>${uiText('Actualizado', 'Updated')} ${raw(formatDate(item.updated_at))}</span>
+      ${raw(canWrite ? esc`<button class="ghost icon-label" type="button" data-stock-preview-edit="${item.id}">${raw(uiIcon('eye'))}${uiText('Modificar', 'Edit')}</button>` : '')}
     </div>
   `;
 }
@@ -1931,12 +1936,8 @@ function renderInventory() {
   const meta = state.inventoryMeta || { page: 1, limit: 25, total: state.items.length, total_pages: 1 };
   const first = meta.total === 0 ? 0 : ((meta.page - 1) * meta.limit) + 1;
   const last = Math.min(meta.page * meta.limit, meta.total);
-  $('#resultCount').textContent = normalizedSettings().language === 'en'
-    ? `Showing ${first}-${last} of ${meta.total} results`
-    : `Mostrando ${first}-${last} de ${meta.total} resultados`;
-  $('#pageIndicator').textContent = normalizedSettings().language === 'en'
-    ? `Page ${meta.page} of ${meta.total_pages}`
-    : `Página ${meta.page} de ${meta.total_pages}`;
+  $('#resultCount').textContent = uiText(`Mostrando ${first}-${last} de ${meta.total} resultados`, `Showing ${first}-${last} of ${meta.total} results`);
+  $('#pageIndicator').textContent = uiText(`Página ${meta.page} de ${meta.total_pages}`, `Page ${meta.page} of ${meta.total_pages}`);
   $('#prevPageButton').disabled = meta.page <= 1;
   $('#nextPageButton').disabled = meta.page >= meta.total_pages;
 
@@ -1984,11 +1985,11 @@ function renderEquipmentTypeList() {
         ${productIcon(type, 'md')}
         <div>
           <strong>${escapeHtml(type)}</strong>
-          <p>${total} activos registrados</p>
+          <p>${total} ${uiText('activos registrados', 'registered assets')}</p>
         </div>
       </article>
     `)
-    .join('') || '<p class="empty-module">Sin equipos para clasificar.</p>';
+    .join('') || `<p class="empty-module">${uiText('Sin equipos para clasificar.', 'No equipment to classify.')}</p>`;
 }
 
 function typeDescription(typeName, total) {
@@ -2074,13 +2075,13 @@ function renderHardwareTypeGrid() {
         ${productIcon('model', 'md')}
         <div>
           <strong>${escapeHtml(model.name)}</strong>
-          <p>Modelo disponible para la marca seleccionada.</p>
+          <p>${uiText('Modelo disponible para la marca seleccionada.', 'Model available for the selected brand.')}</p>
           ${specBadgesHtml(brands, statuses)}
-          <small>${model.total} registrados</small>
+          <small>${model.total} ${uiText('registrados', 'registered')}</small>
         </div>
-        <button class="ghost" type="button" tabindex="-1">Ver listado</button>
+        <button class="ghost" type="button" tabindex="-1">${uiText('Ver listado', 'View list')}</button>
       </article>`;})
-      .join('') || '<p class="empty-module">Sin modelos registrados para esta marca.</p>';
+      .join('') || `<p class="empty-module">${uiText('Sin modelos registrados para esta marca.', 'No models registered for this brand.')}</p>`;
     translateStaticText();
     return;
   }
@@ -2106,13 +2107,13 @@ function renderHardwareTypeGrid() {
         ${productIcon('brand', 'md')}
         <div>
           <strong>${escapeHtml(brand.name)}</strong>
-          <p>Marca registrada para el tipo seleccionado.</p>
+          <p>${uiText('Marca registrada para el tipo seleccionado.', 'Brand registered for the selected type.')}</p>
           ${specBadgesHtml(modelSpecs, statuses)}
-          <small>${brand.total} registrados</small>
+          <small>${brand.total} ${uiText('registrados', 'registered')}</small>
         </div>
-        <button class="ghost" type="button" tabindex="-1">Abrir</button>
+        <button class="ghost" type="button" tabindex="-1">${uiText('Abrir', 'Open')}</button>
       </article>`;})
-      .join('') || '<p class="empty-module">Sin marcas registradas para este tipo.</p>';
+      .join('') || `<p class="empty-module">${uiText('Sin marcas registradas para este tipo.', 'No brands registered for this type.')}</p>`;
     translateStaticText();
     return;
   }
@@ -2138,11 +2139,11 @@ function renderHardwareTypeGrid() {
         <strong>${escapeHtml(type.name)}</strong>
         <p>${escapeHtml(typeDescription(type.name, type.total))}</p>
         ${specBadgesHtml(brandSpecs, statusSpecs)}
-        <small>${type.total} registrados</small>
+        <small>${type.total} ${uiText('registrados', 'registered')}</small>
       </div>
-      <button class="ghost" type="button" tabindex="-1">Abrir</button>
+      <button class="ghost" type="button" tabindex="-1">${uiText('Abrir', 'Open')}</button>
     </article>`;})
-    .join('') || '<p class="empty-module">Sin tipos de activos registrados.</p>';
+    .join('') || `<p class="empty-module">${uiText('Sin tipos de activos registrados.', 'No asset types registered.')}</p>`;
   translateStaticText();
 }
 
@@ -2164,10 +2165,10 @@ function phasePercent(phase) {
 
 function phaseLabel(phase) {
   return {
-    revisado: 'Revisado',
-    'en proceso': 'En proceso',
-    en_proceso: 'En proceso',
-    terminado: 'Terminado'
+    revisado: uiText('Revisado', 'Reviewed'),
+    'en proceso': uiText('En proceso', 'In progress'),
+    en_proceso: uiText('En proceso', 'In progress'),
+    terminado: uiText('Terminado', 'Completed')
   }[phase] || phase;
 }
 
@@ -2183,9 +2184,9 @@ function renderMaintenanceView() {
   };
 
   summary.innerHTML = `
-    <article><span>Revisado</span><strong>${counts.revisado}</strong></article>
-    <article><span>En proceso</span><strong>${counts.en_proceso}</strong></article>
-    <article><span>Terminado</span><strong>${counts.terminado}</strong></article>
+    <article><span>${uiText('Revisado', 'Reviewed')}</span><strong>${counts.revisado}</strong></article>
+    <article><span>${uiText('En proceso', 'In progress')}</span><strong>${counts.en_proceso}</strong></article>
+    <article><span>${uiText('Terminado', 'Completed')}</span><strong>${counts.terminado}</strong></article>
   `;
 
   list.innerHTML = state.maintenance.map((item) => {
@@ -2198,27 +2199,27 @@ function renderMaintenanceView() {
             <span>${escapeHtml(item.equipment_type)}</span>
             <h3>${escapeHtml(item.serial_number)} · ${escapeHtml(item.brand)} ${escapeHtml(item.model)}</h3>
           </div>
-          ${canWrite ? `<button class="ghost" type="button" data-maintenance-edit="${escapeHtml(item.id)}">Actualizar</button>` : ''}
+          ${canWrite ? `<button class="ghost" type="button" data-maintenance-edit="${escapeHtml(item.id)}">${uiText('Actualizar', 'Update')}</button>` : ''}
         </header>
         <div class="phase-track" aria-label="Avance ${percent}%">
           <div class="phase-bar phase-${percent}"></div>
         </div>
         <div class="phase-steps">
-          <span class="${percent >= 33 ? 'active' : ''}">Revisado</span>
-          <span class="${percent >= 66 ? 'active' : ''}">En proceso</span>
-          <span class="${percent >= 100 ? 'active' : ''}">Terminado</span>
+          <span class="${percent >= 33 ? 'active' : ''}">${uiText('Revisado', 'Reviewed')}</span>
+          <span class="${percent >= 66 ? 'active' : ''}">${uiText('En proceso', 'In progress')}</span>
+          <span class="${percent >= 100 ? 'active' : ''}">${uiText('Terminado', 'Completed')}</span>
         </div>
-        <p>${escapeHtml(item.notes || 'Sin notas registradas.')}</p>
+        <p>${escapeHtml(item.notes || uiText('Sin notas registradas.', 'No notes recorded.'))}</p>
         <footer>
           <div class="maintenance-meta">
             <span>${escapeHtml(phaseLabel(item.phase))} · ${percent}%</span>
             <span>${escapeHtml(item.location)} / ${escapeHtml(item.area)}</span>
-            <span>Actualizado ${escapeHtml(formatDate(item.updated_at))}</span>
+            <span>${uiText('Actualizado', 'Updated')} ${escapeHtml(formatDate(item.updated_at))}</span>
           </div>
         </footer>
       </article>
     `;
-  }).join('') || '<p class="empty-module">Sin equipos enviados a mantenimiento.</p>';
+  }).join('') || `<p class="empty-module">${uiText('Sin equipos enviados a mantenimiento.', 'No equipment sent for maintenance.')}</p>`;
   translateStaticText();
 }
 
@@ -2229,14 +2230,14 @@ function renderStockView() {
   if (!summary || !availability || !list) return;
   const canWrite = ['ADMIN', 'TI'].includes(state.user?.role);
   summary.innerHTML = `
-    <article><span>Registros consultados</span><strong>${state.stockSummary.total || state.stock.length}</strong></article>
-    <article><span>Cantidad disponible</span><strong>${state.stockSummary.available || 0}</strong></article>
+    <article><span>${uiText('Registros consultados', 'Records consulted')}</span><strong>${state.stockSummary.total || state.stock.length}</strong></article>
+    <article><span>${uiText('Cantidad disponible', 'Available quantity')}</span><strong>${state.stockSummary.available || 0}</strong></article>
   `;
   availability.innerHTML = esc`
     <header>
       <div>
-        <span class="eyebrow">Disponibilidad</span>
-        <strong>Menor a mayor por ubicación y área</strong>
+        <span class="eyebrow">${uiText('Disponibilidad', 'Availability')}</span>
+        <strong>${uiText('Menor a mayor por ubicación y área', 'Low to high by location and area')}</strong>
       </div>
     </header>
     <div class="availability-grid">
@@ -2244,9 +2245,9 @@ function renderStockView() {
         <article>
           <span>${item.location}</span>
           <strong>${raw(item.available)}</strong>
-          <small>${item.area} / ${raw(item.total)} total</small>
+          <small>${item.area} / ${raw(item.total)} ${raw(uiText('total', 'total'))}</small>
         </article>
-      `).join('') || '<p class="empty-module">Sin disponibilidad para esta consulta.</p>')}
+      `).join('') || `<p class="empty-module">${raw(uiText('Sin disponibilidad para esta consulta.', 'No availability for this query.'))}</p>`)}
     </div>
   `;
   list.innerHTML = state.stock.map((item) => `
@@ -2255,19 +2256,19 @@ function renderStockView() {
         <div class="stock-title">
           ${productIcon(item?.name)}
           <div>
-            <span>${escapeHtml(item.item_code || item.serial_number || 'Sin ID')}</span>
+            <span>${escapeHtml(item.item_code || item.serial_number || uiText('Sin ID', 'No ID'))}</span>
             <h3>${escapeHtml(item.name)}</h3>
           </div>
         </div>
         <div class="stock-actions">
-          <strong class="quantity-pill">${Number(item.quantity || 0)} disponibles</strong>
-          ${canWrite ? `<button class="ghost" type="button" data-stock-edit="${escapeHtml(item.id)}">Modificar</button>` : ''}
+          <strong class="quantity-pill">${Number(item.quantity || 0)} ${uiText('disponibles', 'available')}</strong>
+          ${canWrite ? `<button class="ghost" type="button" data-stock-edit="${escapeHtml(item.id)}">${uiText('Modificar', 'Edit')}</button>` : ''}
         </div>
       </header>
       <div class="stock-meta">
-        <div><span>Ubicacion</span><strong>${escapeHtml(item.location)}</strong></div>
-        <div><span>Area</span><strong>${escapeHtml(item.area)}</strong></div>
-        <div><span>Modelo</span><strong>${escapeHtml(item.model)}</strong></div>
+        <div><span>${uiText('Ubicación', 'Location')}</span><strong>${escapeHtml(item.location)}</strong></div>
+        <div><span>${uiText('Área', 'Area')}</span><strong>${escapeHtml(item.area)}</strong></div>
+        <div><span>${uiText('Modelo', 'Model')}</span><strong>${escapeHtml(item.model)}</strong></div>
       </div>
       <p>${escapeHtml(item.notes || uiText('Pase el cursor para ver detalles completos.', 'Hover for full details.'))}</p>
     </article>
@@ -2298,7 +2299,7 @@ async function loadLookups() {
   if (currentLocation && inventoryLocations().some((location) => String(location.id) === String(currentLocation))) {
     equipmentForm.elements.location_id.value = currentLocation;
   }
-  if (stockForm) fillElementSelect(stockForm.elements.location_id, inventoryLocations(), 'Seleccionar');
+  if (stockForm) fillElementSelect(stockForm.elements.location_id, inventoryLocations(), uiText('Seleccionar', 'Select'));
   syncAreaOptions();
   syncStockAreaOptions();
   initCatalogSelects();
@@ -2310,7 +2311,7 @@ function syncTypeFilterOptions() {
   if (!state.lookups) return;
   const currentValue = $('#typeFilter')?.value || '';
   const types = visibleTypesForScope(state.lookups.types);
-  fillSelect('typeFilter', types, 'Todas');
+  fillSelect('typeFilter', types, uiText('Todas', 'All'));
   if (types.some((item) => String(item.id) === String(currentValue))) {
     $('#typeFilter').value = currentValue;
   }
@@ -2329,7 +2330,7 @@ function syncInventoryBrandFilterOptions() {
   const brands = allowed.size
     ? state.lookups.brands.filter((brand) => allowed.has(Number(brand.id)))
     : state.lookups.brands;
-  fillSelect('brandFilter', brands, 'Todas');
+  fillSelect('brandFilter', brands, uiText('Todas', 'All'));
   if (brands.some((brand) => String(brand.id) === String(currentValue))) {
     $('#brandFilter').value = currentValue;
   }
@@ -2348,13 +2349,13 @@ function syncInventoryModelFilterOptions() {
   if (allowed.size) {
     models = models.filter((model) => allowed.has(Number(model.id)));
   }
-  fillSelect('modelFilter', models, 'Todos');
+  fillSelect('modelFilter', models, uiText('Todos', 'All'));
   if (models.some((model) => String(model.id) === String(currentValue))) {
     $('#modelFilter').value = currentValue;
   }
 }
 
-function fillSelect(name, items, emptyLabel = 'Seleccionar') {
+function fillSelect(name, items, emptyLabel = uiText('Seleccionar', 'Select')) {
   const select = equipmentForm.elements[name] || stockForm?.elements[name] || $(`#${name}`);
   select.innerHTML = `<option value="">${emptyLabel}</option>`;
   for (const item of items) {
@@ -2367,7 +2368,7 @@ function fillSelect(name, items, emptyLabel = 'Seleccionar') {
   }
 }
 
-function fillElementSelect(select, items, emptyLabel = 'Todos') {
+function fillElementSelect(select, items, emptyLabel = uiText('Todos', 'All')) {
   if (!select) return;
   select.innerHTML = `<option value="">${emptyLabel}</option>`;
   for (const item of items) {
@@ -2619,7 +2620,7 @@ function syncBrandOptions({ preserve = true } = {}) {
     ? state.lookups.brands.filter((brand) => allowedBrandIds.has(Number(brand.id)))
     : state.lookups.brands;
 
-  fillElementSelect(equipmentForm.elements.brand_id, brands, 'Seleccionar');
+  fillElementSelect(equipmentForm.elements.brand_id, brands, uiText('Seleccionar', 'Select'));
   if (current && brands.some((brand) => String(brand.id) === String(current))) {
     equipmentForm.elements.brand_id.value = current;
   }
@@ -2640,7 +2641,7 @@ function syncModelOptions({ preserve = true } = {}) {
     models = models.filter((model) => allowedModelIds.has(Number(model.id)));
   }
 
-  fillElementSelect(equipmentForm.elements.model_id, models, 'Seleccionar');
+  fillElementSelect(equipmentForm.elements.model_id, models, uiText('Seleccionar', 'Select'));
   if (current && models.some((model) => String(model.id) === String(current))) {
     equipmentForm.elements.model_id.value = current;
   }
@@ -2673,7 +2674,7 @@ function syncAreaOptions() {
   const locationId = Number(equipmentForm.elements.location_id.value);
   const areas = state.lookups.areas.filter((area) => !locationId || Number(area.location_id) === locationId);
   const current = equipmentForm.elements.area_id.value;
-  fillElementSelect(equipmentForm.elements.area_id, areas, 'Seleccionar');
+  fillElementSelect(equipmentForm.elements.area_id, areas, uiText('Seleccionar', 'Select'));
   if (current && areas.some((area) => String(area.id) === String(current))) {
     equipmentForm.elements.area_id.value = current;
   }
@@ -2685,7 +2686,7 @@ function syncStockAreaOptions() {
   const locationId = Number(stockForm.elements.location_id.value);
   const areas = state.lookups.areas.filter((area) => !locationId || Number(area.location_id) === locationId);
   const current = stockForm.elements.area_id.value;
-  fillElementSelect(stockForm.elements.area_id, areas, 'Seleccionar');
+  fillElementSelect(stockForm.elements.area_id, areas, uiText('Seleccionar', 'Select'));
   stockForm.elements.area_id.value = current;
   initCatalogSelects();
 }
@@ -2694,12 +2695,12 @@ function syncStockFilterAreas() {
   if (!state.lookups) return;
   const locationId = Number($('#stockLocationFilter').value);
   const areas = state.lookups.areas.filter((area) => !locationId || Number(area.location_id) === locationId);
-  fillElementSelect($('#stockAreaFilter'), areas, 'Todas');
+  fillElementSelect($('#stockAreaFilter'), areas, uiText('Todas', 'All'));
 }
 
 function prepareStockFilters() {
   if (!state.lookups) return;
-  fillElementSelect($('#stockLocationFilter'), inventoryLocations(), 'Todas');
+  fillElementSelect($('#stockLocationFilter'), inventoryLocations(), uiText('Todas', 'All'));
   syncStockFilterAreas();
 }
 
@@ -3156,12 +3157,12 @@ function renderUsers() {
     <article class="user-admin-item" data-user-id="${escapeHtml(user.id)}">
       <div>
         <strong>${escapeHtml(user.name)}</strong>
-        <span>${escapeHtml(user.username)} &middot; ${escapeHtml(user.email)} &middot; ${escapeHtml(user.role)} &middot; ${user.is_active ? 'Activo' : 'Inactivo'}</span>
+        <span>${escapeHtml(user.username)} &middot; ${escapeHtml(user.email)} &middot; ${escapeHtml(user.role)} &middot; ${user.is_active ? uiText('Activo', 'Active') : uiText('Inactivo', 'Inactive')}</span>
       </div>
       <div>
-        <button class="ghost" type="button" data-user-edit="${escapeHtml(user.id)}">Modificar</button>
-        <button class="danger" type="button" data-user-delete="${escapeHtml(user.id)}">Eliminar</button>
-        <button class="ghost" type="button" data-user-toggle="${escapeHtml(user.id)}" data-active="${user.is_active ? 'false' : 'true'}">${user.is_active ? 'Desactivar' : 'Activar'}</button>
+        <button class="ghost" type="button" data-user-edit="${escapeHtml(user.id)}">${uiText('Modificar', 'Edit')}</button>
+        <button class="danger" type="button" data-user-delete="${escapeHtml(user.id)}">${uiText('Eliminar', 'Delete')}</button>
+        <button class="ghost" type="button" data-user-toggle="${escapeHtml(user.id)}" data-active="${user.is_active ? 'false' : 'true'}">${user.is_active ? uiText('Desactivar', 'Deactivate') : uiText('Activar', 'Activate')}</button>
         <button class="ghost" type="button" data-user-reset="${escapeHtml(user.id)}">Reset</button>
       </div>
     </article>
@@ -3241,7 +3242,7 @@ async function importCsvFile(file) {
   const preview = await previewResponse.json().catch(() => ({}));
   if (!previewResponse.ok)     throw new Error(preview.message || uiText('No se pudo validar el CSV.', 'Could not validate the CSV.'));
   if (!preview.ready) {
-    const firstError = preview.rows?.find((row) => row.errors?.length)?.errors?.[0] || 'Revise el CSV.';
+    const firstError = preview.rows?.find((row) => row.errors?.length)?.errors?.[0] || uiText('Revise el CSV.', 'Check the CSV.');
     throw new Error(`${uiText('CSV con errores:', 'CSV with errors:')} ${firstError}`);
   }
   if (!confirm(uiText(`Importar ${preview.valid} equipos desde CSV?`, `Import ${preview.valid} equipment from CSV?`))) return;
@@ -3256,7 +3257,7 @@ async function importCsvFile(file) {
   });
   const result = await commitResponse.json().catch(() => ({}));
   if (!commitResponse.ok)     throw new Error(result.message || uiText('No se pudo importar el CSV.', 'Could not import the CSV.'));
-  toast(uiText(`Importacion completa: ${result.imported} equipos.`, `Import complete: ${result.imported} equipment.`), 'success');
+  toast(uiText(`Importación completa: ${result.imported} equipos.`, `Import complete: ${result.imported} equipment.`), 'success');
   await loadLookups();
   await loadInventory();
   await loadDashboardIfConsole();
@@ -3305,7 +3306,7 @@ function openStockDialog(item = null) {
   stockForm.reset();
   $('#stockMessage').textContent = '';
   $('#stockDialogTitle').textContent = item ? uiText('Modificar dispositivo en stock', 'Edit stock device') : uiText('Agregar dispositivo en stock', 'Add stock device');
-  fillElementSelect(stockForm.elements.location_id, inventoryLocations(), 'Seleccionar');
+  fillElementSelect(stockForm.elements.location_id, inventoryLocations(), uiText('Seleccionar', 'Select'));
   stockForm.elements.id.value = item?.id || '';
   stockForm.elements.item_code.value = item?.item_code || '';
   stockForm.elements.name.value = item?.name || '';
@@ -4019,7 +4020,7 @@ $('#helpSuggestionForm').addEventListener('submit', async (e) => {
       method: 'POST',
       body: JSON.stringify(payload)
     });
-    $('#helpSuggestionMessage').textContent = 'Sugerencia enviada. Gracias!';
+    $('#helpSuggestionMessage').textContent = uiText('Sugerencia enviada. ¡Gracias!', 'Suggestion sent. Thank you!');
     $('#helpSuggestionMessage').style.color = '#16a34a';
     $('#helpSuggestionForm').reset();
     setTimeout(() => {
@@ -4180,7 +4181,7 @@ $('#saveCatalogButton').addEventListener('click', saveCatalogEntry);
 
 function syncTriggerValue(select, trigger) {
   const option = select.options[select.selectedIndex];
-  trigger.textContent = option ? option.textContent : 'Seleccionar';
+  trigger.textContent = option ? option.textContent : uiText('Seleccionar', 'Select');
   trigger.classList.toggle('placeholder', !select.value);
 }
 
