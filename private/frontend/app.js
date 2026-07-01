@@ -512,6 +512,10 @@ const translationPairs = [
   ['Resguardo', 'Assigned hold'],
   ['Baja', 'Retired'],
   ['No se pudo conectar con la impresora. ¿Descargar archivo ZPL para imprimir manualmente?', 'Could not connect to printer. Download ZPL file to print manually?'],
+  ['disponibles', 'available'],
+  ['Seleccionar', 'Select'],
+  ['Todos los derechos reservados.', 'All rights reserved.'],
+  ['Propiedad de TIMSA', 'Property of TIMSA'],
 ];
 
 document.body.appendChild(equipmentPreview);
@@ -698,6 +702,12 @@ function applySettings() {
   state.settings = normalizedSettings();
   const theme = effectiveTheme(state.settings);
   document.body.dataset.theme = theme;
+  if (window._themeMq) window._themeMq.removeEventListener('change', window._onThemeChange);
+  window._themeMq = window.matchMedia('(prefers-color-scheme: dark)');
+  window._onThemeChange = () => {
+    if (state.settings?.theme === 'system') document.body.dataset.theme = effectiveTheme(state.settings);
+  };
+  window._themeMq.addEventListener('change', window._onThemeChange);
   document.body.dataset.density = state.settings.density;
   document.body.dataset.motion = state.settings.motion;
   document.documentElement.lang = state.settings.language === 'en' ? 'en' : 'es';
@@ -1009,7 +1019,8 @@ function defaultReminderDate() {
 }
 
 function formatDate(value) {
-  return new Intl.DateTimeFormat('es-MX', {
+  const locale = normalizedSettings().language === 'en' ? 'en-US' : 'es-MX';
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short'
   }).format(new Date(value));
