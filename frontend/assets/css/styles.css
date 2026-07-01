@@ -1011,85 +1011,170 @@ nav a:hover .nav-icon {
   border-left-color: var(--blue-500);
 }
 
-/* UI_FIX: Help center dropdown */
-.help-center-wrapper {
-  position: relative;
+/* UI_FIX: Help & Suggestions dialog */
+.help-suggestions-form {
+  width: min(520px, calc(100vw - 2rem));
 }
 
-.help-dropdown {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  min-width: 200px;
-  z-index: 20;
-  padding: 0.4rem;
-  border: 1px solid var(--gray-200);
-  border-radius: 10px;
-  background: var(--white);
-  box-shadow: 0 12px 32px rgba(7, 31, 66, 0.18);
-  animation: notify-enter 180ms ease both;
-}
-
-.help-dropdown button {
-  width: 100%;
+.help-suggestions-body {
   display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.6rem 0.75rem;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--gray-900);
-  font-size: 0.84rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background var(--motion-fast);
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem 1.2rem;
 }
 
-.help-dropdown button:hover {
-  background: var(--gray-100);
+.help-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(215, 226, 239, 0.85);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.6);
+  transition: background 120ms, border-color 120ms;
 }
 
-.help-dropdown button svg {
-  width: 18px;
-  height: 18px;
+.help-card:hover {
+  background: rgba(59, 130, 246, 0.04);
+  border-color: rgba(59, 130, 246, 0.25);
+}
+
+.help-card-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  background: rgba(59, 130, 246, 0.08);
+  border-radius: 10px;
+}
+
+.help-card-icon svg {
+  width: 20px;
+  height: 20px;
   fill: none;
-  stroke: currentColor;
+  stroke: var(--blue-500);
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.help-card > div:last-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.help-card strong {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--navy-800);
+  margin-bottom: 0.15rem;
+}
+
+.help-card p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--gray-500);
+  line-height: 1.4;
+}
+
+.help-card button {
+  margin-top: 0.4rem;
+  font-size: 0.82rem;
+}
+
+.help-suggestions-footer {
+  padding: 0 1.2rem 1.2rem;
+}
+
+#helpSuggestionForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+#helpSuggestionForm label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
   color: var(--navy-700);
 }
 
-body[data-theme="dark"] .notification-tabs {
-  border-color: rgba(125, 165, 214, 0.2);
-  background: rgba(255, 255, 255, 0.04);
+#helpSuggestionForm textarea {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(215, 226, 239, 0.9);
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  background: var(--surface-input);
+  color: var(--text-primary);
+  resize: vertical;
 }
 
-body[data-theme="dark"] .notification-tab {
+#helpSuggestionForm textarea:focus {
+  outline: none;
+  border-color: var(--blue-500);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+#helpSuggestionForm footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0;
+  margin-top: 0.25rem;
+}
+
+.help-suggestions-close {
+  background: transparent;
+  border: 0;
+  font-size: 1.3rem;
+  color: var(--navy-500);
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  line-height: 1;
+}
+
+.help-suggestions-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+body[data-theme="dark"] .help-card {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(125, 165, 214, 0.15);
+}
+
+body[data-theme="dark"] .help-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+body[data-theme="dark"] .help-card strong {
+  color: var(--gray-900);
+}
+
+body[data-theme="dark"] .help-card p {
+  color: var(--gray-600);
+}
+
+body[data-theme="dark"] #helpSuggestionForm label {
+  color: var(--gray-600);
+}
+
+body[data-theme="dark"] #helpSuggestionForm textarea {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(125, 165, 214, 0.2);
+  color: var(--gray-900);
+}
+
+body[data-theme="dark"] .help-suggestions-close {
   color: var(--gray-500);
 }
 
-body[data-theme="dark"] .notification-tab.active {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--gray-900);
-}
-
-body[data-theme="dark"] .notification-tab:not(.active):hover {
-  color: var(--gray-700);
-  background: rgba(255, 255, 255, 0.06);
-}
-
-body[data-theme="dark"] .help-dropdown {
-  background: linear-gradient(180deg, #12233a, #0f1d31);
-  border-color: rgba(125, 165, 214, 0.2);
-}
-
-body[data-theme="dark"] .help-dropdown button {
-  color: var(--gray-900);
-}
-
-body[data-theme="dark"] .help-dropdown button:hover {
+body[data-theme="dark"] .help-suggestions-close:hover {
   background: rgba(255, 255, 255, 0.06);
 }
 

@@ -568,6 +568,17 @@ const translationPairs = [
   ['Buscar', 'Search'],
   ['Cerrar escaner', 'Close scanner'],
   ['Codigo de barras', 'Barcode'],
+  ['Ayuda y sugerencias', 'Help & suggestions'],
+  ['Contactar Soporte', 'Contact support'],
+  ['Envie un correo al equipo de soporte tecnico', 'Send an email to the technical support team'],
+  ['Enviar correo', 'Send email'],
+  ['Cambiar contrasena', 'Change password'],
+  ['Actualice su contrasena de acceso al sistema', 'Update your system login password'],
+  ['Enviar sugerencia', 'Send suggestion'],
+  ['Comparta ideas para mejorar el sistema', 'Share ideas to improve the system'],
+  ['Su sugerencia', 'Your suggestion'],
+  ['Sugerencia enviada. Gracias!', 'Suggestion sent. Thank you!'],
+  ['Ayuda', 'Help'],
 ];
 
 document.body.appendChild(equipmentPreview);
@@ -3930,29 +3941,81 @@ document.querySelectorAll('.notification-tab').forEach((tab) => {
   tab.addEventListener('click', () => setNotifTab(tab.dataset.tab));
 });
 
-// UI_FIX: Help center dropdown
-$('#helpCenterButton').addEventListener('click', (e) => {
-  e.stopPropagation();
-  const dd = $('#helpDropdown');
-  dd.classList.toggle('hidden');
-  if (!dd.classList.contains('hidden')) translateStaticText();
+// UI_FIX: Help & Suggestions dialog
+$('#helpSuggestionsButton').addEventListener('click', () => {
+  $('#helpSuggestionFormContainer').classList.add('hidden');
+  $('#helpSuggestionForm').reset();
+  $('#helpSuggestionMessage').textContent = '';
+  translateStaticText();
+  $('#helpSuggestionsDialog').showModal();
 });
 
-// UI_FIX: Contact support -> mailto
-$('#contactSupportButton').addEventListener('click', () => {
+$('#helpSuggestionsDialog').querySelector('.help-suggestions-close').addEventListener('click', () => {
+  $('#helpSuggestionsDialog').close();
+});
+
+$('#helpSuggestionsDialog').addEventListener('click', (e) => {
+  if (e.target === $('#helpSuggestionsDialog')) {
+    $('#helpSuggestionsDialog').close();
+  }
+});
+
+// Contact support -> mailto
+$('#helpContactSupportBtn').addEventListener('click', () => {
   const userName = state.user?.name || 'Usuario';
   const subject = 'Soporte Tecnico - Usuario: ' + encodeURIComponent(userName);
   window.location.href = 'mailto:soporte@tudominio.com?subject=' + subject;
-  $('#helpDropdown').classList.add('hidden');
 });
 
-// UI_FIX: Close help dropdown on outside click
-document.addEventListener('click', (e) => {
-  const wrapper = document.querySelector('.help-center-wrapper');
-  const dd = $('#helpDropdown');
-  if (dd && !dd.classList.contains('hidden') && wrapper && !wrapper.contains(e.target)) {
-    dd.classList.add('hidden');
+// Change password from inside Help & Suggestions
+$('#helpChangePasswordBtn').addEventListener('click', () => {
+  $('#helpSuggestionsDialog').close();
+  passwordForm.reset();
+  $('#passwordMessage').textContent = '';
+  passwordDialog.showModal();
+});
+
+// Toggle suggestion form
+$('#helpSuggestionBtn').addEventListener('click', () => {
+  const container = $('#helpSuggestionFormContainer');
+  container.classList.toggle('hidden');
+  if (!container.classList.contains('hidden')) {
+    $('#helpSuggestionForm').elements.suggestion.focus();
+    translateStaticText();
   }
+});
+
+$('#helpSuggestionCancel').addEventListener('click', () => {
+  $('#helpSuggestionFormContainer').classList.add('hidden');
+  $('#helpSuggestionForm').reset();
+  $('#helpSuggestionMessage').textContent = '';
+});
+
+$('#helpSuggestionForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const text = $('#helpSuggestionForm').elements.suggestion.value.trim();
+  if (!text) return;
+  try {
+    const payload = {
+      text: 'Sugerencia: ' + text,
+      due_at: null
+    };
+    await api('/notes', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    $('#helpSuggestionMessage').textContent = 'Sugerencia enviada. Gracias!';
+    $('#helpSuggestionMessage').style.color = '#16a34a';
+    $('#helpSuggestionForm').reset();
+    setTimeout(() => {
+      $('#helpSuggestionFormContainer').classList.add('hidden');
+      $('#helpSuggestionMessage').textContent = '';
+    }, 2000);
+  } catch (err) {
+    $('#helpSuggestionMessage').textContent = err.message;
+    $('#helpSuggestionMessage').style.color = '#dc2626';
+  }
+  loadNotes();
 });
 
 menuButton.addEventListener('click', toggleSidebar);
@@ -4073,11 +4136,7 @@ $('#addUserFromPanelButton').addEventListener('click', () => {
   openUserDialog();
 });
 
-$('#changePasswordButton').addEventListener('click', () => {
-  passwordForm.reset();
-  $('#passwordMessage').textContent = '';
-  passwordDialog.showModal();
-});
+// UI_FIX: changePasswordButton replaced by helpSuggestionsButton; passwordDialog kept for internal use
 
 equipmentForm.elements.equipment_type_id.addEventListener('change', () => {
   syncBrandOptions({ preserve: false });
