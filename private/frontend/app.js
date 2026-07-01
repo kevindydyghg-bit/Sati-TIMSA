@@ -2245,9 +2245,9 @@ function renderStockView() {
         <article>
           <span>${item.location}</span>
           <strong>${raw(item.available)}</strong>
-          <small>${item.area} / ${raw(item.total)} ${raw(uiText('total', 'total'))}</small>
+          <small>${item.area} / ${raw(item.total)} ${uiText('total', 'total')}</small>
         </article>
-      `).join('') || `<p class="empty-module">${raw(uiText('Sin disponibilidad para esta consulta.', 'No availability for this query.'))}</p>`)}
+      `).join('') || `<p class="empty-module">${uiText('Sin disponibilidad para esta consulta.', 'No availability for this query.')}</p>`)}
     </div>
   `;
   list.innerHTML = state.stock.map((item) => `
