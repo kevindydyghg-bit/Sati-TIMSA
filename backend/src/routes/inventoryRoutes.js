@@ -797,11 +797,11 @@ router.get('/:id', authenticate, requireValidUuid, async (req, res, next) => {
       db.query(
         `SELECT * FROM hardware_components WHERE equipment_id = $1 ORDER BY component_type, id`,
         [req.params.id]
-      ),
+      ).catch(() => ({ rows: [] })),
       db.query(
         `SELECT * FROM installed_software WHERE equipment_id = $1 ORDER BY name`,
         [req.params.id]
-      )
+      ).catch(() => ({ rows: [] }))
     ]);
 
     const qr_data_url = await QRCode.toDataURL(equipmentQrUrl(req, req.params.id), {
