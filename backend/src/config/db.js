@@ -82,6 +82,42 @@ async function runMigrations() {
       CREATE INDEX IF NOT EXISTS idx_notes_due_at
       ON notes(due_at)
     `);
+    await pool.query(`
+      CREATE OR REPLACE FUNCTION check_status_transition()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        IF OLD.status IS NOT DISTINCT FROM NEW.status THEN
+          RETURN NEW;
+        END IF;
+        IF NOT (
+          (OLD.status = 'almacen'   AND NEW.status IN ('asignado', 'reparacion', 'donado', 'baja')) OR
+          (OLD.status = 'asignado'  AND NEW.status IN ('almacen', 'reparacion', 'baja', 'activo')) OR
+          (OLD.status = 'reparacion' AND NEW.status IN ('almacen', 'asignado', 'baja'))
+        ) THEN
+          RAISE EXCEPTION 'Transicion de estado invalida: de % a %', OLD.status, NEW.status
+            USING HINT = format('Transiciones permitidas desde %s: %s',
+              OLD.status,
+              CASE OLD.status
+                WHEN 'almacen' THEN 'asignado, reparacion, donado, baja'
+                WHEN 'asignado' THEN 'almacen, reparacion, baja, activo'
+                WHEN 'reparacion' THEN 'almacen, asignado, baja'
+                WHEN 'donado' THEN 'ninguna (terminal)'
+                WHEN 'baja' THEN 'ninguna (terminal)'
+                ELSE 'consulte la documentacion'
+              END
+            );
+        END IF;
+        IF NEW.status = 'asignado' AND trim(COALESCE(NEW.assigned_user, '')) = '' THEN
+          RAISE EXCEPTION 'No se puede asignar un equipo sin especificar el usuario'
+            USING HINT = 'Proporcione assigned_user al cambiar el estado a asignado';
+        END IF;
+        IF NEW.status IN ('reparacion', 'baja', 'donado') THEN
+          NEW.assigned_user = NULL;
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+    `).catch((_) => {});
     const alterCmds = [
       'ALTER TABLE equipment ALTER COLUMN equipment_type_id DROP NOT NULL',
       'ALTER TABLE equipment ALTER COLUMN brand_id DROP NOT NULL',

@@ -63,6 +63,24 @@ body[data-theme="dark"] .btn-primary {
 body[data-theme="dark"] .metric-icon.inactive {
   background: linear-gradient(135deg, #475569, #334155);
 }
+body[data-theme="dark"] .metric-icon.total {
+  background: linear-gradient(135deg, #2a7fb0, #0d5f94);
+}
+body[data-theme="dark"] .metric-icon.active {
+  background: linear-gradient(135deg, #3a9b5e, #237a48);
+}
+body[data-theme="dark"] .metric-icon.maintenance {
+  background: linear-gradient(135deg, #d4792a, #a85d1a);
+}
+
+body[data-theme="dark"] .metrics em {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--gray-600);
+}
+
+body[data-theme="dark"] .dashboard-kpis .kpi-alert {
+  border-left-color: #f87171;
+}
 
 body[data-motion="reduced"] *,
 body[data-motion="reduced"] *::before,

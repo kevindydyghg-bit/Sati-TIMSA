@@ -518,6 +518,43 @@ const translationPairs = [
   ['Seleccionar', 'Select'],
   ['Todos los derechos reservados.', 'All rights reserved.'],
   ['Propiedad de TIMSA', 'Property of TIMSA'],
+  ['Disco', 'Disk'],
+  ['Bateria', 'Battery'],
+  ['Motherboard', 'Motherboard'],
+  ['Unidad optica', 'Optical drive'],
+  ['Otro', 'Other'],
+  ['Nota rapida', 'Quick note'],
+  ['Guardar nota', 'Save note'],
+  ['Guardar recordatorio', 'Save reminder'],
+  ['Sin notas.', 'No notes.'],
+  ['Sin recordatorios.', 'No reminders.'],
+  ['Centro de Ayuda', 'Help Center'],
+  ['Contactar Soporte', 'Contact Support'],
+  ['Estado del equipo', 'Device Status'],
+  ['Ciclo de vida', 'Lifecycle'],
+  ['Garantia', 'Warranty'],
+  ['Mantenimiento', 'Maintenance'],
+  ['Sin incidencias', 'No issues'],
+  ['En mantenimiento', 'In maintenance'],
+  ['Vigente', 'Active'],
+  ['Por vencer', 'Expiring soon'],
+  ['Vencida', 'Expired'],
+  ['Almacen', 'Storage'],
+  ['Asignado', 'Assigned'],
+  ['Reparacion', 'Repair'],
+  ['Activo', 'Active'],
+  ['Donado', 'Donated'],
+  ['Sin mantenimiento.', 'No maintenance.'],
+  ['Sin comentarios guardados.', 'No saved comments.'],
+  ['Actualizado por', 'Updated by'],
+  ['Agregado por', 'Added by'],
+  ['Ficha tecnica', 'Tech sheet'],
+  ['Compra', 'Purchase'],
+  ['Proveedor', 'Supplier'],
+  ['Eliminar', 'Delete'],
+  ['Nota', 'Note'],
+  ['Recordatorio', 'Reminder'],
+  ['Sistema operativo', 'Operating system'],
 ];
 
 document.body.appendChild(equipmentPreview);
@@ -2746,19 +2783,23 @@ function renderHardwareComponents(components) {
     if (type === 'ram') {
       const total = items.reduce((s, c) => s + (parseInt(c.capacity) || 0), 0);
       const slots = items.map((c) => {
-        const details = [c.capacity, c.form_factor].filter(Boolean).join(' ');
-        return `${c.slot_designation ? c.slot_designation + ': ' : ''}${details || c.model || ''}`.trim();
+        const capacity = escapeHtml(c.capacity || '');
+        const formFactor = escapeHtml(c.form_factor || '');
+        const slot = escapeHtml(c.slot_designation || '');
+        const model = escapeHtml(c.model || '');
+        const details = [capacity, formFactor].filter(Boolean).join(' ');
+        return `${slot ? slot + ': ' : ''}${details || model}`.trim();
       }).filter(Boolean).join(', ');
-      return `<div><span>${label}</span><strong>${total ? total + ' GB' : ''}${slots ? ' (' + slots + ')' : ''}</strong></div>`;
+      return `<div><span>${escapeHtml(label)}</span><strong>${total ? total + ' GB' : ''}${slots ? ' (' + slots + ')' : ''}</strong></div>`;
     }
     if (type === 'disk') {
       const total = items.reduce((s, c) => s + (parseInt(c.capacity) || 0), 0);
-      const details = items.map((c) => [c.model, c.form_factor].filter(Boolean).join(' ')).filter(Boolean).join(', ');
-      return `<div><span>${label}</span><strong>${total ? total + ' GB' : ''}${details ? ' - ' + details : ''}</strong></div>`;
+      const details = items.map((c) => [escapeHtml(c.model), escapeHtml(c.form_factor)].filter(Boolean).join(' ')).filter(Boolean).join(', ');
+      return `<div><span>${escapeHtml(label)}</span><strong>${total ? total + ' GB' : ''}${details ? ' - ' + details : ''}</strong></div>`;
     }
     const primary = items[0];
-    const parts = [primary.model, primary.manufacturer, primary.capacity].filter(Boolean);
-    return `<div><span>${label}</span><strong>${parts.join(' - ') || 'N/A'}</strong></div>`;
+    const parts = [escapeHtml(primary.model), escapeHtml(primary.manufacturer), escapeHtml(primary.capacity)].filter(Boolean);
+    return `<div><span>${escapeHtml(label)}</span><strong>${parts.join(' - ') || 'N/A'}</strong></div>`;
   }).join('');
 }
 
@@ -3881,6 +3922,7 @@ $('#helpCenterButton').addEventListener('click', (e) => {
   e.stopPropagation();
   const dd = $('#helpDropdown');
   dd.classList.toggle('hidden');
+  if (!dd.classList.contains('hidden')) translateStaticText();
 });
 
 // UI_FIX: Contact support -> mailto
