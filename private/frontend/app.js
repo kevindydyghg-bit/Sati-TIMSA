@@ -153,20 +153,20 @@ const accessoryTypes = [
 ];
 
 const translationPairs = [
-  ['Iniciar sesion', 'Sign in'],
+  ['Iniciar sesión', 'Sign in'],
   ['Ingrese sus credenciales para acceder al sistema', 'Enter your credentials to access the system'],
   ['Usuario', 'User'],
-  ['Contrasena', 'Password'],
+  ['Contraseña', 'Password'],
   ['Recordarme', 'Remember me'],
-  ['Olvido su contrasena?', 'Forgot your password?'],
+  ['¿Olvidó su contraseña?', 'Forgot your password?'],
   ['Entrar', 'Enter'],
-  ['Recuperar contrasena', 'Recover password'],
-  ['Correo de recuperacion', 'Recovery email'],
-  ['Enviar codigo', 'Send code'],
+  ['Recuperar contraseña', 'Recover password'],
+  ['Correo de recuperación', 'Recovery email'],
+  ['Enviar código', 'Send code'],
   ['Codigo', 'Code'],
-  ['Nueva contrasena', 'New password'],
-  ['Cambiar contrasena', 'Change password'],
-  ['Maximo 12 caracteres', 'Maximum 12 characters'],
+  ['Nueva contraseña', 'New password'],
+  ['Cambiar contraseña', 'Change password'],
+  ['Máximo 12 caracteres', 'Maximum 12 characters'],
   ['Regresar', 'Back'],
   ['Cerrar', 'Close'],
   ['Cancelar', 'Cancel'],
@@ -189,7 +189,7 @@ const translationPairs = [
   ['Animaciones', 'Animations'],
   ['Activadas', 'Enabled'],
   ['Reducidas', 'Reduced'],
-  ['Filas por pagina', 'Rows per page'],
+  ['Filas por página', 'Rows per page'],
   ['Consola de inventario', 'Inventory console'],
   ['Resumen general del inventario de activos', 'General asset inventory summary'],
   ['Inventario', 'Inventory'],
@@ -215,7 +215,7 @@ const translationPairs = [
   ['Activos registrados', 'Registered assets'],
   ['Accesorios registrados', 'Registered accessories'],
   ['Equipos registrados', 'Registered equipment'],
-  ['En operacion', 'In operation'],
+  ['En operación', 'In operation'],
   ['Requieren atencion', 'Need attention'],
   ['Resguardo o baja', 'Assigned hold or retired'],
   ['Total Equipos', 'Total equipment'],
@@ -228,22 +228,22 @@ const translationPairs = [
   ['Items con cantidad menor a 5', 'Items with quantity below 5'],
   ['Tipos', 'Types'],
   ['TIPOS', 'TYPES'],
-  ['Distribucion por tipo de equipo', 'Equipment type distribution'],
-  ['Areas', 'Areas'],
+  ['Distribución por tipo de equipo', 'Equipment type distribution'],
+  ['Áreas', 'Areas'],
   ['AREAS', 'AREAS'],
-  ['Equipos por area', 'Equipment by area'],
+  ['Equipos por área', 'Equipment by area'],
   ['Estado de mantenimiento', 'Maintenance status'],
   ['Estado', 'Status'],
   ['ESTADO', 'STATUS'],
   ['Salud del inventario', 'Inventory health'],
   ['Activos principales', 'Top assets'],
-  ['Garantias', 'Warranties'],
+  ['Garantías', 'Warranties'],
   ['Vencimientos', 'Expirations'],
   ['Vencidas', 'Expired'],
-  ['Proximos 30 dias', 'Next 30 days'],
-  ['Proximos 90 dias', 'Next 90 days'],
-  ['Distribucion', 'Distribution'],
-  ['Por ubicacion', 'By location'],
+  ['Próximos 30 días', 'Next 30 days'],
+  ['Próximos 90 días', 'Next 90 days'],
+  ['Distribución', 'Distribution'],
+  ['Por ubicación', 'By location'],
   ['Ordenes por fase', 'Orders by phase'],
   ['Almacenamiento', 'Storage'],
   ['Procesador', 'Processor'],
@@ -261,10 +261,10 @@ const translationPairs = [
   ['Sin marcas registradas para este tipo.', 'No brands registered for this type.'],
   ['Sin tipos de activos registrados.', 'No asset types registered.'],
   ['Sin datos por tipo.', 'No data by type.'],
-  ['Sin datos por ubicacion.', 'No data by location.'],
-  ['Sin ordenes de mantenimiento.', 'No maintenance orders.'],
+  ['Sin datos por ubicación.', 'No data by location.'],
+  ['Sin órdenes de mantenimiento.', 'No maintenance orders.'],
   ['Buscar inventario', 'Search inventory'],
-  ['Buscar por ID, serie, usuario, ubicacion o modelo', 'Search by ID, serial, user, location or model'],
+  ['Buscar por ID, serie, usuario, ubicación o modelo', 'Search by ID, serial, user, location or model'],
   ['Categoria', 'Category'],
   ['Marca', 'Brand'],
   ['Modelo', 'Model'],
@@ -275,14 +275,14 @@ const translationPairs = [
   ['Exportar Excel', 'Export Excel'],
   ['Plantilla Excel', 'Excel template'],
   ['Importar CSV', 'Import CSV'],
-  ['Pagina', 'Page'],
+  ['Página', 'Page'],
   ['resultados', 'results'],
   ['Tipo', 'Type'],
   ['Numero de serie', 'Serial number'],
   ['ID de inventario', 'Inventory ID'],
   ['Ubicacion', 'Location'],
-  ['Area', 'Area'],
-  ['Accion', 'Action'],
+  ['Área', 'Area'],
+  ['Acción', 'Action'],
   ['Evento', 'Event'],
   ['Detalle', 'Detail'],
   ['Nombre', 'Name'],
@@ -295,7 +295,7 @@ const translationPairs = [
   ['Agregar', 'Add'],
   ['Proveedor', 'Supplier'],
   ['Fecha de compra', 'Purchase date'],
-  ['Garantia hasta', 'Warranty until'],
+  ['Garantía hasta', 'Warranty until'],
 
   ['Notas', 'Notes'],
   ['Eliminar', 'Delete'],
@@ -309,7 +309,7 @@ const translationPairs = [
   ['Cantidad', 'Quantity'],
   ['Serie', 'Serial'],
   ['Disponibilidad', 'Availability'],
-  ['Menor a mayor por ubicacion y area', 'Lowest to highest by location and area'],
+  ['Menor a mayor por ubicación y área', 'Lowest to highest by location and area'],
   ['Registros consultados', 'Queried records'],
   ['Cantidad disponible', 'Available quantity'],
   ['Agregar mantenimiento', 'Add maintenance'],
@@ -326,8 +326,8 @@ const translationPairs = [
   ['Filtrar', 'Filter'],
   ['Exportar Excel', 'Export Excel'],
   ['Sin cambios para esta consulta.', 'No changes for this query.'],
-  ['Contrasena actual', 'Current password'],
-  ['Nueva contrasena', 'New password'],
+  ['Contraseña actual', 'Current password'],
+  ['Nueva contraseña', 'New password'],
   ['Desactivar', 'Deactivate'],
   ['Activar', 'Activate'],
   ['Sin usuarios.', 'No users.'],
@@ -336,20 +336,20 @@ const translationPairs = [
   ['Base de datos cloud', 'Cloud database'],
   ['Interfaz operativa', 'Operational interface'],
   ['Editar nombre', 'Edit name'],
-  ['Eliminar opcion', 'Delete option'],
+  ['Eliminar opción', 'Delete option'],
   ['Nuevo nombre:', 'New name:'],
-  ['Catalogo actualizado.', 'Catalog updated.'],
-  ['Catalogo eliminado.', 'Catalog deleted.'],
-  ['Seleccione primero una opcion para editarla.', 'Select an option first to edit it.'],
+  ['Catálogo actualizado.', 'Catalog updated.'],
+  ['Catálogo eliminado.', 'Catalog deleted.'],
+  ['Seleccione primero una opción para editarla.', 'Select an option first to edit it.'],
   ['No se puede editar este catalogo.', 'This catalog cannot be edited.'],
-  ['Seguro que desea eliminar esta opcion?', 'Are you sure you want to delete this option?'],
+  ['Seguro que desea eliminar esta opción?', 'Are you sure you want to delete this option?'],
   ['Modificar', 'Edit'],
   ['Imprimir etiqueta', 'Print label'],
   ['Descargar ZPL', 'Download ZPL'],
   ['Imprimir en Zebra', 'Print to Zebra'],
   ['Imprimiendo...', 'Printing...'],
   ['Codigo de barras', 'Barcode'],
-  ['Etiqueta generada para impresion', 'Label ready for printing'],
+  ['Etiqueta generada para impresión', 'Label ready for printing'],
   ['Usuario actualizado.', 'User updated.'],
   ['Usuario eliminado.', 'User deleted.'],
   ['Stock eliminado.', 'Stock deleted.'],
@@ -358,17 +358,17 @@ const translationPairs = [
   ['Editar usuario', 'Edit user'],
   ['Guardar usuario', 'Save user'],
   ['Actualizar usuario', 'Update user'],
-  ['Contrasena inicial', 'Initial password'],
-  ['Nueva contrasena opcional', 'Optional new password'],
+  ['Contraseña inicial', 'Initial password'],
+  ['Nueva contraseña opcional', 'Optional new password'],
   ['Abrir enlace', 'Open link'],
-  ['No se pudo abrir la ventana de impresion.', 'Could not open the print window.'],
+  ['No se pudo abrir la ventana de impresión.', 'Could not open the print window.'],
   ['Usuario guardado correctamente.', 'User saved successfully.'],
   ['No puede eliminar su propio usuario.', 'You cannot delete your own user.'],
-  ['Seguimiento por fases de revision, proceso y termino', 'Review, process and completion tracking'],
+  ['Seguimiento por fases de revisión, proceso y término', 'Review, process and completion tracking'],
   ['Actualizado', 'Updated'],
   ['Sin proveedor', 'No supplier'],
   ['Sin fecha', 'No date'],
-  ['Sin garantia', 'No warranty'],
+  ['Sin garantía', 'No warranty'],
   ['Actualizado por', 'Updated by'],
   ['Sin comentarios guardados.', 'No saved comments.'],
   ['Sin mantenimiento.', 'No maintenance.'],
@@ -377,7 +377,7 @@ const translationPairs = [
   ['Excel generado correctamente.', 'Excel generated successfully.'],
   ['Cambios recientes exportados.', 'Recent changes exported.'],
   ['Ajustes aplicados correctamente.', 'Settings applied successfully.'],
-  ['Contrasena reiniciada.', 'Password reset.'],
+  ['Contraseña reiniciada.', 'Password reset.'],
   ['Agregado por', 'Added by'],
   ['Sin notas pendientes.', 'No pending notes.'],
   ['Equipo reparado y regresado a activo', 'Equipment repaired and returned to active'],
@@ -397,9 +397,9 @@ const translationPairs = [
   ['eventos', 'events'],
   ['Sin cambios para esta consulta.', 'No changes for this query.'],
   ['Buscar inventario', 'Search inventory'],
-  ['Buscar por ID, serie, usuario, ubicacion o modelo', 'Search by ID, serial, user, location or model'],
+  ['Buscar por ID, serie, usuario, ubicación o modelo', 'Search by ID, serial, user, location or model'],
   ['Abrir ajustes', 'Open settings'],
-  ['Eliminar opcion', 'Delete option'],
+  ['Eliminar opción', 'Delete option'],
   ['Sin notas', 'No notes'],
   ['Sin mantenimiento.', 'No maintenance.'],
   ['Sistema', 'System'],
@@ -425,16 +425,16 @@ const translationPairs = [
   ['Nombre de usuario', 'Username'],
   ['Numero de serie', 'Serial number'],
   ['Cantidad', 'Quantity'],
-  ['Ubicacion', 'Location'],
-  ['Area', 'Area'],
+  ['Ubicación', 'Location'],
+  ['Área', 'Area'],
   ['Actualizado ', 'Updated '],
   ['Modelo', 'Model'],
   ['Compra', 'Purchase'],
-  ['Garantia', 'Warranty'],
+  ['Garantía', 'Warranty'],
   ['Proveedor', 'Supplier'],
-  ['Respuesta invalida del servidor.', 'Invalid server response.'],
-  ['Solicitud fallida. Verifique que la API de produccion este disponible.', 'Request failed. Check that the production API is available.'],
-  ['No se pudieron cargar las estadisticas del dashboard.', 'Could not load dashboard statistics.'],
+  ['Respuesta inválida del servidor.', 'Invalid server response.'],
+  ['Solicitud fallida. Verifique que la API de producción este disponible.', 'Request failed. Check that the production API is available.'],
+  ['No se pudieron cargar las estadísticas del dashboard.', 'Could not load dashboard statistics.'],
   ['No se pudieron cargar las graficas del dashboard.', 'Could not load dashboard charts.'],
   ['No se pudo validar el CSV.', 'Could not validate the CSV.'],
   ['No se pudo importar el CSV.', 'Could not import the CSV.'],
@@ -447,21 +447,21 @@ const translationPairs = [
   ['Stock guardado correctamente.', 'Stock saved successfully.'],
   ['Usuario actualizado.', 'User updated.'],
   ['Ajustes restablecidos.', 'Settings reset.'],
-  ['Escriba su nueva contrasena para continuar.', 'Enter your new password to continue.'],
-  ['Ocultar contrasena', 'Hide password'],
-  ['Mostrar contrasena', 'Show password'],
+  ['Escriba su nueva contraseña para continuar.', 'Enter your new password to continue.'],
+  ['Ocultar contraseña', 'Hide password'],
+  ['Mostrar contraseña', 'Show password'],
   ['Chart.js no esta disponible.', 'Chart.js is not available.'],
   ['Actualizar mantenimiento', 'Update maintenance'],
   ['Modificar dispositivo en stock', 'Edit stock device'],
   ['Inventario de activos', 'Asset inventory'],
   ['Inventario de accesorios', 'Accessory inventory'],
   ['Listado filtrado por tipo, marca y modelo', 'List filtered by type, brand and model'],
-  ['No se pudo cerrar la sesion en servidor:', 'Could not logout on server:'],
+  ['No se pudo cerrar la sesión en servidor:', 'Could not logout on server:'],
   ['Carga secundaria no disponible:', 'Secondary load not available:'],
   ['No se pudo obtener token CSRF:', 'Could not get CSRF token:'],
-  ['No se pudo limpiar sesion previa:', 'Could not clear previous session:'],
-  ['Error cargando estadisticas del dashboard:', 'Error loading dashboard statistics:'],
-  ['Nueva contrasena maxima de 12 caracteres:', 'New password max 12 characters:'],
+  ['No se pudo limpiar sesión previa:', 'Could not clear previous session:'],
+  ['Error cargando estadísticas del dashboard:', 'Error loading dashboard statistics:'],
+  ['Nueva contraseña máxima de 12 caracteres:', 'New password max 12 characters:'],
   ['CSV con errores:', 'CSV with errors:'],
   ['debe estar entre 1990 y 2100.', 'must be between 1990 and 2100.'],
   ['listo para guardarse en la base de datos.', 'ready to be saved to the database.'],
@@ -470,8 +470,8 @@ const translationPairs = [
   ['Nuevo equipo', 'New equipment'],
   ['Nuevo accesorio', 'New accessory'],
   ['Sistema de inventario SATI-TIMSA', 'SATI-TIMSA Inventory System'],
-  ['Solicite un codigo de 4 digitos y capture una nueva contrasena para entrar nuevamente.', 'Request a 4-digit code and set a new password to log in again.'],
-  ['Si el usuario ya tiene correo registrado, el codigo llegara ahi. Si no, escriba un correo para recibirlo.', 'If the user already has a registered email, the code will arrive there. If not, enter an email to receive it.'],
+  ['Solicite un código de 4 dígitos y capture una nueva contraseña para entrar nuevamente.', 'Request a 4-digit code and set a new password to log in again.'],
+  ['Si el usuario ya tiene correo registrado, el código llegara ahi. Si no, escriba un correo para recibirlo.', 'If the user already has a registered email, the code will arrive there. If not, enter an email to receive it.'],
   ['usuario@empresa.com', 'user@company.com'],
   ['Menu', 'Menu'],
   ['Recordatorio', 'Reminder'],
@@ -479,17 +479,17 @@ const translationPairs = [
   ['Fecha y hora', 'Date and time'],
   ['Guardar nota', 'Save note'],
   ['Sin registros para mostrar.', 'No records to show.'],
-  ['Resultados por pagina', 'Results per page'],
+  ['Resultados por página', 'Results per page'],
   ['Buscar', 'Search'],
   ['Nombre, modelo o serie', 'Name, model or serial'],
   ['Entidad', 'Entity'],
   ['Serie, usuario, entidad o detalle', 'Serial, user, entity or detail'],
-  ['Cambios por pagina', 'Changes per page'],
-  ['Administracion de usuarios', 'User administration'],
-  ['Solo el rol ADMIN puede crear usuarios, cambiar roles, activar o bloquear cuentas y reiniciar contrasenas.', 'Only ADMIN role can create users, change roles, activate or block accounts and reset passwords.'],
-  ['Base de datos cloud para inventario, usuarios, roles, auditoria y disponibilidad.', 'Cloud database for inventory, users, roles, audit and availability.'],
-  ['Servicios de autenticacion, catalogos, inventario y usuarios.', 'Authentication services, catalogs, inventory and users.'],
-  ['Interfaz operativa preparada para despliegue web de produccion.', 'Operational interface ready for production web deployment.'],
+  ['Cambios por página', 'Changes per page'],
+  ['Administración de usuarios', 'User administration'],
+  ['Solo el rol ADMIN puede crear usuarios, cambiar roles, activar o bloquear cuentas y reiniciar contraseñas.', 'Only ADMIN role can create users, change roles, activate or block accounts and reset passwords.'],
+  ['Base de datos cloud para inventario, usuarios, roles, auditoría y disponibilidad.', 'Cloud database for inventory, users, roles, audit and availability.'],
+  ['Servicios de autenticación, catalogos, inventario y usuarios.', 'Authentication services, catalogs, inventory and users.'],
+  ['Interfaz operativa preparada para despliegue web de producción.', 'Operational interface ready for production web deployment.'],
   ['ID de stock', 'Stock ID'],
   ['Ej. STOCK-PILA-001', 'E.g. STOCK-PILA-001'],
   ['Laptop, monitor, radio...', 'Laptop, monitor, radio...'],
@@ -502,15 +502,15 @@ const translationPairs = [
   ['10.132.4.51', '10.132.4.51'],
   ['Admin - todo acceso', 'Admin - full access'],
   ['TI - CRUD de inventario', 'IT - inventory CRUD'],
-  ['Personal - lectura y busqueda', 'Staff - read and search'],
+  ['Personal - lectura y búsqueda', 'Staff - read and search'],
   ['usuario', 'user'],
   ['usuario@gmail.com', 'user@gmail.com'],
   ['Agregar registro', 'Add record'],
-  ['Catalogos', 'Catalogs'],
-  ['Bitacora operativa con busqueda, filtros y paginacion para revisar toda la actividad del sistema.', 'Operational log with search, filters and pagination to review all system activity.'],
+  ['Catálogos', 'Catalogs'],
+  ['Bitácora operativa con búsqueda, filtros y paginación para revisar toda la actividad del sistema.', 'Operational log with search, filters and pagination to review all system activity.'],
   ['Notificaciones', 'Notifications'],
   ['Notas y recordatorios', 'Notes and reminders'],
-  ['Cerrar sesion', 'Logout'],
+  ['Cerrar sesión', 'Logout'],
   ['Resguardo', 'Assigned hold'],
   ['Baja', 'Retired'],
   ['No se pudo conectar con la impresora. ¿Descargar archivo ZPL para imprimir manualmente?', 'Could not connect to printer. Download ZPL file to print manually?'],
@@ -532,7 +532,7 @@ const translationPairs = [
   ['Contactar Soporte', 'Contact Support'],
   ['Estado del equipo', 'Device Status'],
   ['Ciclo de vida', 'Lifecycle'],
-  ['Garantia', 'Warranty'],
+  ['Garantía', 'Warranty'],
   ['Mantenimiento', 'Maintenance'],
   ['Sin incidencias', 'No issues'],
   ['En mantenimiento', 'In maintenance'],
@@ -555,14 +555,14 @@ const translationPairs = [
   ['Nota', 'Note'],
   ['Recordatorio', 'Reminder'],
   ['Sistema operativo', 'Operating system'],
-  ['Escanear codigo de barras', 'Scan barcode'],
-  ['Alinee el codigo de barras dentro del marco', 'Align the barcode inside the frame'],
+  ['Escanear código de barras', 'Scan barcode'],
+  ['Alinee el código de barras dentro del marco', 'Align the barcode inside the frame'],
   ['Escaneado exitosamente', 'Scanned successfully'],
   ['Error al iniciar la camara: ', 'Camera error: '],
   ['Buscando equipo...', 'Searching equipment...'],
   ['Equipo encontrado', 'Equipment found'],
   ['Abriendo equipo...', 'Opening equipment...'],
-  ['No se encontro equipo con ese codigo', 'No equipment found with that code'],
+  ['No se encontro equipo con ese código', 'No equipment found with that code'],
   ['Intente de nuevo o ingrese manualmente', 'Try again or enter manually'],
   ['O ingrese manualmente:', 'Or enter manually:'],
   ['Buscar', 'Search'],
@@ -572,8 +572,8 @@ const translationPairs = [
   ['Contactar Soporte', 'Contact support'],
   ['Envie un correo al equipo de soporte tecnico', 'Send an email to the technical support team'],
   ['Enviar correo', 'Send email'],
-  ['Cambiar contrasena', 'Change password'],
-  ['Actualice su contrasena de acceso al sistema', 'Update your system login password'],
+  ['Cambiar contraseña', 'Change password'],
+  ['Actualice su contraseña de acceso al sistema', 'Update your system login password'],
   ['Enviar sugerencia', 'Send suggestion'],
   ['Comparta ideas para mejorar el sistema', 'Share ideas to improve the system'],
   ['Su sugerencia', 'Your suggestion'],
@@ -625,12 +625,12 @@ async function api(path, options = {}) {
     payload = await response.json();
   } catch {
     if (response.ok) {
-      throw new Error(uiText('Respuesta invalida del servidor.', 'Invalid server response.'));
+      throw new Error(uiText('Respuesta inválida del servidor.', 'Invalid server response.'));
     }
     payload = {};
   }
   if (!response.ok) {
-    throw new Error(payload.message || uiText('Solicitud fallida. Verifique que la API de produccion este disponible.', 'Request failed. Check that the production API is available.'));
+    throw new Error(payload.message || uiText('Solicitud fallida. Verifique que la API de producción este disponible.', 'Request failed. Check that the production API is available.'));
   }
   return payload;
 }
@@ -813,11 +813,11 @@ function viewCopy(view) {
     console: ['Consola de inventario', 'Dashboard general del inventario de activos'],
     inventory: ['Inventario', 'Listado general de activos y accesorios registrados'],
     hardware: ['Inventario de activos', 'Laptops, monitores, desktops, red, servidores y movilidad'],
-    equipment: ['Inventario de activos', 'Clasificacion por tipo de activo'],
+    equipment: ['Inventario de activos', 'Clasificación por tipo de activo'],
     accessories: ['Inventario de accesorios', 'Perifericos y accesorios asignados o en resguardo'],
-    maintenance: ['Equipos en mantenimiento', 'Seguimiento por fases de revision, proceso y termino'],
-    stock: ['Stock de almacenamiento', 'Disponibilidad por ubicacion y area'],
-    recent: ['Cambios recientes', 'Actividad completa con filtros, busqueda y paginacion'],
+    maintenance: ['Equipos en mantenimiento', 'Seguimiento por fases de revisión, proceso y término'],
+    stock: ['Stock de almacenamiento', 'Disponibilidad por ubicación y área'],
+    recent: ['Cambios recientes', 'Actividad completa con filtros, búsqueda y paginación'],
     users: ['Usuarios', 'Alta, roles y seguridad de acceso'],
     cloud: ['Servicios cloud', 'Vercel, Supabase PostgreSQL y Supabase Storage']
   };
@@ -867,14 +867,14 @@ function translateValue(value, map) {
     [/^(\d+) available$/i, language === 'en' ? '$1 available' : '$1 disponibles'],
     [/^Mostrando (\d+) resultados$/i, language === 'en' ? 'Showing $1 results' : 'Mostrando $1 resultados'],
     [/^Showing (\d+) results$/i, language === 'en' ? 'Showing $1 results' : 'Mostrando $1 resultados'],
-    [/^Pagina (\d+) de (\d+)$/i, language === 'en' ? 'Page $1 of $2' : 'Pagina $1 de $2'],
-    [/^Page (\d+) of (\d+)$/i, language === 'en' ? 'Page $1 of $2' : 'Pagina $1 de $2'],
+    [/^Página (\d+) de (\d+)$/i, language === 'en' ? 'Page $1 of $2' : 'Página $1 de $2'],
+    [/^Page (\d+) of (\d+)$/i, language === 'en' ? 'Page $1 of $2' : 'Página $1 de $2'],
     [/^Mostrando (\d+) eventos$/i, language === 'en' ? 'Showing $1 events' : 'Mostrando $1 eventos'],
     [/^Showing (\d+) events$/i, language === 'en' ? 'Showing $1 events' : 'Mostrando $1 eventos'],
     [/^Mostrando (\d+) cambios$/i, language === 'en' ? 'Showing $1 changes' : 'Mostrando $1 cambios'],
     [/^Showing (\d+) changes$/i, language === 'en' ? 'Showing $1 changes' : 'Mostrando $1 cambios'],
-    [/^(\d+) por pagina$/i, language === 'en' ? '$1 per page' : '$1 por pagina'],
-    [/^(\d+) per page$/i, language === 'en' ? '$1 per page' : '$1 por pagina']
+    [/^(\d+) por página$/i, language === 'en' ? '$1 per page' : '$1 por página'],
+    [/^(\d+) per page$/i, language === 'en' ? '$1 per page' : '$1 por página']
   ];
   const match = patterns.find(([pattern]) => pattern.test(trimmed));
   return match ? text.replace(trimmed, trimmed.replace(match[0], match[1])) : text;
@@ -1318,7 +1318,7 @@ function printAssetLabel() {
     clone.id = 'printBc';
     svg.parentNode.replaceChild(clone, svg);
   }
-  toast(uiText('Etiqueta generada para impresion', 'Label ready for printing'), 'success');
+  toast(uiText('Etiqueta generada para impresión', 'Label ready for printing'), 'success');
   window.print();
   wrapper.remove();
 }
@@ -1442,7 +1442,7 @@ function renderDashboardInsights() {
   const statusItems = [
     { label: 'Operativos', value: Number(totals.active || 0), className: 'active' },
     { label: 'En mantenimiento', value: Number(totals.maintenance || 0), className: 'maintenance' },
-    { label: 'Fuera de operacion', value: Number(totals.inactive || 0), className: 'inactive' }
+    { label: 'Fuera de operación', value: Number(totals.inactive || 0), className: 'inactive' }
   ];
   let start = 0;
   const darkTheme = document.body?.dataset?.theme === 'dark';
@@ -1469,9 +1469,9 @@ function renderDashboardInsights() {
 
   const warranty = dashboard.warranty || {};
   $('#warrantyInsights').innerHTML = esc`
-    <div><strong>${warranty.expired || 0}</strong><span>Garantia vencida</span></div>
-    <div><strong>${warranty.next_30 || 0}</strong><span>Vence en 30 dias</span></div>
-    <div><strong>${warranty.next_90 || 0}</strong><span>Vence en 90 dias</span></div>
+    <div><strong>${warranty.expired || 0}</strong><span>Garantía vencida</span></div>
+    <div><strong>${warranty.next_30 || 0}</strong><span>Vence en 30 días</span></div>
+    <div><strong>${warranty.next_90 || 0}</strong><span>Vence en 90 días</span></div>
   `;
 
   const maxType = Math.max(1, ...(dashboard.by_type || []).map((item) => Number(item.total)));
@@ -1481,7 +1481,7 @@ function renderDashboardInsights() {
       <strong>${item.total}</strong>
       <i data-width="${Math.max(6, Math.round((Number(item.total) / maxType) * 100))}"></i>
     </div>
-  `).join('') || '<p class="empty-module">Sin informacion disponible.</p>';
+  `).join('') || '<p class="empty-module">Sin información disponible.</p>';
 
   const maxLocation = Math.max(1, ...(dashboard.by_location || []).map((item) => Number(item.total)));
   $('#locationInsights').innerHTML = (dashboard.by_location || []).map((item) => `
@@ -1490,7 +1490,7 @@ function renderDashboardInsights() {
       <strong>${item.total}</strong>
       <i data-width="${Math.max(6, Math.round((Number(item.total) / maxLocation) * 100))}"></i>
     </div>
-  `).join('') || '<p class="empty-module">Sin informacion disponible.</p>';
+  `).join('') || '<p class="empty-module">Sin información disponible.</p>';
 
   const maxMaintenance = Math.max(1, ...(dashboard.maintenance || []).map((item) => Number(item.total)));
   $('#maintenanceInsights').innerHTML = (dashboard.maintenance || []).map((item) => `
@@ -1499,7 +1499,7 @@ function renderDashboardInsights() {
       <strong>${item.total}</strong>
       <i data-width="${Math.max(6, Math.round((Number(item.total) / maxMaintenance) * 100))}"></i>
     </div>
-  `).join('') || '<p class="empty-module">Sin ordenes activas.</p>';
+  `).join('') || '     <p class="empty-module">Sin órdenes activas.</p>';
 
   const stock = dashboard.stock || {};
   $('#stockInsights').innerHTML = esc`
@@ -1628,12 +1628,12 @@ async function loadDashboardStats() {
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      throw new Error(payload.message || uiText('No se pudieron cargar las estadisticas del dashboard.', 'Could not load dashboard statistics.'));
+      throw new Error(payload.message || uiText('No se pudieron cargar las estadísticas del dashboard.', 'Could not load dashboard statistics.'));
     }
     state.dashboardStats = payload;
     renderDashboardStats(payload);
   } catch (error) {
-    console.error('Error cargando estadisticas del dashboard:', error);
+    console.error('Error cargando estadísticas del dashboard:', error);
     toast(uiText('No se pudieron cargar las graficas del dashboard.', 'Could not load dashboard charts.'), 'error');
   }
 }
@@ -1936,7 +1936,7 @@ function renderInventory() {
     : `Mostrando ${first}-${last} de ${meta.total} resultados`;
   $('#pageIndicator').textContent = normalizedSettings().language === 'en'
     ? `Page ${meta.page} of ${meta.total_pages}`
-    : `Pagina ${meta.page} de ${meta.total_pages}`;
+    : `Página ${meta.page} de ${meta.total_pages}`;
   $('#prevPageButton').disabled = meta.page <= 1;
   $('#nextPageButton').disabled = meta.page >= meta.total_pages;
 
@@ -1959,7 +1959,7 @@ function renderInventory() {
       <td data-label="Ubicacion">${item.location}</td>
       <td data-label="Area">${item.area}</td>
       <td data-label="Usuario">${item[fieldKeys.au] || 'Sin asignar'}</td>
-      <td data-label="Accion"><button class="ghost row-action" data-edit="${raw(item.id)}" aria-label="Ver detalle">${raw(uiIcon('more'))}</button></td>
+             <td data-label="Acción"><button class="ghost row-action" data-edit="${raw(item.id)}" aria-label="Ver detalle">${raw(uiIcon('more'))}</button></td>
     `;
     inventoryBody.appendChild(row);
   });
@@ -1994,15 +1994,15 @@ function renderEquipmentTypeList() {
 function typeDescription(typeName, total) {
   const normalized = normalizeText(typeName);
   const descriptions = [
-    [['laptop', 'laptops'], uiText('Equipos portatiles asignados a usuarios y areas.', 'Portable equipment assigned to users and areas.')],
+    [['laptop', 'laptops'], uiText('Equipos portátiles asignados a usuarios y áreas.', 'Portable equipment assigned to users and areas.')],
     [['monitor', 'monitores'], uiText('Pantallas asignadas a estaciones de trabajo.', 'Screens assigned to workstations.')],
-    [['desktop', 'destoktop', 'desktop'], uiText('Estaciones fijas en operacion.', 'Fixed stations in operation.')],
+    [['desktop', 'destoktop', 'desktop'], uiText('Estaciones fijas en operación.', 'Fixed stations in operation.')],
     [['projector', 'proyector', 'proyectores'], uiText('Equipo audiovisual inventariado.', 'Inventoried audiovisual equipment.')],
-    [['router', 'routers'], uiText('Red y conectividad por area.', 'Network and connectivity by area.')],
+    [['router', 'routers'], uiText('Red y conectividad por área.', 'Network and connectivity by area.')],
     [['server', 'servers'], uiText('Infraestructura critica de TI.', 'Critical IT infrastructure.')],
     [['switch'], uiText('Equipo de comunicacion y red.', 'Communication and network equipment.')],
-    [['tablet', 'tablets'], uiText('Dispositivos moviles operativos.', 'Operational mobile devices.')],
-    [['telefono', 'phone'], uiText('Telefonia asignada a usuarios o areas.', 'Telephony assigned to users or areas.')],
+    [['tablet', 'tablets'], uiText('Dispositivos móviles operativos.', 'Operational mobile devices.')],
+    [['telefono', 'phone'], uiText('Telefonía asignada a usuarios o áreas.', 'Telephony assigned to users or areas.')],
     [['ups', 'upc'], uiText('Respaldo electrico inventariado.', 'Inventoried power backup.')],
     [['workstation', 'workstacion'], uiText('Equipos de alto rendimiento.', 'High performance equipment.')]
   ];
@@ -2236,7 +2236,7 @@ function renderStockView() {
     <header>
       <div>
         <span class="eyebrow">Disponibilidad</span>
-        <strong>Menor a mayor por ubicacion y area</strong>
+        <strong>Menor a mayor por ubicación y área</strong>
       </div>
     </header>
     <div class="availability-grid">
@@ -2588,20 +2588,20 @@ async function editCatalogTarget() {
     body: JSON.stringify({ name })
   });
   await refreshAfterCatalogMutation();
-  toast(uiText('Catalogo actualizado.', 'Catalog updated.'), 'success');
+  toast(uiText('Catálogo actualizado.', 'Catalog updated.'), 'success');
 }
 
 async function deleteCatalogTarget() {
   const target = catalogContextTarget;
   closeCatalogContextMenu();
   if (!target) return;
-  const confirmed = window.confirm(`${uiText('Seguro que desea eliminar esta opcion?', 'Are you sure you want to delete this option?')}\n${target.name}`);
+  const confirmed = window.confirm(`${uiText('Seguro que desea eliminar esta opción?', 'Are you sure you want to delete this option?')}\n${target.name}`);
   if (!confirmed) return;
   await api(`/lookups/${target.kind}/${encodeURIComponent(target.id)}`, {
     method: 'DELETE'
   });
   await refreshAfterCatalogMutation();
-  toast(uiText('Catalogo eliminado.', 'Catalog deleted.'), 'success');
+  toast(uiText('Catálogo eliminado.', 'Catalog deleted.'), 'success');
 }
 
 function catalogLinksForSelectedType() {
@@ -2860,7 +2860,7 @@ function renderHealthStatus(item, maintenance, warrantyUntil) {
   const statusConfig = {
     almacen: { label: uiText('En almacen', 'In storage'), cls: 'health--inactive' },
     asignado: { label: uiText('Asignado a usuario', 'Assigned to user'), cls: 'health--ok' },
-    reparacion: { label: uiText('En reparacion', 'Under repair'), cls: 'health--warn' },
+    reparación: { label: uiText('En reparación', 'Under repair'), cls: 'health--warn' },
     baja: { label: uiText('Dado de baja', 'Retired'), cls: 'health--critical' },
     donado: { label: uiText('Donado / Transferido', 'Donated / Transferred'), cls: 'health--critical' },
     activo: { label: uiText('Activo', 'Active'), cls: 'health--ok' },
@@ -2870,9 +2870,9 @@ function renderHealthStatus(item, maintenance, warrantyUntil) {
   const lc = statusConfig[lifecycleStatus] || { label: lifecycleStatus, cls: '' };
 
   const warrantyConfig = {
-    active: { label: uiText('Garantia vigente', 'Warranty active'), cls: 'health--ok' },
-    expiring: { label: uiText('Proximo a vencer', 'Expiring soon'), cls: 'health--warn' },
-    expired: { label: uiText('Garantia vencida', 'Warranty expired'), cls: 'health--critical' }
+    active: { label: uiText('Garantía vigente', 'Warranty active'), cls: 'health--ok' },
+    expiring: { label: uiText('Próximo a vencer', 'Expiring soon'), cls: 'health--warn' },
+    expired: { label: uiText('Garantía vencida', 'Warranty expired'), cls: 'health--critical' }
   };
   const wc = warrantyConfig[warrantyStatus];
 
@@ -2892,7 +2892,7 @@ function renderHealthStatus(item, maintenance, warrantyUntil) {
     <div class="health-card">
       <span class="health-card-icon ${raw(wc.cls)}"></span>
       <div>
-        <strong>${uiText('Garantia', 'Warranty')}</strong>
+        <strong>${uiText('Garantía', 'Warranty')}</strong>
         <span>${wc.label}${warrantyDate ? ' &middot; ' + raw(warrantyDate.toLocaleDateString()) : ''}</span>
       </div>
     </div>` : '')}
@@ -2918,7 +2918,7 @@ function renderEquipmentProfile(profile) {
   const itemFields = [
     { label: uiText('Proveedor', 'Supplier'), value: item.supplier },
     { label: uiText('Compra', 'Purchase'), value: item.purchase_date ? String(item.purchase_date).slice(0, 10) : null },
-    { label: uiText('Garantia', 'Warranty'), value: item.warranty_until ? String(item.warranty_until).slice(0, 10) : null },
+    { label: uiText('Garantía', 'Warranty'), value: item.warranty_until ? String(item.warranty_until).slice(0, 10) : null },
     { label: uiText('Actualizado por', 'Updated by'), value: item.updated_by_name || null }
   ].filter((f) => f.value);
   const hwHtml = renderHardwareComponents(hwComponents);
@@ -3181,7 +3181,7 @@ function openUserDialog(user = null) {
   userForm.elements.password.required = !user;
   userForm.elements.password.value = '';
   $('#userDialogTitle').textContent = user ? uiText('Editar usuario', 'Edit user') : uiText('Agregar usuario', 'Add user');
-  $('#userPasswordField').childNodes[0].nodeValue = user ? uiText('Nueva contrasena opcional', 'Optional new password') : uiText('Contrasena inicial', 'Initial password');
+  $('#userPasswordField').childNodes[0].nodeValue = user ? uiText('Nueva contraseña opcional', 'Optional new password') : uiText('Contraseña inicial', 'Initial password');
   $('#deleteUserButton').classList.toggle('hidden', !user);
   $('#saveUserButton').textContent = user ? uiText('Actualizar usuario', 'Update user') : uiText('Guardar usuario', 'Save user');
   userDialog.showModal();
@@ -3370,7 +3370,7 @@ function formPayload() {
   }
 
   data.purchase_date = normalizeOptionalDateField('purchase_date', uiText('Fecha de compra', 'Purchase date'));
-  data.warranty_until = normalizeOptionalDateField('warranty_until', uiText('Garantia hasta', 'Warranty until'));
+  data.warranty_until = normalizeOptionalDateField('warranty_until', uiText('Garantía hasta', 'Warranty until'));
   return data;
 }
 
@@ -3411,24 +3411,24 @@ function openCatalogDialog(type) {
       `
     },
     location: {
-      title: uiText('Agregar ubicacion', 'Add location'),
+      title: uiText('Agregar ubicación', 'Add location'),
       html: `
-        <label>${uiText('Ubicacion', 'Location')}<input name="name" required minlength="2" maxlength="120" placeholder="${uiText('Ej. Patio de Maniobras', 'E.g. Maneuvering Yard')}"></label>
-        <label>${uiText('Area inicial', 'Initial area')}<input name="area_name" required minlength="2" maxlength="120" value="${uiText('General', 'General')}"></label>
-        <label class="wide">${uiText('Direccion o referencia', 'Address or reference')}<input name="address" maxlength="500" placeholder="${uiText('Referencia fisica opcional', 'Optional physical reference')}"></label>
+        <label>${uiText('Ubicación', 'Location')}<input name="name" required minlength="2" maxlength="120" placeholder="${uiText('Ej. Patio de Maniobras', 'E.g. Maneuvering Yard')}"></label>
+        <label>${uiText('Área inicial', 'Initial area')}<input name="area_name" required minlength="2" maxlength="120" value="${uiText('General', 'General')}"></label>
+        <label class="wide">${uiText('Dirección o referencia', 'Address or reference')}<input name="address" maxlength="500" placeholder="${uiText('Referencia física opcional', 'Optional physical reference')}"></label>
       `
     },
     area: {
-      title: uiText('Agregar area', 'Add area'),
+      title: uiText('Agregar área', 'Add area'),
       html: `
-        <label>${uiText('Ubicacion', 'Location')}
+        <label>${uiText('Ubicación', 'Location')}
           <select name="location_id" required>
             ${state.lookups.locations.map((location) => `
               <option value="${location.id}" ${String(location.id) === String(activeLocationId) ? 'selected' : ''}>${escapeHtml(location.name)}</option>
             `).join('')}
           </select>
         </label>
-        <label class="wide">${uiText('Area nueva', 'New area')}<input name="name" required minlength="2" maxlength="120" placeholder="${uiText('Ej. Soporte TI', 'E.g. IT Support')}"></label>
+        <label class="wide">${uiText('Área nueva', 'New area')}<input name="name" required minlength="2" maxlength="120" placeholder="${uiText('Ej. Soporte TI', 'E.g. IT Support')}"></label>
       `
     },
     [fieldKeys.au]: {
@@ -3783,7 +3783,7 @@ async function boot() {
   try {
     await api('/auth/logout', { method: 'POST' });
   } catch (error) {
-    console.warn('No se pudo limpiar sesion previa:', error.message);
+    console.warn('No se pudo limpiar sesión previa:', error.message);
   }
   state.user = null;
   showLogin();
@@ -3826,7 +3826,7 @@ function applyResetLinkParams() {
   const resetCode = params.get('reset_code');
   if (!resetUser && !resetCode) return;
 
-    showResetPanel(uiText('Escriba su nueva contrasena para continuar.', 'Enter your new password to continue.'));
+    showResetPanel(uiText('Escriba su nueva contraseña para continuar.', 'Enter your new password to continue.'));
   if (resetUser) resetForm.elements.username.value = resetUser;
   if (resetCode) resetForm.elements.reset_code.value = resetCode;
 
@@ -3847,7 +3847,7 @@ $('#loginForm').addEventListener('submit', async (event) => {
     await startSession(credentials, rememberUsername);
   } catch (error) {
     $('#loginMessage').textContent = error.message;
-    if (error.message.includes('codigo') || error.message.includes('contrasena')) {
+    if (error.message.includes('código') || error.message.includes('contraseña')) {
       showResetPanel(error.message);
     }
   }
@@ -3873,7 +3873,7 @@ $('#passwordToggle').addEventListener('click', () => {
   const secretInput = $('#loginForm').elements[fieldKeys.pw];
   const isSecret = secretInput.type === fieldKeys.pw;
   secretInput.type = isSecret ? 'text' : fieldKeys.pw;
-  $('#passwordToggle').setAttribute('aria-label', isSecret ? uiText('Ocultar contrasena', 'Hide password') : uiText('Mostrar contrasena', 'Show password'));
+  $('#passwordToggle').setAttribute('aria-label', isSecret ? uiText('Ocultar contraseña', 'Hide password') : uiText('Mostrar contraseña', 'Show password'));
 });
 
 $('#requestResetButton').addEventListener('click', async () => {
@@ -3923,7 +3923,7 @@ $('#logoutButton').addEventListener('click', async () => {
   try {
     await api('/auth/logout', { method: 'POST' });
   } catch (error) {
-    console.warn('No se pudo cerrar la sesion en servidor:', error.message);
+    console.warn('No se pudo cerrar la sesión en servidor:', error.message);
   }
   clearStoredAuth();
   state.user = null;
@@ -4365,7 +4365,7 @@ async function startBarcodeScanner() {
       () => {}
     );
 
-    hint.textContent = uiText('Alinee el codigo de barras dentro del marco', 'Align the barcode inside the frame');
+    hint.textContent = uiText('Alinee el código de barras dentro del marco', 'Align the barcode inside the frame');
   } catch (err) {
     result.textContent = uiText('Error al iniciar la camara: ', 'Camera error: ') + err.message;
     result.className = 'scanner-result error';
@@ -4408,7 +4408,7 @@ async function searchByBarcode(code) {
         openEquipment(item);
       }, 400);
     } else {
-      result.textContent = uiText('No se encontro equipo con ese codigo', 'No equipment found with that code');
+      result.textContent = uiText('No se encontro equipo con ese código', 'No equipment found with that code');
       result.className = 'scanner-result error';
       hint.textContent = uiText('Intente de nuevo o ingrese manualmente', 'Try again or enter manually');
     }
@@ -4919,7 +4919,7 @@ $('#userAdminList').addEventListener('click', async (event) => {
       const input = $('#adminResetInput');
       const label = $('#adminResetLabel');
       input.value = '';
-      label.textContent = uiText('Nueva contrasena (max 12 caracteres):', 'New password (max 12 chars):');
+      label.textContent = uiText('Nueva contraseña (max 12 caracteres):', 'New password (max 12 chars):');
       const result = await new Promise((resolve) => {
         dialog.addEventListener('close', () => resolve(dialog.returnValue), { once: true });
         dialog.showModal();
@@ -4932,7 +4932,7 @@ $('#userAdminList').addEventListener('click', async (event) => {
         method: 'POST',
         body: JSON.stringify({ [fieldKeys.pw]: secret })
       });
-      toast(uiText('Contrasena reiniciada.', 'Password reset.'), 'success');
+      toast(uiText('Contraseña reiniciada.', 'Password reset.'), 'success');
     }
   } catch (error) {
     toast(error.message, 'error');

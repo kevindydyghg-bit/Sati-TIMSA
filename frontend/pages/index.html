@@ -21,7 +21,7 @@
         </div>
 
         <form class="login-card" id="loginForm">
-          <h2>Iniciar sesion</h2>
+          <h2>Iniciar sesión</h2>
           <p>Ingrese sus credenciales para acceder al sistema</p>
           <label>
             Usuario
@@ -35,14 +35,14 @@
             <span class="input-icon input-icon--action">
               <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
               <input type="password" name="password" autocomplete="current-password" required maxlength="128" placeholder="Contrasena">
-              <button class="password-toggle" id="passwordToggle" type="button" aria-label="Mostrar contrasena">
+              <button class="password-toggle" id="passwordToggle" type="button" aria-label="Mostrar contraseña">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"></path><circle cx="12" cy="12" r="3"></circle></svg>
               </button>
             </span>
           </label>
           <div class="login-options">
             <label class="check-line"><input type="checkbox" name="remember_username"><span>Recordarme</span></label>
-            <a href="#forgot" id="forgotPasswordLink">Olvido su contrasena?</a>
+            <a href="#forgot" id="forgotPasswordLink">¿Olvidó su contraseña?</a>
           </div>
           <button type="button" id="loginButton">Entrar</button>
           <p class="form-message" id="loginMessage"></p>
@@ -50,10 +50,10 @@
         </form>
         <form class="login-card reset-card hidden" id="resetForm">
           <button class="ghost reset-back" id="closeResetPanelButton" type="button"><span class="button-icon">&lt;</span>Regresar</button>
-          <h2>Recuperar contrasena</h2>
-          <p>Solicite un codigo de 4 digitos y capture una nueva contrasena para entrar nuevamente.</p>
+          <h2>Recuperar contraseña</h2>
+          <p>Solicite un código de 4 digitos y capture una nueva contraseña para entrar nuevamente.</p>
           <section class="reset-panel" id="resetPanel">
-            <p>Si el usuario ya tiene correo registrado, el codigo llegara ahi. Si no, escriba un correo para recibirlo.</p>
+            <p>Si el usuario ya tiene correo registrado, el código llegara ahi. Si no, escriba un correo para recibirlo.</p>
             <label>
               Usuario
               <input name="username" type="text" autocomplete="username" required maxlength="40" placeholder="Usuario">
@@ -62,16 +62,16 @@
               Correo de recuperacion
               <input name="reset_email" type="email" autocomplete="email" maxlength="160" placeholder="usuario@empresa.com">
             </label>
-            <button class="ghost" type="button" id="requestResetButton">Enviar codigo</button>
+            <button class="ghost" type="button" id="requestResetButton">Enviar código</button>
             <label>
               Codigo
               <input name="reset_code" inputmode="numeric" autocomplete="one-time-code" maxlength="4" pattern="[0-9]{4}" placeholder="0000">
             </label>
             <label>
-              Nueva contrasena
-              <input name="reset_password" type="password" autocomplete="new-password" maxlength="128" placeholder="Nueva contrasena">
+              Nueva contraseña
+              <input name="reset_password" type="password" autocomplete="new-password" maxlength="128" placeholder="Nueva contraseña">
             </label>
-            <button type="button" id="confirmResetButton">Cambiar contrasena</button>
+            <button type="button" id="confirmResetButton">Cambiar contraseña</button>
           </section>
           <p class="form-message" id="resetMessage"></p>
           <small class="login-footer">&copy; 2026 Hutchison Ports TIMSA.</small>
@@ -114,11 +114,11 @@
               <!-- UI_FIX: Help & Suggestions button (replaces change password) -->
               <button class="top-icon" id="helpSuggestionsButton" type="button" aria-label="Ayuda y sugerencias"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path></svg></button>
               <!-- UI_FIX: Barcode scanner button -->
-              <button class="top-icon" id="barcodeScannerButton" type="button" aria-label="Escanear codigo de barras"><svg viewBox="0 0 24 24"><path d="M2 9V5a2 2 0 0 1 2-2h3"></path><path d="M2 15v4a2 2 0 0 0 2 2h3"></path><path d="M22 9V5a2 2 0 0 0-2-2h-3"></path><path d="M22 15v4a2 2 0 0 1-2 2h-3"></path><path d="M7 12h.01"></path><path d="M12 12h.01"></path><path d="M17 12h.01"></path></svg></button>
+              <button class="top-icon" id="barcodeScannerButton" type="button" aria-label="Escanear código de barras"><svg viewBox="0 0 24 24"><path d="M2 9V5a2 2 0 0 1 2-2h3"></path><path d="M2 15v4a2 2 0 0 0 2 2h3"></path><path d="M22 9V5a2 2 0 0 0-2-2h-3"></path><path d="M22 15v4a2 2 0 0 1-2 2h-3"></path><path d="M7 12h.01"></path><path d="M12 12h.01"></path><path d="M17 12h.01"></path></svg></button>
 
               <div class="avatar">AD</div>
               <div class="user-pill" id="userPill"></div>
-              <button class="top-icon" id="logoutButton" type="button" aria-label="Cerrar sesion"><svg viewBox="0 0 24 24"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"></path><path d="M10 8l-4 4 4 4"></path><path d="M6 12h11"></path><path d="M14 4v16"></path></svg></button>
+              <button class="top-icon" id="logoutButton" type="button" aria-label="Cerrar sesión"><svg viewBox="0 0 24 24"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"></path><path d="M10 8l-4 4 4 4"></path><path d="M6 12h11"></path><path d="M14 4v16"></path></svg></button>
             </div>
           </div>
           <!-- UI_FIX: Notification panel with Notes / Reminders tabs -->
@@ -229,14 +229,14 @@
             <article>
               <header>
                 <span class="eyebrow">Tipos</span>
-                <strong>Distribucion por tipo de equipo</strong>
+                <strong>Distribución por tipo de equipo</strong>
               </header>
-              <canvas id="chartTipos" aria-label="Distribucion por tipo de equipo"></canvas>
+              <canvas id="chartTipos" aria-label="Distribución por tipo de equipo"></canvas>
             </article>
             <article>
               <header>
-                <span class="eyebrow">Areas</span>
-                <strong>Equipos por area</strong>
+                <span class="eyebrow">Áreas</span>
+                <strong>Equipos por área</strong>
               </header>
               <canvas id="chartAreas" aria-label="Equipos por area"></canvas>
             </article>
@@ -269,15 +269,15 @@
             </article>
             <article>
               <header>
-                <span class="eyebrow">Garantias</span>
+                <span class="eyebrow">Garantías</span>
                 <strong>Vencimientos</strong>
               </header>
               <div class="insight-list" id="warrantyInsights"></div>
             </article>
             <article>
               <header>
-                <span class="eyebrow">Distribucion</span>
-                <strong>Por ubicacion</strong>
+                <span class="eyebrow">Distribución</span>
+                <strong>Por ubicación</strong>
               </header>
               <div class="insight-bars" id="locationInsights"></div>
             </article>
@@ -302,7 +302,7 @@
               <div class="toolbar">
                 <label class="search-box" aria-label="Buscar inventario">
                   <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4-4"></path></svg>
-                  <input id="searchInput" type="search" placeholder="Buscar por ID, serie, usuario, ubicacion o modelo">
+                  <input id="searchInput" type="search" placeholder="Buscar por ID, serie, usuario, ubicación o modelo">
                 </label>
                 <div class="toolbar-actions">
                   <label class="filter-control">
@@ -347,10 +347,10 @@
                       <th>Tipo</th>
                       <th>Marca</th>
                       <th>Modelo</th>
-                      <th>Numero de serie</th>
+                      <th>Número de serie</th>
                       <th>ID de inventario</th>
                       <th>Ubicacion</th>
-                      <th>Area</th>
+                      <th>Área</th>
                       <th>Usuario</th>
                       <th></th>
                     </tr>
@@ -363,7 +363,7 @@
                 <span id="resultCount">Mostrando 0 resultados</span>
                 <div class="pagination" id="inventoryPagination">
                   <button class="ghost" id="prevPageButton" type="button">&lt;</button>
-                  <span id="pageIndicator">Pagina 1 de 1</span>
+                  <span id="pageIndicator">Página 1 de 1</span>
                   <button class="ghost" id="nextPageButton" type="button">&gt;</button>
                 </div>
                 <select id="pageSizeSelect" aria-label="Resultados por pagina">
@@ -408,7 +408,7 @@
             <div class="stock-filters">
               <label>Buscar<input id="stockSearchInput" type="search" placeholder="Nombre, modelo o serie"></label>
               <label>Ubicacion<select id="stockLocationFilter"></select></label>
-              <label>Area<select id="stockAreaFilter"></select></label>
+              <label>Área<select id="stockAreaFilter"></select></label>
               <button class="ghost" id="applyStockFiltersButton" type="button">Consultar</button>
             </div>
             <div class="stock-summary" id="stockSummary"></div>
@@ -423,7 +423,7 @@
             </div>
             <div class="module-copy">
               <h3>Administracion de usuarios</h3>
-              <p>Solo el rol ADMIN puede crear usuarios, cambiar roles, activar o bloquear cuentas y reiniciar contrasenas.</p>
+              <p>Solo el rol ADMIN puede crear usuarios, cambiar roles, activar o bloquear cuentas y reiniciar contraseñas.</p>
             </div>
             <section class="user-admin-list" id="userAdminList"></section>
           </section>
@@ -523,7 +523,7 @@
               <button class="mini-action" type="button" data-add-catalog="location">Agregar</button>
             </span>
           </label>
-          <label>Area
+          <label>Área
             <span class="field-with-action">
               <div class="catalog-select-wrap">
                 <select name="area_id" required></select>
@@ -531,7 +531,7 @@
               <button class="mini-action" type="button" data-add-catalog="area">Agregar</button>
             </span>
           </label>
-          <label>Numero de serie
+          <label>Número de serie
             <span class="field-with-action">
               <input name="serial_number" required minlength="2" maxlength="140">
               <button class="mini-action" type="button" data-add-catalog="serial">Agregar</button>
@@ -562,15 +562,15 @@
             <datalist id="supplierList"></datalist>
           </label>
           <label class="asset-only-field">Fecha de compra<input name="purchase_date" type="date" min="1990-01-01" max="2100-12-31"></label>
-          <label class="asset-only-field">Garantia hasta<input name="warranty_until" type="date" min="1990-01-01" max="2100-12-31"></label>
+          <label class="asset-only-field">Garantía hasta<input name="warranty_until" type="date" min="1990-01-01" max="2100-12-31"></label>
 
           <span class="asset-only-field specs-divider"><strong>Especificaciones tecnicas</strong></span>
           <label class="asset-only-field">Procesador<input name="processor" maxlength="140" placeholder="Ej. Intel Core i5-12400"></label>
           <label class="asset-only-field">Memoria RAM<input name="ram" maxlength="80" placeholder="Ej. 16 GB DDR4"></label>
           <label class="asset-only-field">Almacenamiento<input name="storage" maxlength="80" placeholder="Ej. 512 GB SSD"></label>
           <label class="asset-only-field">Sistema operativo<input name="operating_system" maxlength="80" placeholder="Ej. Windows 11 Pro"></label>
-          <label class="asset-only-field">Direccion IP<input name="ip_address" maxlength="45" placeholder="Ej. 192.168.1.100"></label>
-          <label class="asset-only-field">Direccion MAC<input name="mac_address" maxlength="17" placeholder="Ej. AA:BB:CC:DD:EE:FF"></label>
+          <label class="asset-only-field">Dirección IP<input name="ip_address" maxlength="45" placeholder="Ej. 192.168.1.100"></label>
+          <label class="asset-only-field">Dirección MAC<input name="mac_address" maxlength="17" placeholder="Ej. AA:BB:CC:DD:EE:FF"></label>
 
           <label class="wide">Notas<textarea name="notes" rows="3" maxlength="2000"></textarea></label>
         </div>
@@ -640,7 +640,7 @@
               <button class="mini-action" type="button" data-add-catalog="location">Agregar</button>
             </span>
           </label>
-          <label>Area
+          <label>Área
             <span class="field-with-action">
               <div class="catalog-select-wrap">
                 <select name="area_id" required></select>
@@ -719,10 +719,10 @@
             <select name="role" required>
               <option value="ADMIN">Admin - todo acceso</option>
               <option value="TI">TI - CRUD de inventario</option>
-              <option value="PERSONAL">Personal - lectura y busqueda</option>
+              <option value="PERSONAL">Personal - lectura y búsqueda</option>
             </select>
           </label>
-          <label class="wide" id="userPasswordField">Contrasena inicial<input name="password" type="password" required maxlength="12" placeholder="Maximo 12 caracteres"></label>
+          <label class="wide" id="userPasswordField">Contrasena inicial<input name="password" type="password" required maxlength="12" placeholder="Máximo 12 caracteres"></label>
         </div>
 
         <footer>
@@ -782,11 +782,11 @@
           <div class="help-usage-guide">
             <h4>Guia rapida</h4>
             <ul>
-              <li><strong>Inventario:</strong> Use los filtros y la barra de busqueda para localizar equipos y accesorios.</li>
-              <li><strong>Escaner:</strong> Use el boton <svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;fill:none;stroke:currentColor;stroke-width:2"><path d="M2 9V5a2 2 0 0 1 2-2h3"/><path d="M2 15v4a2 2 0 0 0 2 2h3"/><path d="M22 9V5a2 2 0 0 0-2-2h-3"/><path d="M22 15v4a2 2 0 0 1-2 2h-3"/><path d="M7 12h.01"/><path d="M12 12h.01"/><path d="M17 12h.01"/></svg> para escanear codigos de barras con la camara.</li>
+              <li><strong>Inventario:</strong> Use los filtros y la barra de búsqueda para localizar equipos y accesorios.</li>
+              <li><strong>Escáner:</strong> Use el botón <svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;fill:none;stroke:currentColor;stroke-width:2"><path d="M2 9V5a2 2 0 0 1 2-2h3"/><path d="M2 15v4a2 2 0 0 0 2 2h3"/><path d="M22 9V5a2 2 0 0 0-2-2h-3"/><path d="M22 15v4a2 2 0 0 1-2 2h-3"/><path d="M7 12h.01"/><path d="M12 12h.01"/><path d="M17 12h.01"/></svg> para escanear códigos de barras con la cámara.</li>
               <li><strong>Notas:</strong> Abra el panel de notificaciones <svg viewBox="0 0 24 24" width="16" height="16" style="vertical-align:middle;fill:none;stroke:currentColor;stroke-width:2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg> para agregar notas y recordatorios.</li>
               <li><strong>Perfil:</strong> Haga clic en cualquier equipo de la tabla para ver su perfil completo con hardware, software y salud del activo.</li>
-              <li><strong>Reportes:</strong> Use los botones de exportacion (PDF, Excel) para descargar reportes del inventario.</li>
+              <li><strong>Reportes:</strong> Use los botones de exportación (PDF, Excel) para descargar reportes del inventario.</li>
             </ul>
           </div>
         </div>
@@ -814,13 +814,13 @@
         <header>
           <div>
             <span class="eyebrow">Seguridad</span>
-            <h3>Cambiar contrasena</h3>
+            <h3>Cambiar contraseña</h3>
           </div>
           <button class="icon-button" value="cancel" type="submit" formnovalidate aria-label="Cerrar">x</button>
         </header>
         <div class="form-grid">
           <label>Contrasena actual<input name="current_password" type="password" required maxlength="12"></label>
-          <label>Nueva contrasena<input name="new_password" type="password" required maxlength="12"></label>
+          <label>Nueva contraseña<input name="new_password" type="password" required maxlength="12"></label>
         </div>
         <footer>
           <span></span>
@@ -838,12 +838,12 @@
         <header>
           <div>
             <span class="eyebrow">Administrador</span>
-            <h3>Reiniciar contrasena</h3>
+            <h3>Reiniciar contraseña</h3>
           </div>
           <button class="icon-button" value="cancel" type="submit" formnovalidate aria-label="Cerrar">x</button>
         </header>
         <div class="form-grid">
-          <label id="adminResetLabel">Nueva contrasena<input id="adminResetInput" name="new_password" type="password" required maxlength="12" autocomplete="new-password"></label>
+          <label id="adminResetLabel">Nueva contraseña<input id="adminResetInput" name="new_password" type="password" required maxlength="12" autocomplete="new-password"></label>
         </div>
         <footer>
           <span></span>
@@ -968,15 +968,15 @@
     <dialog class="modal" id="barcodeScannerDialog">
       <div class="scanner-container">
         <div class="scanner-header">
-          <h2>Escanear codigo de barras</h2>
-          <button class="top-icon" id="barcodeScannerClose" type="button" aria-label="Cerrar escaner">&times;</button>
+          <h2>Escanear código de barras</h2>
+          <button class="top-icon" id="barcodeScannerClose" type="button" aria-label="Cerrar escáner">&times;</button>
         </div>
         <div class="scanner-view">
           <div id="barcodeScannerReader"></div>
           <div class="scanner-overlay">
             <div class="scanner-frame"></div>
           </div>
-          <p class="scanner-hint" id="scannerHint">Alinee el codigo de barras dentro del marco</p>
+          <p class="scanner-hint" id="scannerHint">Alinee el código de barras dentro del marco</p>
         </div>
         <div class="scanner-footer">
           <label class="scanner-input-label">
