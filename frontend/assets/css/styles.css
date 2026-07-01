@@ -885,47 +885,6 @@ nav a:hover .nav-icon {
   color: var(--navy-950);
 }
 
-.note-tabs {
-  display: flex;
-  gap: 0.25rem;
-  margin-bottom: 0.75rem;
-  padding: 0.2rem;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.04);
-}
-
-.note-tab {
-  flex: 1;
-  padding: 0.4rem 0.6rem;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--gray-600);
-  font-size: 0.8rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background var(--motion-fast), color var(--motion-fast);
-}
-
-.note-tab.active {
-  background: var(--white);
-  color: var(--navy-950);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
-body[data-theme="dark"] .note-tabs {
-  background: rgba(255, 255, 255, 0.06);
-}
-
-body[data-theme="dark"] .note-tab {
-  color: var(--gray-600);
-}
-
-body[data-theme="dark"] .note-tab.active {
-  background: #0f1e32;
-  color: var(--gray-900);
-}
-
 .note-form {
   display: grid;
   gap: 0.75rem;
@@ -960,30 +919,17 @@ body[data-theme="dark"] .note-tab.active {
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
 }
 
-.notification-item.overdue {
-  border-left-color: #b91c1c;
-}
-
-body[data-theme="dark"] .notification-item.overdue {
-  border-left-color: #ef4444;
-}
-
 .notification-item strong {
   display: block;
   color: var(--gray-900);
   line-height: 1.35;
 }
 
-.notification-item span,
-.note-meta {
+.notification-item span {
   display: block;
   margin-top: 0.25rem;
   color: var(--gray-500);
   font-size: 0.82rem;
-}
-
-.note-meta--empty {
-  color: var(--gray-400);
 }
 
 .notification-item footer {
