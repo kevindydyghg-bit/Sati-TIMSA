@@ -649,7 +649,7 @@ function updateAuthUi() {
   const writable = canWrite();
   $('#userPill').textContent = state.user?.name || '';
   $('#logoutButton').style.display = 'inline-grid';
-  $('#changePasswordButton').style.display = 'inline-grid';
+  // UI_FIX: changePasswordButton replaced by helpSuggestionsButton
   const curView = dashboardView.dataset.currentView;
   $('#newEquipmentButton').style.display = (writable && ['hardware', 'equipment', 'accessories'].includes(curView)) ? 'inline-flex' : 'none';
   $('#newMaintenanceButton').style.display = writable ? 'inline-flex' : 'none';
@@ -1091,11 +1091,15 @@ function setNotifTab(tab) {
       ? uiText('Guardar nota', 'Save note')
       : uiText('Guardar recordatorio', 'Save reminder');
   }
+  // UI_FIX: toggle required attribute to prevent hidden field validation errors
+  const reminderText = noteForm.elements.reminder_text;
+  const dueInput = noteForm.elements.due_at;
   if (tab === 'reminders') {
-    const dueInput = noteForm.elements.due_at;
-    if (dueInput && !dueInput.value) {
-      dueInput.value = defaultReminderDate();
-    }
+    if (reminderText) reminderText.required = true;
+    if (dueInput) { dueInput.required = true; if (!dueInput.value) dueInput.value = defaultReminderDate(); }
+  } else {
+    if (reminderText) reminderText.required = false;
+    if (dueInput) dueInput.required = false;
   }
   renderNotifications();
 }
