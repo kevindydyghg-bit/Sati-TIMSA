@@ -82,6 +82,49 @@ async function runMigrations() {
       CREATE INDEX IF NOT EXISTS idx_notes_due_at
       ON notes(due_at)
     `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS hardware_components (
+        id BIGSERIAL PRIMARY KEY,
+        equipment_id BIGINT NOT NULL REFERENCES equipment(id) ON DELETE CASCADE,
+        component_type VARCHAR(30) NOT NULL CHECK (component_type IN ('cpu','ram','disk','gpu','network','battery','motherboard','optical','other')),
+        manufacturer VARCHAR(200),
+        model VARCHAR(200),
+        serial_number VARCHAR(200),
+        capacity VARCHAR(80),
+        form_factor VARCHAR(80),
+        slot_designation VARCHAR(80),
+        notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_hardware_components_equipment ON hardware_components(equipment_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_hardware_components_type ON hardware_components(equipment_id, component_type)
+    `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS installed_software (
+        id BIGSERIAL PRIMARY KEY,
+        equipment_id BIGINT NOT NULL REFERENCES equipment(id) ON DELETE CASCADE,
+        name VARCHAR(200) NOT NULL,
+        version VARCHAR(80),
+        publisher VARCHAR(200),
+        install_date DATE,
+        license_key VARCHAR(200),
+        is_authorized BOOLEAN NOT NULL DEFAULT true,
+        notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_installed_software_equipment ON installed_software(equipment_id)
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_installed_software_name ON installed_software(name)
+    `);
     const alterCmds = [
       'ALTER TABLE equipment ALTER COLUMN equipment_type_id DROP NOT NULL',
       'ALTER TABLE equipment ALTER COLUMN brand_id DROP NOT NULL',
