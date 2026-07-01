@@ -516,6 +516,14 @@ const translationPairs = [
   ['Seleccionar', 'Select'],
   ['Todos los derechos reservados.', 'All rights reserved.'],
   ['Propiedad de TIMSA', 'Property of TIMSA'],
+  ['Notas', 'Notes'],
+  ['Recordatorios', 'Reminders'],
+  ['Nota', 'Note'],
+  ['Recordatorio', 'Reminder'],
+  ['Guardar', 'Save'],
+  ['Sin notas.', 'No notes.'],
+  ['Sin recordatorios.', 'No reminders.'],
+  ['Soporte', 'Support'],
 ];
 
 document.body.appendChild(equipmentPreview);
@@ -1268,22 +1276,35 @@ function renderNotifications() {
   const count = $('#notificationCount');
   if (!list || !count) return;
 
-  const sortedNotes = [...state.notes].sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt));
-  count.textContent = sortedNotes.length;
-  count.classList.toggle('hidden', sortedNotes.length === 0);
+  const activeTab = noteForm.elements.tab?.value || 'notes';
 
-  list.innerHTML = sortedNotes.map((note) => `
-    <article class="notification-item">
+  const filtered = state.notes.filter((note) => {
+    if (activeTab === 'notes') return !note.dueAt;
+    return !!note.dueAt;
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (!a.dueAt) return -1;
+    if (!b.dueAt) return 1;
+    return new Date(a.dueAt) - new Date(b.dueAt);
+  });
+
+  count.textContent = state.notes.length;
+  count.classList.toggle('hidden', state.notes.length === 0);
+
+  list.innerHTML = sorted.map((note) => {
+    const isOverdue = note.dueAt && new Date(note.dueAt) < new Date();
+    return `
+    <article class="notification-item${isOverdue ? ' overdue' : ''}">
       <div>
         <strong>${escapeHtml(note.text)}</strong>
-        <span>${escapeHtml(formatDate(note.dueAt))}</span>
+        <span class="note-meta${note.dueAt ? '' : ' note-meta--empty'}">${note.dueAt ? escapeHtml(formatDate(note.dueAt)) : '&ndash;'}</span>
       </div>
       <footer>
         <span>${uiText('Agregado por', 'Added by')} ${escapeHtml(note.userName)}</span>
         <button class="ghost note-delete" type="button" data-note-delete="${escapeHtml(note.id)}">${uiText('Eliminar', 'Delete')}</button>
       </footer>
-    </article>
-  `).join('') || `<p class="empty-module">${uiText('Sin notas pendientes.', 'No pending notes.')}</p>`;
+    </article>`;}).join('') || `<p class="empty-module">${activeTab === 'notes' ? uiText('Sin notas.', 'No notes.') : uiText('Sin recordatorios.', 'No reminders.')}</p>`;
   translateStaticText();
 }
 
@@ -1291,6 +1312,31 @@ function openNotifications() {
   noteForm.elements.due_at.value = defaultReminderDate();
   notificationPanel.classList.remove('hidden');
   $('#notificationButton').setAttribute('aria-expanded', 'true');
+  if (!noteForm.elements.tab) {
+    const h = document.createElement('input');
+    h.type = 'hidden'; h.name = 'tab'; h.value = 'notes';
+    noteForm.appendChild(h);
+  }
+  setActiveNoteTab(noteForm.elements.tab.value || 'notes');
+  renderNotifications();
+}
+
+function setActiveNoteTab(tab) {
+  const tabs = notificationPanel.querySelectorAll('.note-tab');
+  tabs.forEach((t) => {
+    const isActive = t.dataset.noteTab === tab;
+    t.classList.toggle('active', isActive);
+    t.setAttribute('aria-selected', String(isActive));
+  });
+  const reminderField = noteForm.querySelector('.reminder-field');
+  if (reminderField) {
+    reminderField.style.display = tab === 'reminders' ? '' : 'none';
+    const dueInput = reminderField.querySelector('input');
+    if (dueInput) dueInput.required = tab === 'reminders';
+  }
+  const labelText = noteForm.querySelector('.note-label-text');
+  if (labelText) labelText.textContent = tab === 'reminders' ? 'Recordatorio' : 'Nota';
+  if (noteForm.elements.tab) noteForm.elements.tab.value = tab;
   renderNotifications();
 }
 
@@ -1662,7 +1708,8 @@ function uiIcon(name) {
     login: '<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/>',
     list: '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
     shield: '<path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/><path d="M9 12l2 2 4-5"/>',
-    trash: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/>'
+    trash: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/>',
+    close: '<path d="M18 6L6 18"/><path d="M6 6l12 12"/>'
   };
 
   return `
@@ -3648,6 +3695,16 @@ $('#notificationButton').addEventListener('click', () => {
 
 $('#closeNotificationsButton').addEventListener('click', closeNotifications);
 
+notificationPanel.addEventListener('click', (event) => {
+  const tabBtn = event.target.closest('.note-tab');
+  if (tabBtn) setActiveNoteTab(tabBtn.dataset.noteTab);
+});
+
+$('#supportButton').addEventListener('click', () => {
+  const userName = state.user?.name || state.user?.username || 'Usuario';
+  window.location.href = `mailto:soporte@tudominio.com?subject=Soporte%20T%C3%A9cnico%20-%20Usuario:%20${encodeURIComponent(userName)}`;
+});
+
 menuButton.addEventListener('click', toggleSidebar);
 sidebarCollapseButton.addEventListener('click', openSettingsDialog);
 if (sidebarOverlay) {
@@ -3682,22 +3739,24 @@ window.addEventListener('resize', () => {
 noteForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(noteForm));
-  const [dateP, timeP] = data.due_at.split('T');
-  const [y, mo, d] = dateP.split('-');
-  const [h, mi] = timeP.split(':');
-  const dueAtIso = new Date(+y, +mo - 1, +d, +h, +mi).toISOString();
+  let dueAtIso = null;
+  if (data.due_at) {
+    const [dateP, timeP] = data.due_at.split('T');
+    const [y, mo, d] = dateP.split('-');
+    const [h, mi] = timeP.split(':');
+    dueAtIso = new Date(+y, +mo - 1, +d, +h, +mi).toISOString();
+  }
   const submitBtn = noteForm.querySelector('button[type="submit"]');
   if (submitBtn) submitBtn.disabled = true;
+  const payload = { text: data.text.trim() };
+  if (dueAtIso) payload.due_at = dueAtIso;
   try {
-    const result = await api('/notes', {
-      method: 'POST',
-      body: JSON.stringify({ text: data.text.trim(), due_at: dueAtIso })
-    });
+    const result = await api('/notes', { method: 'POST', body: JSON.stringify(payload) });
     if (!result) throw new Error('Empty response');
     state.notes.unshift({
       id: result.note.id,
       text: result.note.text,
-      dueAt: result.note.due_at,
+      dueAt: result.note.due_at || null,
       userId: state.user?.id || 'system',
       userName: result.note.user_name || state.user?.name || uiText('Usuario', 'User'),
       createdAt: result.note.created_at
@@ -3715,6 +3774,8 @@ noteForm.addEventListener('submit', async (event) => {
   if (submitBtn) submitBtn.disabled = false;
   noteForm.reset();
   noteForm.elements.due_at.value = defaultReminderDate();
+  const activeTab = noteForm.elements.tab?.value || 'notes';
+  setActiveNoteTab(activeTab);
   renderNotifications();
 });
 

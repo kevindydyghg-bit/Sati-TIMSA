@@ -111,7 +111,7 @@
                 <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg>
                 <span class="notification-dot hidden" id="notificationCount">0</span>
               </button>
-              <button class="top-icon" id="changePasswordButton" type="button" aria-label="Cambiar contrasena"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9a2.7 2.7 0 0 1 5 1.4c0 2-2.5 2-2.5 4"></path><path d="M12 18h.01"></path></svg></button>
+              <button class="top-icon" id="supportButton" type="button" aria-label="Soporte"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></button>
               <div class="avatar">AD</div>
               <div class="user-pill" id="userPill"></div>
               <button class="top-icon" id="logoutButton" type="button" aria-label="Cerrar sesion"><svg viewBox="0 0 24 24"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"></path><path d="M10 8l-4 4 4 4"></path><path d="M6 12h11"></path><path d="M14 4v16"></path></svg></button>
@@ -123,18 +123,23 @@
                 <span class="eyebrow">Notificaciones</span>
                 <h3>Notas y recordatorios</h3>
               </div>
-              <button class="icon-button" id="closeNotificationsButton" type="button" aria-label="Cerrar">x</button>
+              <button class="icon-button" id="closeNotificationsButton" type="button" aria-label="Cerrar">&times;</button>
             </header>
+            <div class="note-tabs" role="tablist">
+              <button class="note-tab active" type="button" role="tab" data-note-tab="notes" aria-selected="true">Notas</button>
+              <button class="note-tab" type="button" role="tab" data-note-tab="reminders" aria-selected="false">Recordatorios</button>
+            </div>
             <form class="note-form" id="noteForm">
+              <input type="hidden" name="tab" value="notes">
               <label>
-                Recordatorio
+                <span class="note-label-text">Nota</span>
                 <textarea name="text" rows="3" maxlength="260" required placeholder="Escribe una nota para seguimiento..."></textarea>
               </label>
-              <label>
+              <label class="reminder-field">
                 Fecha y hora
-                <input name="due_at" type="datetime-local" required>
+                <input name="due_at" type="datetime-local">
               </label>
-              <button type="submit">Guardar nota</button>
+              <button type="submit">Guardar</button>
             </form>
             <div class="notification-list" id="notificationList"></div>
           </aside>
