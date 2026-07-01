@@ -757,7 +757,7 @@ router.get('/:id', authenticate, requireValidUuid, async (req, res, next) => {
     }
 
     const privileged = isPrivilegedRequest(req);
-    const [history, maintenance, audit] = await Promise.all([
+    const [history, maintenance, audit, hardware, software] = await Promise.all([
       privileged
         ? db.query(
           `SELECT h.id, h.event_type, h.previous_data, h.new_data, h.created_at,
@@ -793,7 +793,15 @@ router.get('/:id', authenticate, requireValidUuid, async (req, res, next) => {
            LIMIT 10`,
           [req.params.id]
         )
-        : Promise.resolve({ rows: [] })
+        : Promise.resolve({ rows: [] }),
+      db.query(
+        `SELECT * FROM hardware_components WHERE equipment_id = $1 ORDER BY component_type, id`,
+        [req.params.id]
+      ),
+      db.query(
+        `SELECT * FROM installed_software WHERE equipment_id = $1 ORDER BY name`,
+        [req.params.id]
+      )
     ]);
 
     const qr_data_url = await QRCode.toDataURL(equipmentQrUrl(req, req.params.id), {
@@ -806,6 +814,8 @@ router.get('/:id', authenticate, requireValidUuid, async (req, res, next) => {
       history: history.rows,
       maintenance: privileged ? maintenance.rows : maintenance.rows.map(readonlyMaintenanceItem),
       audit: audit.rows,
+      hardware_components: hardware.rows,
+      installed_software: software.rows,
       qr_url: equipmentQrUrl(req, req.params.id),
       qr_data_url
     });

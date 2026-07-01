@@ -7,7 +7,7 @@ const router = express.Router();
 
 const noteSchema = z.object({
   text: z.string().trim().min(1).max(260),
-  due_at: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?([+-]\d{2}:\d{2}|Z)?$/))
+  due_at: z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?([+-]\d{2}:\d{2}|Z)?$/)).nullable().optional()
 });
 
 router.get('/', authenticate, async (req, res, next) => {
@@ -18,7 +18,7 @@ router.get('/', authenticate, async (req, res, next) => {
        FROM notes n
        JOIN users u ON u.id = n.user_id
        WHERE n.user_id = $1
-       ORDER BY n.due_at ASC, n.created_at DESC
+       ORDER BY n.due_at ASC NULLS LAST, n.created_at DESC
        LIMIT 100`,
       [req.user.id]
     );

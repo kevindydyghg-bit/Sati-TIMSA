@@ -1011,6 +1011,34 @@ function closeOpenDialogs() {
   document.querySelectorAll('dialog[open]').forEach((dialog) => dialog.close());
 }
 
+// UI_FIX: Active tab for notification panel
+let activeNotifTab = 'notes';
+
+function setNotifTab(tab) {
+  activeNotifTab = tab;
+  document.querySelectorAll('.notification-tab').forEach((btn) => {
+    const isActive = btn.dataset.tab === tab;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-selected', isActive);
+  });
+  document.querySelectorAll('#noteForm .tab-panel').forEach((panel) => {
+    panel.classList.toggle('hidden', panel.dataset.tab !== tab);
+  });
+  const btn = $('#noteSubmitBtn');
+  if (btn) {
+    btn.textContent = tab === 'notes'
+      ? uiText('Guardar nota', 'Save note')
+      : uiText('Guardar recordatorio', 'Save reminder');
+  }
+  if (tab === 'reminders') {
+    const dueInput = noteForm.elements.due_at;
+    if (dueInput && !dueInput.value) {
+      dueInput.value = defaultReminderDate();
+    }
+  }
+  renderNotifications();
+}
+
 function defaultReminderDate() {
   const date = new Date();
   return date.getFullYear() + '-' +
@@ -1265,32 +1293,46 @@ async function loadNotes() {
   }
 }
 
+// UI_FIX: Render notifications filtered by active tab
 function renderNotifications() {
   const list = $('#notificationList');
   const count = $('#notificationCount');
   if (!list || !count) return;
 
-  const sortedNotes = [...state.notes].sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt));
-  count.textContent = sortedNotes.length;
-  count.classList.toggle('hidden', sortedNotes.length === 0);
+  const notes = state.notes.filter((n) => !n.dueAt);
+  const reminders = state.notes.filter((n) => n.dueAt).sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt));
 
-  list.innerHTML = sortedNotes.map((note) => `
-    <article class="notification-item">
+  const totalCount = state.notes.length;
+  count.textContent = totalCount;
+  count.classList.toggle('hidden', totalCount === 0);
+
+  const isNotesTab = activeNotifTab === 'notes';
+  const items = isNotesTab ? notes : reminders;
+
+  const emptyMsg = isNotesTab
+    ? uiText('Sin notas.', 'No notes.')
+    : uiText('Sin recordatorios.', 'No reminders.');
+
+  list.innerHTML = items.map((note) => {
+    const dateHtml = note.dueAt ? `<span>${escapeHtml(formatDate(note.dueAt))}</span>` : '';
+    return `
+    <article class="notification-item${note.dueAt ? '' : ' notification-item--note'}">
       <div>
         <strong>${escapeHtml(note.text)}</strong>
-        <span>${escapeHtml(formatDate(note.dueAt))}</span>
+        ${dateHtml}
       </div>
       <footer>
         <span>${uiText('Agregado por', 'Added by')} ${escapeHtml(note.userName)}</span>
         <button class="ghost note-delete" type="button" data-note-delete="${escapeHtml(note.id)}">${uiText('Eliminar', 'Delete')}</button>
       </footer>
-    </article>
-  `).join('') || `<p class="empty-module">${uiText('Sin notas pendientes.', 'No pending notes.')}</p>`;
+    </article>`;
+  }).join('') || `<p class="empty-module">${emptyMsg}</p>`;
   translateStaticText();
 }
 
+// UI_FIX: Open notifications with default tab
 function openNotifications() {
-  noteForm.elements.due_at.value = defaultReminderDate();
+  setNotifTab(activeNotifTab);
   notificationPanel.classList.remove('hidden');
   $('#notificationButton').setAttribute('aria-expanded', 'true');
   renderNotifications();
@@ -2676,6 +2718,121 @@ function historyCommentText(entry) {
   return '';
 }
 
+function componentTypeLabel(type) {
+  const labels = {
+    cpu: 'CPU',
+    ram: 'RAM',
+    disk: uiText('Disco', 'Disk'),
+    gpu: 'GPU',
+    network: uiText('Red', 'Network'),
+    battery: uiText('Bateria', 'Battery'),
+    motherboard: uiText('Motherboard', 'Motherboard'),
+    optical: uiText('Unidad optica', 'Optical drive'),
+    other: uiText('Otro', 'Other')
+  };
+  return labels[type] || type;
+}
+
+function renderHardwareComponents(components) {
+  if (!components || components.length === 0) return '';
+  const groups = {};
+  components.forEach((c) => {
+    if (!groups[c.component_type]) groups[c.component_type] = [];
+    groups[c.component_type].push(c);
+  });
+
+  return Object.entries(groups).map(([type, items]) => {
+    const label = componentTypeLabel(type);
+    if (type === 'ram') {
+      const total = items.reduce((s, c) => s + (parseInt(c.capacity) || 0), 0);
+      const slots = items.map((c) => {
+        const details = [c.capacity, c.form_factor].filter(Boolean).join(' ');
+        return `${c.slot_designation ? c.slot_designation + ': ' : ''}${details || c.model || ''}`.trim();
+      }).filter(Boolean).join(', ');
+      return `<div><span>${label}</span><strong>${total ? total + ' GB' : ''}${slots ? ' (' + slots + ')' : ''}</strong></div>`;
+    }
+    if (type === 'disk') {
+      const total = items.reduce((s, c) => s + (parseInt(c.capacity) || 0), 0);
+      const details = items.map((c) => [c.model, c.form_factor].filter(Boolean).join(' ')).filter(Boolean).join(', ');
+      return `<div><span>${label}</span><strong>${total ? total + ' GB' : ''}${details ? ' - ' + details : ''}</strong></div>`;
+    }
+    const primary = items[0];
+    const parts = [primary.model, primary.manufacturer, primary.capacity].filter(Boolean);
+    return `<div><span>${label}</span><strong>${parts.join(' - ') || 'N/A'}</strong></div>`;
+  }).join('');
+}
+
+function renderInstalledSoftware(software) {
+  if (!software || software.length === 0) return `<p class="empty-module">${uiText('Sin software registrado.', 'No software registered.')}</p>`;
+  return software.map((s) => `
+    <div class="sw-item${s.is_authorized ? '' : ' sw-item--unauthorized'}">
+      <div class="sw-item-info">
+        <strong>${escapeHtml(s.name)}</strong>
+        <span>${escapeHtml(s.version || '')}${s.publisher ? ' &middot; ' + escapeHtml(s.publisher) : ''}</span>
+      </div>
+      <span class="sw-badge${s.is_authorized ? ' sw-badge--ok' : ' sw-badge--warn'}">${s.is_authorized ? uiText('Autorizado', 'Authorized') : uiText('No autorizado', 'Unauthorized')}</span>
+    </div>
+  `).join('');
+}
+
+function renderHealthStatus(item, maintenance, warrantyUntil) {
+  const now = new Date();
+  const warrantyDate = warrantyUntil ? new Date(warrantyUntil) : null;
+  const warrantyStatus = warrantyDate
+    ? (warrantyDate < now ? 'expired' : (warrantyDate - now < 30 * 86400000 ? 'expiring' : 'active'))
+    : null;
+  const hasActiveMaintenance = (maintenance || []).length > 0;
+  const lifecycleStatus = item.status || 'desconocido';
+
+  const statusConfig = {
+    almacen: { label: uiText('Almacen', 'Storage'), cls: 'health--inactive' },
+    asignado: { label: uiText('Asignado', 'Assigned'), cls: 'health--ok' },
+    reparacion: { label: uiText('Reparacion', 'Repair'), cls: 'health--warn' },
+    baja: { label: uiText('Dado de baja', 'Retired'), cls: 'health--critical' },
+    donado: { label: uiText('Donado', 'Donated'), cls: 'health--critical' },
+    activo: { label: uiText('Activo', 'Active'), cls: 'health--ok' },
+    mantenimiento: { label: uiText('Mantenimiento', 'Maintenance'), cls: 'health--warn' },
+    resguardo: { label: uiText('Resguardo', 'Hold'), cls: 'health--inactive' }
+  };
+  const lc = statusConfig[lifecycleStatus] || { label: lifecycleStatus, cls: '' };
+
+  const warrantyConfig = {
+    active: { label: uiText('Vigente', 'Active'), cls: 'health--ok' },
+    expiring: { label: uiText('Por vencer', 'Expiring soon'), cls: 'health--warn' },
+    expired: { label: uiText('Vencida', 'Expired'), cls: 'health--critical' }
+  };
+  const wc = warrantyConfig[warrantyStatus];
+
+  const maintenanceLabel = hasActiveMaintenance
+    ? { label: uiText('En mantenimiento', 'In maintenance'), cls: 'health--warn' }
+    : { label: uiText('Sin incidencias', 'No issues'), cls: 'health--ok' };
+
+  return esc`
+    <div class="health-card">
+      <span class="health-card-icon ${raw(lc.cls)}"></span>
+      <div>
+        <strong>${uiText('Ciclo de vida', 'Lifecycle')}</strong>
+        <span>${lc.label}</span>
+      </div>
+    </div>
+    ${raw(wc ? esc`
+    <div class="health-card">
+      <span class="health-card-icon ${raw(wc.cls)}"></span>
+      <div>
+        <strong>${uiText('Garantia', 'Warranty')}</strong>
+        <span>${wc.label}${warrantyDate ? ' &middot; ' + raw(warrantyDate.toLocaleDateString()) : ''}</span>
+      </div>
+    </div>` : '')}
+    <div class="health-card">
+      <span class="health-card-icon ${raw(maintenanceLabel.cls)}"></span>
+      <div>
+        <strong>${uiText('Mantenimiento', 'Maintenance')}</strong>
+        <span>${maintenanceLabel.label}</span>
+      </div>
+    </div>
+  `;
+}
+
 function renderEquipmentProfile(profile) {
   const item = profile.item;
   const commentHistory = (profile.history || [])
@@ -2683,27 +2840,65 @@ function renderEquipmentProfile(profile) {
     .filter((entry) => entry.comment);
 
   $('#equipmentProfilePanel').classList.remove('hidden');
+
+  const hwComponents = profile.hardware_components || [];
+  const itemFields = [
+    { label: uiText('Proveedor', 'Supplier'), value: item.supplier },
+    { label: uiText('Compra', 'Purchase'), value: item.purchase_date ? String(item.purchase_date).slice(0, 10) : null },
+    { label: uiText('Garantia', 'Warranty'), value: item.warranty_until ? String(item.warranty_until).slice(0, 10) : null },
+    { label: uiText('Actualizado por', 'Updated by'), value: item.updated_by_name || null }
+  ].filter((f) => f.value);
+  const hwHtml = renderHardwareComponents(hwComponents);
   const specFields = [
     { label: uiText('Procesador', 'Processor'), value: item.processor },
     { label: uiText('RAM', 'RAM'), value: item.ram },
-    { label: uiText('Almacenamiento', 'Storage'), value: item.storage },
-    { label: uiText('Sistema operativo', 'Operating system'), value: item.operating_system },
-    { label: 'IP', value: item.ip_address },
-    { label: 'MAC', value: item.mac_address }
-  ];
-  const specHtml = specFields
-    .filter((f) => f.value)
-    .map((f) => `<div><span>${f.label}</span><strong>${f.value}</strong></div>`)
-    .join('');
+    { label: uiText('Almacenamiento', 'Storage'), value: item.storage }
+  ].filter((f) => f.value);
+  const allHardware = (hwHtml || specFields.length > 0 || itemFields.length > 0);
 
-  $('#equipmentProfileBody').innerHTML = esc`
-    <div><span>Cantidad</span><strong>${raw(Number(item.quantity ?? 1))}</strong></div>
-    <div><span>Proveedor</span><strong>${item.supplier || 'Sin proveedor'}</strong></div>
-    <div><span>Compra</span><strong>${item.purchase_date ? raw(String(item.purchase_date).slice(0, 10)) : 'Sin fecha'}</strong></div>
-    <div><span>Garantia</span><strong>${item.warranty_until ? raw(String(item.warranty_until).slice(0, 10)) : 'Sin garantia'}</strong></div>
-    <div><span>Actualizado por</span><strong>${item.updated_by_name || uiText('Sistema', 'System')}</strong></div>
-    ${raw(specHtml)}
-  `;
+  if (allHardware) {
+    $('#equipHardwareBody').innerHTML = esc`
+      ${raw(itemFields.map((f) => `<div><span>${f.label}</span><strong>${f.value}</strong></div>`).join(''))}
+      ${raw(specFields.length > 0 && !hwHtml ? specFields.map((f) => `<div><span>${f.label}</span><strong>${f.value}</strong></div>`).join('') : '')}
+      ${raw(hwHtml)}
+    `;
+  }
+
+  const sw = profile.installed_software || [];
+  const hasOs = item.operating_system;
+  const swSection = $('#equipSoftwareSection');
+  if (hasOs || sw.length > 0) {
+    swSection.classList.remove('hidden');
+    $('#equipSoftwareBody').innerHTML = esc`
+      ${raw(hasOs ? `<div class="sw-os-row"><strong>${uiText('Sistema operativo', 'Operating system')}:</strong> ${item.operating_system}</div>` : '')}
+      <div class="sw-list">${raw(renderInstalledSoftware(sw))}</div>
+    `;
+  } else {
+    swSection.classList.add('hidden');
+  }
+
+  const netFields = [
+    { label: 'IP', value: item.ip_address },
+    { label: 'MAC', value: item.mac_address },
+    ...hwComponents.filter((c) => c.component_type === 'network').map((c) => ({
+      label: c.model || uiText('Red', 'Network'),
+      value: [c.capacity, c.serial_number].filter(Boolean).join(' - ')
+    }))
+  ].filter((f) => f.value);
+  const netSection = $('#equipNetworkSection');
+  if (netFields.length > 0) {
+    netSection.classList.remove('hidden');
+    $('#equipNetworkBody').innerHTML = esc`
+      ${raw(netFields.map((f) => `<div><span>${f.label}</span><strong>${f.value}</strong></div>`).join(''))}
+    `;
+  } else {
+    netSection.classList.add('hidden');
+  }
+
+  const healthSection = $('#equipHealthSection');
+  healthSection.classList.remove('hidden');
+  $('#equipHealthBody').innerHTML = renderHealthStatus(item, profile.maintenance, item.warranty_until);
+
   renderAssetLabel(item);
   $('#equipmentHistoryList').innerHTML = commentHistory.map((entry) => `
     <div>
@@ -3676,6 +3871,35 @@ $('#notificationButton').addEventListener('click', () => {
 
 $('#closeNotificationsButton').addEventListener('click', closeNotifications);
 
+// UI_FIX: Notification tab switching
+document.querySelectorAll('.notification-tab').forEach((tab) => {
+  tab.addEventListener('click', () => setNotifTab(tab.dataset.tab));
+});
+
+// UI_FIX: Help center dropdown
+$('#helpCenterButton').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const dd = $('#helpDropdown');
+  dd.classList.toggle('hidden');
+});
+
+// UI_FIX: Contact support -> mailto
+$('#contactSupportButton').addEventListener('click', () => {
+  const userName = state.user?.name || 'Usuario';
+  const subject = 'Soporte Tecnico - Usuario: ' + encodeURIComponent(userName);
+  window.location.href = 'mailto:soporte@tudominio.com?subject=' + subject;
+  $('#helpDropdown').classList.add('hidden');
+});
+
+// UI_FIX: Close help dropdown on outside click
+document.addEventListener('click', (e) => {
+  const wrapper = document.querySelector('.help-center-wrapper');
+  const dd = $('#helpDropdown');
+  if (dd && !dd.classList.contains('hidden') && wrapper && !wrapper.contains(e.target)) {
+    dd.classList.add('hidden');
+  }
+});
+
 menuButton.addEventListener('click', toggleSidebar);
 sidebarCollapseButton.addEventListener('click', openSettingsDialog);
 if (sidebarOverlay) {
@@ -3707,25 +3931,40 @@ window.addEventListener('resize', () => {
   }
 });
 
+// UI_FIX: Note form submit - handles both Notes and Reminders tabs
 noteForm.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const data = Object.fromEntries(new FormData(noteForm));
-  const [dateP, timeP] = data.due_at.split('T');
-  const [y, mo, d] = dateP.split('-');
-  const [h, mi] = timeP.split(':');
-  const dueAtIso = new Date(+y, +mo - 1, +d, +h, +mi).toISOString();
   const submitBtn = noteForm.querySelector('button[type="submit"]');
   if (submitBtn) submitBtn.disabled = true;
+
+  const fd = new FormData(noteForm);
+  const isNotesTab = activeNotifTab === 'notes';
+  const text = isNotesTab ? (fd.get('text') || '').trim() : (fd.get('reminder_text') || '').trim();
+  let dueAtIso = null;
+
+  if (!isNotesTab) {
+    const rawDue = fd.get('due_at');
+    if (rawDue) {
+      const [dateP, timeP] = rawDue.split('T');
+      const [y, mo, d] = dateP.split('-');
+      const [h, mi] = timeP.split(':');
+      dueAtIso = new Date(+y, +mo - 1, +d, +h, +mi).toISOString();
+    }
+  }
+
+  const payload = { text };
+  if (dueAtIso) payload.due_at = dueAtIso;
+
   try {
     const result = await api('/notes', {
       method: 'POST',
-      body: JSON.stringify({ text: data.text.trim(), due_at: dueAtIso })
+      body: JSON.stringify(payload)
     });
     if (!result) throw new Error('Empty response');
     state.notes.unshift({
       id: result.note.id,
       text: result.note.text,
-      dueAt: result.note.due_at,
+      dueAt: result.note.due_at || null,
       userId: state.user?.id || 'system',
       userName: result.note.user_name || state.user?.name || uiText('Usuario', 'User'),
       createdAt: result.note.created_at
@@ -3733,7 +3972,7 @@ noteForm.addEventListener('submit', async (event) => {
   } catch {
     state.notes.unshift({
       id: globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : String(Date.now()),
-      text: data.text.trim(),
+      text,
       dueAt: dueAtIso,
       userId: state.user?.id || 'system',
       userName: state.user?.name || uiText('Usuario', 'User'),
@@ -3742,7 +3981,10 @@ noteForm.addEventListener('submit', async (event) => {
   }
   if (submitBtn) submitBtn.disabled = false;
   noteForm.reset();
-  noteForm.elements.due_at.value = defaultReminderDate();
+  if (!isNotesTab) {
+    const dueInput = noteForm.elements.due_at;
+    if (dueInput) dueInput.value = defaultReminderDate();
+  }
   renderNotifications();
 });
 

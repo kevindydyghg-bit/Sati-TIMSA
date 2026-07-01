@@ -112,29 +112,52 @@
                 <span class="notification-dot hidden" id="notificationCount">0</span>
               </button>
               <button class="top-icon" id="changePasswordButton" type="button" aria-label="Cambiar contrasena"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9a2.7 2.7 0 0 1 5 1.4c0 2-2.5 2-2.5 4"></path><path d="M12 18h.01"></path></svg></button>
+              <!-- UI_FIX: Centro de Ayuda button with support dropdown -->
+              <div class="help-center-wrapper">
+                <button class="top-icon" id="helpCenterButton" type="button" aria-label="Centro de Ayuda"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path></svg></button>
+                <div class="help-dropdown hidden" id="helpDropdown">
+                  <button id="contactSupportButton" type="button">
+                    <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                    Contactar Soporte
+                  </button>
+                </div>
+              </div>
               <div class="avatar">AD</div>
               <div class="user-pill" id="userPill"></div>
               <button class="top-icon" id="logoutButton" type="button" aria-label="Cerrar sesion"><svg viewBox="0 0 24 24"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"></path><path d="M10 8l-4 4 4 4"></path><path d="M6 12h11"></path><path d="M14 4v16"></path></svg></button>
             </div>
           </div>
+          <!-- UI_FIX: Notification panel with Notes / Reminders tabs -->
           <aside class="notification-panel hidden" id="notificationPanel" aria-label="Notas y recordatorios">
             <header>
               <div>
                 <span class="eyebrow">Notificaciones</span>
                 <h3>Notas y recordatorios</h3>
               </div>
-              <button class="icon-button" id="closeNotificationsButton" type="button" aria-label="Cerrar">x</button>
+              <button class="icon-button" id="closeNotificationsButton" type="button" aria-label="Cerrar">&times;</button>
             </header>
+            <div class="notification-tabs" role="tablist">
+              <button class="notification-tab active" role="tab" aria-selected="true" data-tab="notes">Notas</button>
+              <button class="notification-tab" role="tab" aria-selected="false" data-tab="reminders">Recordatorios</button>
+            </div>
             <form class="note-form" id="noteForm">
-              <label>
-                Recordatorio
-                <textarea name="text" rows="3" maxlength="260" required placeholder="Escribe una nota para seguimiento..."></textarea>
-              </label>
-              <label>
-                Fecha y hora
-                <input name="due_at" type="datetime-local" required>
-              </label>
-              <button type="submit">Guardar nota</button>
+              <div class="tab-panel" data-tab="notes">
+                <label>
+                  Nota rapida
+                  <textarea name="text" rows="3" maxlength="260" placeholder="Escribe una nota rapida..."></textarea>
+                </label>
+              </div>
+              <div class="tab-panel hidden" data-tab="reminders">
+                <label>
+                  Recordatorio
+                  <textarea name="reminder_text" rows="3" maxlength="260" required placeholder="Escribe un recordatorio..."></textarea>
+                </label>
+                <label>
+                  Fecha y hora
+                  <input name="due_at" type="datetime-local" required>
+                </label>
+              </div>
+              <button type="submit" id="noteSubmitBtn">Guardar nota</button>
             </form>
             <div class="notification-list" id="notificationList"></div>
           </aside>
@@ -567,19 +590,31 @@
         </footer>
         <p class="form-message" id="equipmentMessage"></p>
         <section class="equipment-profile hidden" id="equipmentProfilePanel">
-          <article>
-            <span class="eyebrow">Ficha tecnica</span>
-            <div class="profile-grid" id="equipmentProfileBody"></div>
+          <article class="profile-section-hardware">
+            <span class="eyebrow">Hardware</span>
+            <div class="profile-grid" id="equipHardwareBody"></div>
+          </article>
+          <article class="profile-section-software hidden" id="equipSoftwareSection">
+            <span class="eyebrow">Software</span>
+            <div id="equipSoftwareBody"></div>
+          </article>
+          <article class="profile-section-network hidden" id="equipNetworkSection">
+            <span class="eyebrow">Red</span>
+            <div class="profile-grid" id="equipNetworkBody"></div>
+          </article>
+          <article class="profile-section-health hidden" id="equipHealthSection">
+            <span class="eyebrow">Estado del equipo</span>
+            <div class="health-status-grid" id="equipHealthBody"></div>
           </article>
           <article>
             <span class="eyebrow">Etiqueta del activo</span>
             <div class="label-preview" id="equipmentLabelPreview"></div>
           </article>
-          <article>
+          <article class="profile-section-history">
             <span class="eyebrow">Historial</span>
             <div class="profile-list" id="equipmentHistoryList"></div>
           </article>
-          <article>
+          <article class="profile-section-maintenance">
             <span class="eyebrow">Mantenimiento</span>
             <div class="profile-list" id="equipmentMaintenanceList"></div>
           </article>
