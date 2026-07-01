@@ -579,6 +579,10 @@ const translationPairs = [
   ['Su sugerencia', 'Your suggestion'],
   ['Sugerencia enviada. Gracias!', 'Suggestion sent. Thank you!'],
   ['Ayuda', 'Help'],
+  ['Ayuda para usar el sistema', 'Help using the system'],
+  ['Guia rapida de uso del sistema SATI-TIMSA', 'Quick guide for using SATI-TIMSA'],
+  ['Ver guia', 'View guide'],
+  ['Guia rapida', 'Quick guide'],
 ];
 
 document.body.appendChild(equipmentPreview);
@@ -3948,6 +3952,7 @@ document.querySelectorAll('.notification-tab').forEach((tab) => {
 // UI_FIX: Help & Suggestions dialog
 $('#helpSuggestionsButton').addEventListener('click', () => {
   $('#helpSuggestionFormContainer').classList.add('hidden');
+  $('#helpUsageGuideContainer').classList.add('hidden');
   $('#helpSuggestionForm').reset();
   $('#helpSuggestionMessage').textContent = '';
   translateStaticText();
@@ -3971,17 +3976,23 @@ $('#helpContactSupportBtn').addEventListener('click', () => {
   window.location.href = 'mailto:soporte@tudominio.com?subject=' + subject;
 });
 
-// Change password from inside Help & Suggestions
-$('#helpChangePasswordBtn').addEventListener('click', () => {
-  $('#helpSuggestionsDialog').close();
-  passwordForm.reset();
-  $('#passwordMessage').textContent = '';
-  passwordDialog.showModal();
+// UI_FIX: Usage guide toggle
+$('#helpUsageGuideBtn').addEventListener('click', () => {
+  const container = $('#helpUsageGuideContainer');
+  const sugContainer = $('#helpSuggestionFormContainer');
+  container.classList.toggle('hidden');
+  if (!container.classList.contains('hidden')) {
+    sugContainer.classList.add('hidden');
+    $('#helpSuggestionForm').reset();
+    $('#helpSuggestionMessage').textContent = '';
+    translateStaticText();
+  }
 });
 
 // Toggle suggestion form
 $('#helpSuggestionBtn').addEventListener('click', () => {
   const container = $('#helpSuggestionFormContainer');
+  $('#helpUsageGuideContainer').classList.add('hidden');
   container.classList.toggle('hidden');
   if (!container.classList.contains('hidden')) {
     $('#helpSuggestionForm').elements.suggestion.focus();

@@ -1088,6 +1088,61 @@ nav a:hover .nav-icon {
   padding: 0 1.2rem 1.2rem;
 }
 
+.help-usage-guide {
+  padding: 0.5rem 0;
+}
+
+.help-usage-guide h4 {
+  margin: 0 0 0.75rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--navy-800);
+}
+
+.help-usage-guide ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.help-usage-guide li {
+  font-size: 0.82rem;
+  color: var(--navy-700);
+  line-height: 1.5;
+  padding-left: 1.2rem;
+  position: relative;
+}
+
+.help-usage-guide li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.45em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--blue-500);
+}
+
+.help-usage-guide li strong {
+  color: var(--navy-800);
+}
+
+body[data-theme="dark"] .help-usage-guide h4 {
+  color: var(--gray-900);
+}
+
+body[data-theme="dark"] .help-usage-guide li {
+  color: var(--gray-500);
+}
+
+body[data-theme="dark"] .help-usage-guide li strong {
+  color: var(--gray-900);
+}
+
 #helpSuggestionForm {
   display: flex;
   flex-direction: column;
