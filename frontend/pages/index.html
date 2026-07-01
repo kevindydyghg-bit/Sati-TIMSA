@@ -112,6 +112,8 @@
                 <span class="notification-dot hidden" id="notificationCount">0</span>
               </button>
               <button class="top-icon" id="changePasswordButton" type="button" aria-label="Cambiar contrasena"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M9.5 9a2.7 2.7 0 0 1 5 1.4c0 2-2.5 2-2.5 4"></path><path d="M12 18h.01"></path></svg></button>
+              <!-- UI_FIX: Barcode scanner button -->
+              <button class="top-icon" id="barcodeScannerButton" type="button" aria-label="Escanear codigo de barras"><svg viewBox="0 0 24 24"><path d="M2 9V5a2 2 0 0 1 2-2h3"></path><path d="M2 15v4a2 2 0 0 0 2 2h3"></path><path d="M22 9V5a2 2 0 0 0-2-2h-3"></path><path d="M22 15v4a2 2 0 0 1-2 2h-3"></path><path d="M7 12h.01"></path><path d="M12 12h.01"></path><path d="M17 12h.01"></path></svg></button>
               <!-- UI_FIX: Centro de Ayuda button with support dropdown -->
               <div class="help-center-wrapper">
                 <button class="top-icon" id="helpCenterButton" type="button" aria-label="Centro de Ayuda"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path></svg></button>
@@ -897,9 +899,37 @@
       </form>
     </dialog>
 
+    <!-- UI_FIX: Barcode scanner dialog -->
+    <dialog class="modal" id="barcodeScannerDialog">
+      <div class="scanner-container">
+        <div class="scanner-header">
+          <h2>Escanear codigo de barras</h2>
+          <button class="top-icon" id="barcodeScannerClose" type="button" aria-label="Cerrar escaner">&times;</button>
+        </div>
+        <div class="scanner-view">
+          <div id="barcodeScannerReader"></div>
+          <div class="scanner-overlay">
+            <div class="scanner-frame"></div>
+          </div>
+          <p class="scanner-hint" id="scannerHint">Alinee el codigo de barras dentro del marco</p>
+        </div>
+        <div class="scanner-footer">
+          <label class="scanner-input-label">
+            <span>O ingrese manualmente:</span>
+            <div class="scanner-input-row">
+              <input type="text" id="scannerManualInput" placeholder="Codigo de barras" maxlength="140" autocomplete="off">
+              <button class="ghost" id="scannerManualSearch" type="button">Buscar</button>
+            </div>
+          </label>
+          <p class="scanner-result" id="scannerResult"></p>
+        </div>
+      </div>
+    </dialog>
+
     <script src="../assets/js/config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="../assets/js/app.min.js?v=19"></script>
     <script>
       if ('serviceWorker' in navigator) {

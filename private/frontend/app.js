@@ -555,6 +555,19 @@ const translationPairs = [
   ['Nota', 'Note'],
   ['Recordatorio', 'Reminder'],
   ['Sistema operativo', 'Operating system'],
+  ['Escanear codigo de barras', 'Scan barcode'],
+  ['Alinee el codigo de barras dentro del marco', 'Align the barcode inside the frame'],
+  ['Escaneado exitosamente', 'Scanned successfully'],
+  ['Error al iniciar la camara: ', 'Camera error: '],
+  ['Buscando equipo...', 'Searching equipment...'],
+  ['Equipo encontrado', 'Equipment found'],
+  ['Abriendo equipo...', 'Opening equipment...'],
+  ['No se encontro equipo con ese codigo', 'No equipment found with that code'],
+  ['Intente de nuevo o ingrese manualmente', 'Try again or enter manually'],
+  ['O ingrese manualmente:', 'Or enter manually:'],
+  ['Buscar', 'Search'],
+  ['Cerrar escaner', 'Close scanner'],
+  ['Codigo de barras', 'Barcode'],
 ];
 
 document.body.appendChild(equipmentPreview);
@@ -4229,6 +4242,139 @@ document.querySelectorAll('nav a[data-view]').forEach((link) => {
     setView(link.dataset.view);
   });
 });
+
+/* UI_FIX: Barcode scanner module */
+let barcodeScannerInstance = null;
+let scannerResolve = null;
+
+async function startBarcodeScanner() {
+  const dialog = $('#barcodeScannerDialog');
+  const reader = $('#barcodeScannerReader');
+  const hint = $('#scannerHint');
+  const result = $('#scannerResult');
+  const manualInput = $('#scannerManualInput');
+
+  result.textContent = '';
+  result.className = 'scanner-result';
+  manualInput.value = '';
+  reader.innerHTML = '';
+
+  dialog.showModal();
+
+  try {
+    barcodeScannerInstance = new Html5Qrcode('barcodeScannerReader');
+
+    await barcodeScannerInstance.start(
+      { facingMode: 'environment' },
+      {
+        fps: 10,
+        qrbox: { width: 280, height: 140 },
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.CODABAR,
+          Html5QrcodeSupportedFormats.ITF,
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.DATA_MATRIX,
+          Html5QrcodeSupportedFormats.PDF_417
+        ]
+      },
+      async (decodedText) => {
+        await stopBarcodeScanner();
+        hint.textContent = uiText('Escaneado exitosamente', 'Scanned successfully');
+        await searchByBarcode(decodedText);
+      },
+      () => {}
+    );
+
+    hint.textContent = uiText('Alinee el codigo de barras dentro del marco', 'Align the barcode inside the frame');
+  } catch (err) {
+    result.textContent = uiText('Error al iniciar la camara: ', 'Camera error: ') + err.message;
+    result.className = 'scanner-result error';
+  }
+}
+
+async function stopBarcodeScanner() {
+  if (barcodeScannerInstance) {
+    try {
+      await barcodeScannerInstance.stop();
+      barcodeScannerInstance.clear();
+    } catch {}
+    barcodeScannerInstance = null;
+  }
+  $('#barcodeScannerReader').innerHTML = '';
+}
+
+async function searchByBarcode(code) {
+  const result = $('#scannerResult');
+  const hint = $('#scannerHint');
+
+  result.textContent = uiText('Buscando equipo...', 'Searching equipment...');
+  result.className = 'scanner-result';
+
+  try {
+    const payload = await api(`/equipment?search=${encodeURIComponent(code.trim())}&limit=50`);
+
+    // Try exact match first, then fallback to any result
+    const exact = payload.items.find(
+      (item) => item.serial_number === code.trim() || item.asset_tag === code.trim()
+    );
+    const item = exact || payload.items[0];
+
+    if (item) {
+      result.textContent = uiText('Equipo encontrado', 'Equipment found');
+      result.className = 'scanner-result success';
+      hint.textContent = uiText('Abriendo equipo...', 'Opening equipment...');
+      setTimeout(() => {
+        $('#barcodeScannerDialog').close();
+        openEquipment(item);
+      }, 400);
+    } else {
+      result.textContent = uiText('No se encontro equipo con ese codigo', 'No equipment found with that code');
+      result.className = 'scanner-result error';
+      hint.textContent = uiText('Intente de nuevo o ingrese manualmente', 'Try again or enter manually');
+    }
+  } catch (err) {
+    result.textContent = err.message;
+    result.className = 'scanner-result error';
+  }
+}
+
+$('#barcodeScannerButton').addEventListener('click', startBarcodeScanner);
+
+$('#barcodeScannerClose').addEventListener('click', async () => {
+  await stopBarcodeScanner();
+  $('#barcodeScannerDialog').close();
+});
+
+$('#barcodeScannerDialog').addEventListener('close', async () => {
+  await stopBarcodeScanner();
+});
+
+$('#scannerManualSearch').addEventListener('click', async () => {
+  const input = $('#scannerManualInput');
+  const code = input.value.trim();
+  if (!code) return;
+  await searchByBarcode(code);
+});
+
+$('#scannerManualInput').addEventListener('keydown', async (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    $('#scannerManualSearch').click();
+  }
+});
+
+$('#barcodeScannerDialog').addEventListener('click', (event) => {
+  if (event.target === $('#barcodeScannerDialog')) {
+    $('#barcodeScannerClose').click();
+  }
+});
+/* UI_FIX: End barcode scanner module */
 
 $('#searchInput').addEventListener('input', () => {
   state.hardwareGroup = null;
