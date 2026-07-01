@@ -90,19 +90,21 @@ async function runMigrations() {
           RETURN NEW;
         END IF;
         IF NOT (
-          (OLD.status = 'almacen'   AND NEW.status IN ('asignado', 'reparacion', 'donado', 'baja')) OR
-          (OLD.status = 'asignado'  AND NEW.status IN ('almacen', 'reparacion', 'baja', 'activo')) OR
-          (OLD.status = 'reparacion' AND NEW.status IN ('almacen', 'asignado', 'baja'))
+          (OLD.status IN ('almacen','activo') AND NEW.status IN ('asignado','reparacion','donado','baja','activo','mantenimiento','resguardo')) OR
+          (OLD.status IN ('asignado','activo') AND NEW.status IN ('almacen','reparacion','baja','activo','mantenimiento','resguardo')) OR
+          (OLD.status IN ('reparacion','mantenimiento') AND NEW.status IN ('almacen','asignado','baja','activo','mantenimiento','resguardo')) OR
+          (OLD.status IN ('resguardo') AND NEW.status IN ('asignado','reparacion','baja','activo','mantenimiento','resguardo'))
         ) THEN
           RAISE EXCEPTION 'Transicion de estado invalida: de % a %', OLD.status, NEW.status
             USING HINT = format('Transiciones permitidas desde %s: %s',
               OLD.status,
-              CASE OLD.status
-                WHEN 'almacen' THEN 'asignado, reparacion, donado, baja'
-                WHEN 'asignado' THEN 'almacen, reparacion, baja, activo'
-                WHEN 'reparacion' THEN 'almacen, asignado, baja'
-                WHEN 'donado' THEN 'ninguna (terminal)'
-                WHEN 'baja' THEN 'ninguna (terminal)'
+              CASE
+                WHEN OLD.status IN ('almacen') THEN 'asignado, reparacion, donado, baja, activo, mantenimiento, resguardo'
+                WHEN OLD.status IN ('asignado','activo') THEN 'almacen, reparacion, baja, activo, mantenimiento, resguardo'
+                WHEN OLD.status IN ('reparacion','mantenimiento') THEN 'almacen, asignado, baja, activo, mantenimiento, resguardo'
+                WHEN OLD.status IN ('resguardo') THEN 'asignado, reparacion, baja, activo, mantenimiento, resguardo'
+                WHEN OLD.status = 'donado' THEN 'ninguna (terminal)'
+                WHEN OLD.status = 'baja' THEN 'ninguna (terminal)'
                 ELSE 'consulte la documentacion'
               END
             );
