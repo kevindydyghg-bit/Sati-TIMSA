@@ -41,7 +41,7 @@
             </span>
           </label>
           <div class="login-options">
-            <label class="check-line"><input type="checkbox" name="remember_username"> Recordarme</label>
+            <label class="check-line"><input type="checkbox" name="remember_username"><span>Recordarme</span></label>
             <a href="#forgot" id="forgotPasswordLink">Olvido su contrasena?</a>
           </div>
           <button type="button" id="loginButton">Entrar</button>
@@ -547,6 +547,14 @@
           <label class="asset-only-field">Fecha de compra<input name="purchase_date" type="date" min="1990-01-01" max="2100-12-31"></label>
           <label class="asset-only-field">Garantia hasta<input name="warranty_until" type="date" min="1990-01-01" max="2100-12-31"></label>
 
+          <span class="asset-only-field specs-divider"><strong>Especificaciones tecnicas</strong></span>
+          <label class="asset-only-field">Procesador<input name="processor" maxlength="140" placeholder="Ej. Intel Core i5-12400"></label>
+          <label class="asset-only-field">Memoria RAM<input name="ram" maxlength="80" placeholder="Ej. 16 GB DDR4"></label>
+          <label class="asset-only-field">Almacenamiento<input name="storage" maxlength="80" placeholder="Ej. 512 GB SSD"></label>
+          <label class="asset-only-field">Sistema operativo<input name="operating_system" maxlength="80" placeholder="Ej. Windows 11 Pro"></label>
+          <label class="asset-only-field">Direccion IP<input name="ip_address" maxlength="45" placeholder="Ej. 192.168.1.100"></label>
+          <label class="asset-only-field">Direccion MAC<input name="mac_address" maxlength="17" placeholder="Ej. AA:BB:CC:DD:EE:FF"></label>
+
           <label class="wide">Notas<textarea name="notes" rows="3" maxlength="2000"></textarea></label>
         </div>
 
@@ -857,7 +865,7 @@
     <script src="../assets/js/config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-    <script src="../assets/js/app.min.js?v=18"></script>
+    <script src="../assets/js/app.min.js?v=19"></script>
     <script>
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('../service-worker.js?v=2').then((reg) => {

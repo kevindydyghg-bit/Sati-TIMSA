@@ -246,6 +246,8 @@ const translationPairs = [
   ['Por ubicacion', 'By location'],
   ['Ordenes por fase', 'Orders by phase'],
   ['Almacenamiento', 'Storage'],
+  ['Procesador', 'Processor'],
+  ['Sistema operativo', 'Operating system'],
   ['Unidades disponibles', 'Available units'],
   ['Registros en stock', 'Stock records'],
 
@@ -2681,12 +2683,26 @@ function renderEquipmentProfile(profile) {
     .filter((entry) => entry.comment);
 
   $('#equipmentProfilePanel').classList.remove('hidden');
+  const specFields = [
+    { label: uiText('Procesador', 'Processor'), value: item.processor },
+    { label: uiText('RAM', 'RAM'), value: item.ram },
+    { label: uiText('Almacenamiento', 'Storage'), value: item.storage },
+    { label: uiText('Sistema operativo', 'Operating system'), value: item.operating_system },
+    { label: 'IP', value: item.ip_address },
+    { label: 'MAC', value: item.mac_address }
+  ];
+  const specHtml = specFields
+    .filter((f) => f.value)
+    .map((f) => `<div><span>${f.label}</span><strong>${f.value}</strong></div>`)
+    .join('');
+
   $('#equipmentProfileBody').innerHTML = esc`
     <div><span>Cantidad</span><strong>${raw(Number(item.quantity ?? 1))}</strong></div>
     <div><span>Proveedor</span><strong>${item.supplier || 'Sin proveedor'}</strong></div>
     <div><span>Compra</span><strong>${item.purchase_date ? raw(String(item.purchase_date).slice(0, 10)) : 'Sin fecha'}</strong></div>
     <div><span>Garantia</span><strong>${item.warranty_until ? raw(String(item.warranty_until).slice(0, 10)) : 'Sin garantia'}</strong></div>
     <div><span>Actualizado por</span><strong>${item.updated_by_name || uiText('Sistema', 'System')}</strong></div>
+    ${raw(specHtml)}
   `;
   renderAssetLabel(item);
   $('#equipmentHistoryList').innerHTML = commentHistory.map((entry) => `
@@ -2833,6 +2849,12 @@ function openEquipment(item = null) {
     equipmentForm.elements.supplier.value = item.supplier || '';
     equipmentForm.elements.purchase_date.value = item.purchase_date ? String(item.purchase_date).slice(0, 10) : '';
     equipmentForm.elements.warranty_until.value = item.warranty_until ? String(item.warranty_until).slice(0, 10) : '';
+    if (equipmentForm.elements.processor) equipmentForm.elements.processor.value = item.processor || '';
+    if (equipmentForm.elements.ram) equipmentForm.elements.ram.value = item.ram || '';
+    if (equipmentForm.elements.storage) equipmentForm.elements.storage.value = item.storage || '';
+    if (equipmentForm.elements.operating_system) equipmentForm.elements.operating_system.value = item.operating_system || '';
+    if (equipmentForm.elements.ip_address) equipmentForm.elements.ip_address.value = item.ip_address || '';
+    if (equipmentForm.elements.mac_address) equipmentForm.elements.mac_address.value = item.mac_address || '';
     equipmentForm.elements.notes.value = item.notes || '';
     loadEquipmentProfile(item.id).catch((error) => {
       $('#equipmentMessage').textContent = error.message;
@@ -3067,6 +3089,12 @@ function formPayload() {
     data.status = 'activo';
     data.purchase_date = '';
     data.warranty_until = '';
+    data.processor = '';
+    data.ram = '';
+    data.storage = '';
+    data.operating_system = '';
+    data.ip_address = '';
+    data.mac_address = '';
     if (!data.serial_number || data.serial_number.trim().length < 2) {
       const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
       data.serial_number = `ACC-${rand}`;

@@ -1298,6 +1298,7 @@ nav a:hover .nav-icon {
 }
 
 .status-legend i {
+  display: inline-block;
   width: 10px;
   height: 10px;
   border-radius: 999px;
@@ -2445,6 +2446,19 @@ td small {
   color: var(--gray-700);
   font-size: 0.84rem;
   font-weight: 700;
+}
+
+.form-grid .specs-divider {
+  grid-column: 1 / -1;
+  display: block;
+  margin: 0;
+  padding: 0.65rem 0 0.25rem;
+  border-bottom: 1px solid var(--gray-200);
+  color: var(--gray-500);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .field-with-action {
