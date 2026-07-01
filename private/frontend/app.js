@@ -1440,9 +1440,9 @@ function renderDashboardInsights() {
   renderMetrics(totals);
   const total = Number(totals.total || 0);
   const statusItems = [
-    { label: 'Activos', value: Number(totals.active || 0), className: 'active' },
-    { label: 'Mantenimiento', value: Number(totals.maintenance || 0), className: 'maintenance' },
-    { label: 'Resguardo o baja', value: Number(totals.inactive || 0), className: 'inactive' }
+    { label: 'Operativos', value: Number(totals.active || 0), className: 'active' },
+    { label: 'En mantenimiento', value: Number(totals.maintenance || 0), className: 'maintenance' },
+    { label: 'Fuera de operacion', value: Number(totals.inactive || 0), className: 'inactive' }
   ];
   let start = 0;
   const darkTheme = document.body?.dataset?.theme === 'dark';
@@ -1469,9 +1469,9 @@ function renderDashboardInsights() {
 
   const warranty = dashboard.warranty || {};
   $('#warrantyInsights').innerHTML = esc`
-    <div><strong>${warranty.expired || 0}</strong><span>Vencidas</span></div>
-    <div><strong>${warranty.next_30 || 0}</strong><span>Proximos 30 dias</span></div>
-    <div><strong>${warranty.next_90 || 0}</strong><span>Proximos 90 dias</span></div>
+    <div><strong>${warranty.expired || 0}</strong><span>Garantia vencida</span></div>
+    <div><strong>${warranty.next_30 || 0}</strong><span>Vence en 30 dias</span></div>
+    <div><strong>${warranty.next_90 || 0}</strong><span>Vence en 90 dias</span></div>
   `;
 
   const maxType = Math.max(1, ...(dashboard.by_type || []).map((item) => Number(item.total)));
@@ -1481,7 +1481,7 @@ function renderDashboardInsights() {
       <strong>${item.total}</strong>
       <i data-width="${Math.max(6, Math.round((Number(item.total) / maxType) * 100))}"></i>
     </div>
-  `).join('') || '<p class="empty-module">Sin datos por tipo.</p>';
+  `).join('') || '<p class="empty-module">Sin informacion disponible.</p>';
 
   const maxLocation = Math.max(1, ...(dashboard.by_location || []).map((item) => Number(item.total)));
   $('#locationInsights').innerHTML = (dashboard.by_location || []).map((item) => `
@@ -1490,7 +1490,7 @@ function renderDashboardInsights() {
       <strong>${item.total}</strong>
       <i data-width="${Math.max(6, Math.round((Number(item.total) / maxLocation) * 100))}"></i>
     </div>
-  `).join('') || '<p class="empty-module">Sin datos por ubicacion.</p>';
+  `).join('') || '<p class="empty-module">Sin informacion disponible.</p>';
 
   const maxMaintenance = Math.max(1, ...(dashboard.maintenance || []).map((item) => Number(item.total)));
   $('#maintenanceInsights').innerHTML = (dashboard.maintenance || []).map((item) => `
@@ -1499,12 +1499,12 @@ function renderDashboardInsights() {
       <strong>${item.total}</strong>
       <i data-width="${Math.max(6, Math.round((Number(item.total) / maxMaintenance) * 100))}"></i>
     </div>
-  `).join('') || '<p class="empty-module">Sin ordenes de mantenimiento.</p>';
+  `).join('') || '<p class="empty-module">Sin ordenes activas.</p>';
 
   const stock = dashboard.stock || {};
   $('#stockInsights').innerHTML = esc`
-    <div><strong>${stock.total_quantity || 0}</strong><span>Unidades disponibles</span></div>
-    <div><strong>${stock.total_items || 0}</strong><span>Registros en stock</span></div>
+    <div><strong>${stock.total_quantity || 0}</strong><span>Disponibles</span></div>
+    <div><strong>${stock.total_items || 0}</strong><span>En almacen</span></div>
   `;
 
   document.querySelectorAll('#dashboardInsights i[data-width]').forEach((bar) => {
@@ -2858,27 +2858,27 @@ function renderHealthStatus(item, maintenance, warrantyUntil) {
   const lifecycleStatus = item.status || 'desconocido';
 
   const statusConfig = {
-    almacen: { label: uiText('Almacen', 'Storage'), cls: 'health--inactive' },
-    asignado: { label: uiText('Asignado', 'Assigned'), cls: 'health--ok' },
-    reparacion: { label: uiText('Reparacion', 'Repair'), cls: 'health--warn' },
+    almacen: { label: uiText('En almacen', 'In storage'), cls: 'health--inactive' },
+    asignado: { label: uiText('Asignado a usuario', 'Assigned to user'), cls: 'health--ok' },
+    reparacion: { label: uiText('En reparacion', 'Under repair'), cls: 'health--warn' },
     baja: { label: uiText('Dado de baja', 'Retired'), cls: 'health--critical' },
-    donado: { label: uiText('Donado', 'Donated'), cls: 'health--critical' },
+    donado: { label: uiText('Donado / Transferido', 'Donated / Transferred'), cls: 'health--critical' },
     activo: { label: uiText('Activo', 'Active'), cls: 'health--ok' },
-    mantenimiento: { label: uiText('Mantenimiento', 'Maintenance'), cls: 'health--warn' },
-    resguardo: { label: uiText('Resguardo', 'Hold'), cls: 'health--inactive' }
+    mantenimiento: { label: uiText('En mantenimiento', 'Under maintenance'), cls: 'health--warn' },
+    resguardo: { label: uiText('En resguardo', 'On hold'), cls: 'health--inactive' }
   };
   const lc = statusConfig[lifecycleStatus] || { label: lifecycleStatus, cls: '' };
 
   const warrantyConfig = {
-    active: { label: uiText('Vigente', 'Active'), cls: 'health--ok' },
-    expiring: { label: uiText('Por vencer', 'Expiring soon'), cls: 'health--warn' },
-    expired: { label: uiText('Vencida', 'Expired'), cls: 'health--critical' }
+    active: { label: uiText('Garantia vigente', 'Warranty active'), cls: 'health--ok' },
+    expiring: { label: uiText('Proximo a vencer', 'Expiring soon'), cls: 'health--warn' },
+    expired: { label: uiText('Garantia vencida', 'Warranty expired'), cls: 'health--critical' }
   };
   const wc = warrantyConfig[warrantyStatus];
 
   const maintenanceLabel = hasActiveMaintenance
-    ? { label: uiText('En mantenimiento', 'In maintenance'), cls: 'health--warn' }
-    : { label: uiText('Sin incidencias', 'No issues'), cls: 'health--ok' };
+    ? { label: uiText('Con orden de servicio', 'Service order active'), cls: 'health--warn' }
+    : { label: uiText('Sin novedades', 'No issues'), cls: 'health--ok' };
 
   return esc`
     <div class="health-card">

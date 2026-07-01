@@ -183,7 +183,7 @@
               <div>
                 <span>Activos</span>
                 <strong id="metricActive">0</strong>
-                <small>En operacion</small>
+                <small>En servicio</small>
                 <em id="metricActivePct">0%</em>
               </div>
             </article>
@@ -192,7 +192,7 @@
               <div>
                 <span>Mantenimiento</span>
                 <strong id="metricMaintenance">0</strong>
-                <small>Requieren atencion</small>
+                <small>En proceso de reparacion</small>
                 <em id="metricMaintenancePct">0%</em>
               </div>
             </article>
@@ -201,7 +201,7 @@
               <div>
                 <span>Inactivos</span>
                 <strong id="metricInactive">0</strong>
-                <small>Resguardo o baja</small>
+                <small>Fuera de operacion</small>
                 <em id="metricInactivePct">0%</em>
               </div>
             </article>
@@ -211,17 +211,17 @@
             <article>
               <span>Total Equipos</span>
               <strong id="kpiTotalEquipos">0</strong>
-              <small>Activos registrados</small>
+              <small>Registrados en el sistema</small>
             </article>
             <article>
               <span>En Mantenimiento</span>
               <strong id="kpiMantenimiento">0</strong>
-              <small>Fases revisado o en proceso</small>
+              <small>Ordenes activas</small>
             </article>
             <article class="kpi-alert">
               <span>Alertas de Stock</span>
               <strong id="kpiAlertasStock">0</strong>
-              <small>Items con cantidad menor a 5</small>
+              <small>Por debajo del minimo</small>
             </article>
           </section>
 
@@ -253,10 +253,10 @@
             <article class="status-visual-card">
               <header>
                 <span class="eyebrow">Estado</span>
-                <strong>Salud del inventario</strong>
+                <strong>Estatus operativo</strong>
               </header>
               <div class="status-visual">
-                <div class="status-donut" id="statusDonut"><strong id="statusDonutTotal">0</strong><span>activos</span></div>
+                <div class="status-donut" id="statusDonut"><strong id="statusDonutTotal">0</strong><span>equipos</span></div>
                 <div class="status-legend" id="statusLegend"></div>
               </div>
             </article>

@@ -96,7 +96,13 @@ const equipmentSchema = z.object({
   notes: z.string().trim().max(2000).optional().nullable(),
   supplier: z.string().trim().max(140).optional().nullable(),
   purchase_date: optionalDateSchema,
-  warranty_until: optionalDateSchema
+  warranty_until: optionalDateSchema,
+  processor: z.string().trim().max(140).optional().nullable(),
+  ram: z.string().trim().max(80).optional().nullable(),
+  storage: z.string().trim().max(80).optional().nullable(),
+  operating_system: z.string().trim().max(80).optional().nullable(),
+  ip_address: z.string().trim().max(45).optional().nullable(),
+  mac_address: z.string().trim().max(17).optional().nullable()
 });
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -166,6 +172,7 @@ function selectEquipmentSql(where = '') {
   return `
     SELECT e.id, e.serial_number, e.asset_tag, e.assigned_user, e.quantity, e.status, e.notes,
            e.supplier, e.purchase_date, e.warranty_until,
+           e.processor, e.ram, e.storage, e.operating_system, e.ip_address, e.mac_address,
            e.created_at, e.updated_at, e.deleted_at,
            et.name AS equipment_type, b.name AS brand, em.name AS model,
            l.name AS location, a.name AS area,
@@ -866,8 +873,8 @@ router.post('/', authenticate, requireWriteAccess, async (req, res, next) => {
 
       const { rows } = await client.query(
         `INSERT INTO equipment
-         (equipment_type_id, brand_id, model_id, location_id, area_id, serial_number, asset_tag, assigned_user, quantity, status, notes, supplier, purchase_date, warranty_until, created_by, updated_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$15)
+         (equipment_type_id, brand_id, model_id, location_id, area_id, serial_number, asset_tag, assigned_user, quantity, status, notes, supplier, purchase_date, warranty_until, processor, ram, storage, operating_system, ip_address, mac_address, created_by, updated_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$21)
          RETURNING *`,
         [
           data.equipment_type_id,
@@ -884,6 +891,12 @@ router.post('/', authenticate, requireWriteAccess, async (req, res, next) => {
           data.supplier || null,
           nullableDate(data.purchase_date),
           nullableDate(data.warranty_until),
+          data.processor || null,
+          data.ram || null,
+          data.storage || null,
+          data.operating_system || null,
+          data.ip_address || null,
+          data.mac_address || null,
           req.user.id
         ]
       );
@@ -927,8 +940,10 @@ router.put('/:id', authenticate, requireWriteAccess, requireValidUuid, async (re
         `UPDATE equipment
          SET equipment_type_id=$1, brand_id=$2, model_id=$3, location_id=$4, area_id=$5,
              serial_number=$6, asset_tag=$7, assigned_user=$8, quantity=$9, status=$10, notes=$11,
-             supplier=$12, purchase_date=$13, warranty_until=$14, updated_by=$15
-         WHERE id=$16 AND deleted_at IS NULL
+             supplier=$12, purchase_date=$13, warranty_until=$14,
+             processor=$15, ram=$16, storage=$17, operating_system=$18, ip_address=$19, mac_address=$20,
+             updated_by=$21
+         WHERE id=$22 AND deleted_at IS NULL
          RETURNING *`,
         [
           data.equipment_type_id,
@@ -945,6 +960,12 @@ router.put('/:id', authenticate, requireWriteAccess, requireValidUuid, async (re
           data.supplier || null,
           nullableDate(data.purchase_date),
           nullableDate(data.warranty_until),
+          data.processor || null,
+          data.ram || null,
+          data.storage || null,
+          data.operating_system || null,
+          data.ip_address || null,
+          data.mac_address || null,
           req.user.id,
           req.params.id
         ]

@@ -83,6 +83,13 @@ async function runMigrations() {
       ON notes(due_at)
     `);
     await pool.query(`
+      ALTER TABLE equipment DROP CONSTRAINT IF EXISTS equipment_status_check
+    `).catch((_) => {});
+    await pool.query(`
+      ALTER TABLE equipment ADD CONSTRAINT equipment_status_check
+        CHECK (status IN ('activo','mantenimiento','baja','resguardo','almacen','asignado','reparacion','donado'))
+    `).catch((_) => {});
+    await pool.query(`
       CREATE OR REPLACE FUNCTION check_status_transition()
       RETURNS TRIGGER AS $$
       BEGIN
@@ -121,6 +128,12 @@ async function runMigrations() {
       $$ LANGUAGE plpgsql;
     `).catch((_) => {});
     const alterCmds = [
+      'ALTER TABLE equipment ADD COLUMN IF NOT EXISTS processor VARCHAR(140)',
+      'ALTER TABLE equipment ADD COLUMN IF NOT EXISTS ram VARCHAR(80)',
+      'ALTER TABLE equipment ADD COLUMN IF NOT EXISTS storage VARCHAR(80)',
+      'ALTER TABLE equipment ADD COLUMN IF NOT EXISTS operating_system VARCHAR(80)',
+      'ALTER TABLE equipment ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45)',
+      'ALTER TABLE equipment ADD COLUMN IF NOT EXISTS mac_address VARCHAR(17)',
       'ALTER TABLE equipment ALTER COLUMN equipment_type_id DROP NOT NULL',
       'ALTER TABLE equipment ALTER COLUMN brand_id DROP NOT NULL',
       'ALTER TABLE equipment ALTER COLUMN model_id DROP NOT NULL',
